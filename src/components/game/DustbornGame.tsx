@@ -8,7 +8,7 @@ import { GameHUD } from './GameHUD';
 import { Card } from '@/components/ui/card';
 import { XPOrb } from './XPOrb';
 import { ShopDialog } from './ShopDialog';
-import { Button } from '@/components/ui/button'; // Added for manual enemy defeat
+import { Button } from '@/components/ui/button';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
@@ -19,9 +19,10 @@ const PLAYER_SPEED = 5;
 const WAVE_DURATION = 120; // 2 minutes in seconds
 const ENEMY_SPAWN_INTERVAL_INITIAL = 3000; // milliseconds
 const MAX_ENEMIES_INITIAL = 5;
-const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 15) ** 2; // Player radius + orb radius + buffer
+const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 15) ** 2;
+const ENEMY_MOVE_INTERVAL = 50; // ms, for how often enemies update their path
 
-const ENEMY_COLORS = ['#FF6347', '#32CD32', '#1E90FF', '#FFD700', '#BA55D3', '#FF8C00']; // Tomato, LimeGreen, DodgerBlue, Gold, MediumOrchid, DarkOrange
+const ENEMY_COLORS = ['#FF6347', '#32CD32', '#1E90FF', '#FFD700', '#BA55D3', '#FF8C00'];
 
 interface Entity {
   id: string;
@@ -71,6 +72,7 @@ export function DustbornGame() {
   const activeKeys = useRef<Set<string>>(new Set());
   const enemySpawnTimerId = useRef<NodeJS.Timeout | null>(null);
   const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
+  const lastEnemyMoveTimestampRef = useRef(0);
 
   const resetGameState = useCallback(() => {
     setPlayer({
@@ -90,6 +92,7 @@ export function DustbornGame() {
     setPlayerXP(0);
     setPlayerWeapons([{ id: 'w1', name: 'Pea Shooter' }]);
     activeKeys.current.clear();
+    lastEnemyMoveTimestampRef.current = 0;
   }, []);
 
   useEffect(() => {
@@ -111,12 +114,13 @@ export function DustbornGame() {
     };
   }, [isGameOver]);
 
-  // Game Loop for player movement and XP collection
+  // Unified Game Loop
   useEffect(() => {
     if (isGameOver || isShopPhase) return;
 
     let animationFrameId: number;
-    const gameUpdate = () => {
+
+    const gameTick = (timestamp: number) => {
       // Player Movement
       let dx = 0;
       let dy = 0;
@@ -140,33 +144,75 @@ export function DustbornGame() {
         }));
       }
 
+      // Enemy Movement
+      if (timestamp - lastEnemyMoveTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
+        setEnemies(currentEnemies =>
+          currentEnemies.map(enemy => {
+            const enemySpeed = 0.5 + wave * 0.1; // Enemies get faster
+            let newX = enemy.x;
+            let newY = enemy.y;
+
+            const deltaPlayerX = player.x - enemy.x;
+            const deltaPlayerY = player.y - enemy.y;
+            const distToPlayer = Math.sqrt(deltaPlayerX * deltaPlayerX + deltaPlayerY * deltaPlayerY);
+
+            if (distToPlayer > enemy.size / 2) { // Only move if not already on top of player
+              newX += (deltaPlayerX / distToPlayer) * enemySpeed;
+              newY += (deltaPlayerY / distToPlayer) * enemySpeed;
+            }
+            
+            // Basic collision with player (placeholder for damage)
+            const playerCenterX = player.x + player.size / 2;
+            const playerCenterY = player.y + player.size / 2;
+            const enemyCenterX = newX + enemy.size / 2;
+            const enemyCenterY = newY + enemy.size / 2;
+            const collisionDistX = playerCenterX - enemyCenterX;
+            const collisionDistY = playerCenterY - enemyCenterY;
+            const collisionDistance = Math.sqrt(collisionDistX * collisionDistX + collisionDistY * collisionDistY);
+
+            if (collisionDistance < (player.size / 2 + enemy.size / 2)) {
+               // Placeholder for player damage
+               // Example: setPlayer(p => ({...p, health: Math.max(0, p.health - (1 + wave * 0.5)) }));
+            }
+            return { ...enemy, x: newX, y: newY };
+          })
+        );
+        lastEnemyMoveTimestampRef.current = timestamp;
+      }
+
       // XP Orb Collection
-      setXpOrbs((prevOrbs) =>
-        prevOrbs.filter((orb) => {
+      setXpOrbs((currentOrbs) => {
+        const collectedOrbValues: number[] = [];
+        const remainingOrbs = currentOrbs.filter((orb) => {
           const distX = (player.x + player.size / 2) - (orb.x + orb.size / 2);
           const distY = (player.y + player.size / 2) - (orb.y + orb.size / 2);
           const distanceSquared = distX * distX + distY * distY;
           if (distanceSquared < XP_COLLECTION_RADIUS_SQUARED) {
-            setPlayerXP((prevXP) => prevXP + orb.value);
-            setScore((prevScore) => prevScore + orb.value * 10); // XP gives score
-            return false; // Remove orb
+            collectedOrbValues.push(orb.value);
+            return false; 
           }
-          return true; // Keep orb
-        })
-      );
+          return true; 
+        });
+
+        if (collectedOrbValues.length > 0) {
+          const totalCollectedXP = collectedOrbValues.reduce((sum, val) => sum + val, 0);
+          setPlayerXP((prevXP) => prevXP + totalCollectedXP);
+          setScore((prevScore) => prevScore + totalCollectedXP * 10);
+        }
+        return remainingOrbs;
+      });
       
-      // Placeholder for enemy movement, collision, etc.
-      // For now, simple check for game over if player health <= 0
       if (player.health <= 0) {
         setIsGameOver(true);
+        return; // Stop game loop
       }
 
-
-      animationFrameId = requestAnimationFrame(gameUpdate);
+      animationFrameId = requestAnimationFrame(gameTick);
     };
-    animationFrameId = requestAnimationFrame(gameUpdate);
+
+    animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, player.x, player.y, player.health, player.size]); // Added player dependencies for XP collection
+  }, [isGameOver, isShopPhase, player, wave]); // player and wave are dependencies for logic within gameTick
 
   // Wave Timer Logic
   useEffect(() => {
@@ -179,8 +225,8 @@ export function DustbornGame() {
         if (prevTimer <= 1) {
           clearInterval(waveIntervalId.current!);
           setIsShopPhase(true);
-          setEnemies([]); // Clear enemies at end of wave
-          if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current); // Clear spawn timer
+          setEnemies([]); 
+          if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
           return 0;
         }
         return prevTimer - 1;
@@ -195,49 +241,39 @@ export function DustbornGame() {
   const spawnEnemy = useCallback(() => {
     if (isShopPhase || isGameOver || enemies.length >= MAX_ENEMIES_INITIAL + wave * 2) return;
 
-    const enemyHealth = 50 + wave * 25; // Enemies get stronger
+    const enemyHealth = 50 + wave * 25;
     const xpValue = 10 + wave * 5;
     const size = ENEMY_SIZE;
     let newX, newY;
     let attempts = 0;
     const maxAttempts = 10;
 
-    // Try to spawn away from player and screen edges
     do {
         const side = Math.floor(Math.random() * 4);
-        if (side === 0) { // Top
-            newX = Math.random() * (GAME_WIDTH - size);
-            newY = -size; // Spawn just off-screen top
-        } else if (side === 1) { // Bottom
-            newX = Math.random() * (GAME_WIDTH - size);
-            newY = GAME_HEIGHT; // Spawn just off-screen bottom
-        } else if (side === 2) { // Left
-            newX = -size; // Spawn just off-screen left
-            newY = Math.random() * (GAME_HEIGHT - size);
-        } else { // Right
-            newX = GAME_WIDTH; // Spawn just off-screen right
-            newY = Math.random() * (GAME_HEIGHT - size);
+        if (side === 0) { 
+            newX = Math.random() * (GAME_WIDTH - size); newY = -size;
+        } else if (side === 1) {
+            newX = Math.random() * (GAME_WIDTH - size); newY = GAME_HEIGHT;
+        } else if (side === 2) {
+            newX = -size; newY = Math.random() * (GAME_HEIGHT - size);
+        } else { 
+            newX = GAME_WIDTH; newY = Math.random() * (GAME_HEIGHT - size);
         }
         attempts++;
     } while (
-        (Math.abs(newX - player.x) < PLAYER_SIZE * 3 && Math.abs(newY - player.y) < PLAYER_SIZE * 3) && attempts < maxAttempts // Avoid spawning too close to player
+        (Math.abs(newX - player.x) < PLAYER_SIZE * 3 && Math.abs(newY - player.y) < PLAYER_SIZE * 3) && attempts < maxAttempts
     );
-
 
     setEnemies((prevEnemies) => [
       ...prevEnemies,
       {
-        id: `enemy_${Date.now()}_${Math.random()}`,
-        x: newX,
-        y: newY,
-        size,
-        health: enemyHealth,
-        maxHealth: enemyHealth,
+        id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY, size,
+        health: enemyHealth, maxHealth: enemyHealth,
         color: ENEMY_COLORS[Math.floor(Math.random() * ENEMY_COLORS.length)],
         xpValue: xpValue,
       },
     ]);
-  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver]);
+  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver]); // player.x, player.y for spawn positioning
 
   useEffect(() => {
     if (isShopPhase || isGameOver) {
@@ -247,11 +283,11 @@ export function DustbornGame() {
     
     const spawnLoop = () => {
       spawnEnemy();
-      const nextSpawnTime = Math.max(500, ENEMY_SPAWN_INTERVAL_INITIAL - wave * 100); // Enemies spawn faster
+      const nextSpawnTime = Math.max(500, ENEMY_SPAWN_INTERVAL_INITIAL - wave * 100);
       enemySpawnTimerId.current = setTimeout(spawnLoop, nextSpawnTime);
     };
     
-    spawnLoop(); // Start first spawn
+    spawnLoop();
     
     return () => {
       if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
@@ -259,7 +295,6 @@ export function DustbornGame() {
   }, [isShopPhase, isGameOver, spawnEnemy, wave]);
 
 
-  // Placeholder: Manually "defeat" an enemy for testing XP drops
   const handleDefeatEnemy = (enemyId: string) => {
     const enemy = enemies.find(e => e.id === enemyId);
     if (enemy) {
@@ -271,63 +306,14 @@ export function DustbornGame() {
         value: enemy.xpValue 
       }]);
       setEnemies(prev => prev.filter(e => e.id !== enemyId));
-      setScore(prevScore => prevScore + enemy.xpValue * 5); // Killing enemy gives score
+      setScore(prevScore => prevScore + enemy.xpValue * 5);
     }
   };
   
-  // Enemy movement towards player (simple)
-  useEffect(() => {
-    if (isShopPhase || isGameOver) return;
-
-    const moveEnemies = () => {
-      setEnemies(prevEnemies => 
-        prevEnemies.map(enemy => {
-          const enemySpeed = 0.5 + wave * 0.1; // Enemies get faster
-          let newX = enemy.x;
-          let newY = enemy.y;
-
-          const dx = player.x - enemy.x;
-          const dy = player.y - enemy.y;
-          const dist = Math.sqrt(dx * dx + dy * dy);
-
-          if (dist > enemy.size / 2) { // Only move if not already on top of player
-            newX += (dx / dist) * enemySpeed;
-            newY += (dy / dist) * enemySpeed;
-          }
-          
-          // Basic collision with player (placeholder for damage)
-          const playerCenterX = player.x + player.size / 2;
-          const playerCenterY = player.y + player.size / 2;
-          const enemyCenterX = newX + enemy.size / 2;
-          const enemyCenterY = newY + enemy.size / 2;
-          const collisionDistX = playerCenterX - enemyCenterX;
-          const collisionDistY = playerCenterY - enemyCenterY;
-          const collisionDistance = Math.sqrt(collisionDistX*collisionDistX + collisionDistY*collisionDistY);
-
-          if (collisionDistance < (player.size/2 + enemy.size/2)) {
-             // console.log("Player hit by enemy!");
-             // setPlayer(p => ({...p, health: Math.max(0, p.health - (1 + wave * 0.5)) })); // Player takes damage
-             // This health reduction should be less frequent, e.g. on a timer, or one-off per collision
-          }
-
-
-          return { ...enemy, x: newX, y: newY };
-        })
-      );
-    };
-
-    const intervalId = setInterval(moveEnemies, 50); // Adjust for smoother/faster movement
-
-    return () => clearInterval(intervalId);
-  }, [player.x, player.y, player.size, isShopPhase, isGameOver, wave]);
-
-
   const startNextWave = () => {
     setIsShopPhase(false);
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
-    // Player might heal a bit between waves, or full heal - TBD
-    // setPlayer(p => ({ ...p, health: Math.min(100, p.health + 25) })); 
   };
 
   if (isGameOver) {
@@ -356,7 +342,7 @@ export function DustbornGame() {
       <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerXP={playerXP} />
       <Card className="mt-4 shadow-2xl overflow-hidden border-2 border-primary">
         <div
-          className="relative bg-muted/30 overflow-hidden" // overflow-hidden to hide enemies spawning outside
+          className="relative bg-muted/30 overflow-hidden"
           style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
           role="application"
           aria-label="Dustborn game area"
@@ -364,14 +350,8 @@ export function DustbornGame() {
           <PlayerCharacter x={player.x} y={player.y} size={player.size} />
           {enemies.map((enemy) => (
             <EnemyCharacter 
-              key={enemy.id} 
-              x={enemy.x} 
-              y={enemy.y} 
-              size={enemy.size} 
-              color={enemy.color}
-              health={enemy.health}
-              maxHealth={enemy.maxHealth}
-              // onClick={() => handleDefeatEnemy(enemy.id)} // TEMP: Click to defeat for testing
+              key={enemy.id} x={enemy.x} y={enemy.y} size={enemy.size} 
+              color={enemy.color} health={enemy.health} maxHealth={enemy.maxHealth}
             />
           ))}
           {xpOrbs.map((orb) => (
@@ -382,7 +362,6 @@ export function DustbornGame() {
        <div className="mt-4 text-sm text-muted-foreground">
         Use Arrow Keys or WASD to move. Enemies get stronger each wave. Collect XP!
       </div>
-      {/* Temp button to test enemy defeat and XP drop */}
       {enemies.length > 0 && (
         <Button onClick={() => handleDefeatEnemy(enemies[0].id)} variant="outline" className="mt-2">
           Defeat First Enemy (Test)
@@ -391,5 +370,6 @@ export function DustbornGame() {
     </div>
   );
 }
+    
 
     
