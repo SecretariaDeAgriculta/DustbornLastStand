@@ -422,7 +422,7 @@ export function DustbornGame() {
         height: ENEMY_ARROCEIRO_SIZE,
         health: enemyHealth, maxHealth: enemyHealth,
         type: 'ArruaceiroSaloon',
-        color: 'blue', // Arruaceiro de Saloon is now a blue square
+        color: '#60a5fa', // Lighter blue: Tailwind's blue-400
         xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave, 
         attackCooldownTimer: Math.random() * ENEMY_ARROCEIRO_ATTACK_COOLDOWN, 
         speed: enemySpeed,
@@ -456,6 +456,7 @@ export function DustbornGame() {
     setEnemies([]); 
     setProjectiles([]); 
     setXpOrbs([]); 
+    setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH })); // Reset player health
     lastPlayerShotTimestampRef.current = 0; 
     lastLogicUpdateTimestampRef.current = 0; 
   };
