@@ -39,7 +39,6 @@ export function EnemyCharacter({ x, y, width, height, spriteUrl, health, maxHeal
           width={width} 
           height={height} 
           className="object-contain"
-          data-ai-hint="brawler enemy" 
         />
       )}
       {/* Health Bar */}
@@ -55,3 +54,5 @@ export function EnemyCharacter({ x, y, width, height, spriteUrl, health, maxHeal
     </div>
   );
 }
+
+    
