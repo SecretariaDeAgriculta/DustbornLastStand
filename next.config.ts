@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -17,6 +18,8 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+    // Allow serving local images from the public directory for next/image
+    // No specific entry needed if using `src="/assets/..."` as next/image handles this by default.
   },
 };
 
