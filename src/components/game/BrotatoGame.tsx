@@ -11,7 +11,7 @@ const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 const PLAYER_SIZE = 30;
 const ENEMY_SIZE = 25;
-const PLAYER_SPEED = 10; // Adjusted for better discrete movement
+const PLAYER_SPEED = 5; // Adjusted for continuous movement
 
 interface Entity {
   id: string;
@@ -31,63 +31,80 @@ export function BrotatoGame() {
     size: PLAYER_SIZE,
   });
   const [enemies, setEnemies] = useState<Enemy[]>([
-    // Initial placeholder enemy
     { id: 'enemy1', x: 100, y: 100, size: ENEMY_SIZE },
   ]);
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
   const [isGameOver, setIsGameOver] = useState(false);
-
-  const movePlayer = useCallback((dx: number, dy: number) => {
-    if (isGameOver) return;
-    setPlayer((prev) => ({
-      ...prev,
-      x: Math.max(0, Math.min(prev.x + dx, GAME_WIDTH - prev.size)),
-      y: Math.max(0, Math.min(prev.y + dy, GAME_HEIGHT - prev.size)),
-    }));
-  }, [isGameOver]);
+  const [activeKeys, setActiveKeys] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isGameOver) return;
-      switch (event.key) {
-        case 'ArrowUp':
-        case 'w':
-          movePlayer(0, -PLAYER_SPEED);
-          break;
-        case 'ArrowDown':
-        case 's':
-          movePlayer(0, PLAYER_SPEED);
-          break;
-        case 'ArrowLeft':
-        case 'a':
-          movePlayer(-PLAYER_SPEED, 0);
-          break;
-        case 'ArrowRight':
-        case 'd':
-          movePlayer(PLAYER_SPEED, 0);
-          break;
-      }
+      setActiveKeys((prevKeys) => new Set(prevKeys).add(event.key.toLowerCase()));
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (isGameOver) return;
+      setActiveKeys((prevKeys) => {
+        const newKeys = new Set(prevKeys);
+        newKeys.delete(event.key.toLowerCase());
+        return newKeys;
+      });
     };
 
     window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [movePlayer, isGameOver]);
+  }, [isGameOver]);
 
-  // Basic game loop (simplified for now)
   useEffect(() => {
     if (isGameOver) return;
 
-    const gameLoop = setInterval(() => {
+    let animationFrameId: number;
+
+    const gameUpdate = () => {
+      let dx = 0;
+      let dy = 0;
+
+      if (activeKeys.has('arrowup') || activeKeys.has('w')) dy -= 1;
+      if (activeKeys.has('arrowdown') || activeKeys.has('s')) dy += 1;
+      if (activeKeys.has('arrowleft') || activeKeys.has('a')) dx -= 1;
+      if (activeKeys.has('arrowright') || activeKeys.has('d')) dx += 1;
+
+      if (dx !== 0 || dy !== 0) {
+        let moveX = dx * PLAYER_SPEED;
+        let moveY = dy * PLAYER_SPEED;
+
+        if (dx !== 0 && dy !== 0) { // Normalize diagonal speed
+          const length = Math.sqrt(dx * dx + dy * dy); // sqrt(1*1 + 1*1) = sqrt(2)
+          moveX = (dx / length) * PLAYER_SPEED;
+          moveY = (dy / length) * PLAYER_SPEED;
+        }
+
+        setPlayer((prevPlayer) => ({
+          ...prevPlayer,
+          x: Math.max(0, Math.min(prevPlayer.x + moveX, GAME_WIDTH - prevPlayer.size)),
+          y: Math.max(0, Math.min(prevPlayer.y + moveY, GAME_HEIGHT - prevPlayer.size)),
+        }));
+      }
+      
       // Enemy movement (placeholder)
       // Collision detection (placeholder)
       // Update score/wave (placeholder)
-    }, 100); // Update roughly 10 times per second
 
-    return () => clearInterval(gameLoop);
-  }, [isGameOver]);
+      animationFrameId = requestAnimationFrame(gameUpdate);
+    };
+
+    animationFrameId = requestAnimationFrame(gameUpdate);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+    };
+  }, [isGameOver, activeKeys]); // Effect reruns if isGameOver or activeKeys change
   
   if (isGameOver) {
     return (
@@ -96,7 +113,7 @@ export function BrotatoGame() {
         <p className="text-xl mb-2">Final Score: {score}</p>
         <p className="text-lg">Wave Reached: {wave}</p>
         <button 
-          onClick={() => { /* Reset game logic here */ 
+          onClick={() => { 
             setIsGameOver(false); 
             setScore(0); 
             setWave(1);
@@ -106,6 +123,8 @@ export function BrotatoGame() {
               y: GAME_HEIGHT / 2 - PLAYER_SIZE / 2,
               size: PLAYER_SIZE,
             });
+            setEnemies([{ id: 'enemy1', x: 100, y: 100, size: ENEMY_SIZE }]);
+            setActiveKeys(new Set());
           }}
           className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
         >
@@ -122,7 +141,7 @@ export function BrotatoGame() {
         <div
           className="relative bg-muted/30"
           style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
-          role="application" // For accessibility, indicating it's an interactive app
+          role="application"
           aria-label="Brotato game area"
         >
           <PlayerCharacter x={player.x} y={player.y} size={player.size} />
