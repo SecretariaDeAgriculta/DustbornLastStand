@@ -12,7 +12,7 @@ interface PlayerCharacterProps {
 export function PlayerCharacter({ x, y, size }: PlayerCharacterProps) {
   return (
     <div
-      className="absolute bg-primary rounded shadow-md transition-all duration-50 ease-linear"
+      className="absolute bg-primary rounded shadow-md"
       style={{
         left: x,
         top: y,

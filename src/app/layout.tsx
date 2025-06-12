@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Brotato Game',
-  description: 'A Brotato-style survival game.',
+  title: 'Dustborn Game',
+  description: 'A Dustborn-style survival game.',
 };
 
 export default function RootLayout({

@@ -1,14 +1,14 @@
 
-import { BrotatoGame } from '@/components/game/BrotatoGame';
+import { DustbornGame } from '@/components/game/DustbornGame';
 
 export default function Home() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground">
       <main className="w-full max-w-screen-lg flex-grow flex flex-col items-center justify-center">
-        <BrotatoGame />
+        <DustbornGame />
       </main>
       <footer className="w-full max-w-screen-lg text-center py-4 mt-4 text-muted-foreground text-xs">
-        <p>&copy; {new Date().getFullYear()} Brotato-Style Game. Built in Firebase Studio.</p>
+        <p>&copy; {new Date().getFullYear()} Dustborn-Style Game. Built in Firebase Studio.</p>
       </footer>
     </div>
   );
