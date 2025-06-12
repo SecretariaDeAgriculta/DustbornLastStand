@@ -9,13 +9,13 @@ import { Card } from '@/components/ui/card';
 import { XPOrb } from './XPOrb';
 import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
-import { Projectile } from './Projectile'; // New component for projectiles
+import { Projectile } from './Projectile';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 
 // Player Stats
-const PLAYER_SIZE = 30; // Collision box size
+const PLAYER_SIZE = 30;
 const PLAYER_SPEED = 5;
 const PLAYER_INITIAL_HEALTH = 100;
 
@@ -24,26 +24,26 @@ const ENEMY_ARROCEIRO_SPRITE_WIDTH = 50;
 const ENEMY_ARROCEIRO_SPRITE_HEIGHT = 70;
 const ENEMY_ARROCEIRO_INITIAL_HEALTH = 10;
 const ENEMY_ARROCEIRO_DAMAGE = 2;
-const ENEMY_ARROCEIRO_BASE_SPEED = 1.8; // "High" speed
-const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SPRITE_WIDTH / 2) ** 2; // Melee
-const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; // ms, "fast punches"
+const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
+const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SPRITE_WIDTH / 3) ** 2; // Adjusted for better feel
+const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; // ms
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
 
 // Player Weapon: Revólver Enferrujado
 const PLAYER_WEAPON_DAMAGE = 4;
-const PLAYER_WEAPON_COOLDOWN = 1000; // ms, "slow cadence"
-const PLAYER_WEAPON_RANGE = 300; // "medium range" - projectile max travel distance
+const PLAYER_WEAPON_COOLDOWN = 1000; // ms
+const PLAYER_WEAPON_RANGE = 300; // projectile max travel distance
 
 // Projectile Stats
 const PROJECTILE_SIZE = 8;
-const PROJECTILE_SPEED = 8;
+const PROJECTILE_SPEED = 10; // Increased speed
 
 const XP_ORB_SIZE = 10;
 const WAVE_DURATION = 120; // 2 minutes in seconds
 const ENEMY_SPAWN_INTERVAL_INITIAL = 2500; // milliseconds
-const MAX_ENEMIES_INITIAL = 3;
-const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 20) ** 2;
-const ENEMY_MOVE_INTERVAL = 50; // ms
+const MAX_ENEMIES_BASE = 3; // Base max enemies
+const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2; // Increased radius
+const ENEMY_MOVE_INTERVAL = 50; // ms (controls how often enemy logic updates)
 
 interface Entity {
   id: string;
@@ -62,7 +62,7 @@ interface Enemy extends Entity {
   height: number;
   health: number;
   maxHealth: number;
-  type: 'ArruaceiroSaloon'; // For now, only one type
+  type: 'ArruaceiroSaloon';
   spriteUrl?: string;
   xpValue: number;
   attackCooldownTimer: number;
@@ -87,7 +87,7 @@ interface Weapon {
   name: string;
   damage: number;
   cooldown: number;
-  range: number;
+  range: number; // Weapon's targeting range
 }
 
 export function DustbornGame() {
@@ -115,7 +115,7 @@ export function DustbornGame() {
   const activeKeys = useRef<Set<string>>(new Set());
   const enemySpawnTimerId = useRef<NodeJS.Timeout | null>(null);
   const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
-  const lastEnemyMoveTimestampRef = useRef(0);
+  const lastLogicUpdateTimestampRef = useRef(0); // For enemy movement and attacks
   const lastPlayerShotTimestampRef = useRef(0);
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
@@ -139,7 +139,7 @@ export function DustbornGame() {
     setPlayerXP(0);
     setPlayerWeapons([{ id: 'w1', name: 'Revólver Enferrujado', damage: PLAYER_WEAPON_DAMAGE, cooldown: PLAYER_WEAPON_COOLDOWN, range: PLAYER_WEAPON_RANGE }]);
     activeKeys.current.clear();
-    lastEnemyMoveTimestampRef.current = 0;
+    lastLogicUpdateTimestampRef.current = 0;
     lastPlayerShotTimestampRef.current = 0;
   }, []);
 
@@ -155,46 +155,11 @@ export function DustbornGame() {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     
-    const handleMouseDown = (event: MouseEvent) => {
-      if (isGameOver || isShopPhase || !gameAreaRef.current) return;
-      if (event.button === 0) { // Left click
-        const now = Date.now();
-        const currentWeapon = playerWeapons[0]; // Assuming first weapon is active
-        if (now - lastPlayerShotTimestampRef.current >= currentWeapon.cooldown) {
-          lastPlayerShotTimestampRef.current = now;
-          
-          const gameAreaRect = gameAreaRef.current.getBoundingClientRect();
-          const mouseX = event.clientX - gameAreaRect.left;
-          const mouseY = event.clientY - gameAreaRect.top;
-
-          const playerCenterX = player.x + player.width / 2;
-          const playerCenterY = player.y + player.height / 2;
-
-          const angle = Math.atan2(mouseY - playerCenterY, mouseX - playerCenterX);
-          const dx = Math.cos(angle);
-          const dy = Math.sin(angle);
-
-          setProjectiles(prev => [...prev, {
-            id: `proj_${Date.now()}`,
-            x: playerCenterX - PROJECTILE_SIZE / 2,
-            y: playerCenterY - PROJECTILE_SIZE / 2,
-            size: PROJECTILE_SIZE,
-            dx,
-            dy,
-            traveledDistance: 0,
-            maxRange: currentWeapon.range,
-          }]);
-        }
-      }
-    };
-    gameAreaRef.current?.addEventListener('mousedown', handleMouseDown);
-
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      gameAreaRef.current?.removeEventListener('mousedown', handleMouseDown);
     };
-  }, [isGameOver, isShopPhase, player.x, player.y, player.width, player.height, playerWeapons]);
+  }, [isGameOver]);
 
   // Unified Game Loop
   useEffect(() => {
@@ -226,126 +191,188 @@ export function DustbornGame() {
         }));
       }
 
-      // Projectile Movement & Collision
-      setProjectiles(prevProjectiles => {
-        const updatedProjectiles = prevProjectiles.map(proj => ({
-          ...proj,
-          x: proj.x + proj.dx * PROJECTILE_SPEED,
-          y: proj.y + proj.dy * PROJECTILE_SPEED,
-          traveledDistance: proj.traveledDistance + PROJECTILE_SPEED,
-        })).filter(proj => 
-            proj.x > -proj.size && proj.x < GAME_WIDTH && 
-            proj.y > -proj.size && proj.y < GAME_HEIGHT &&
-            proj.traveledDistance < proj.maxRange
-        );
+      // Automatic Player Shooting
+      const now = Date.now();
+      const currentWeapon = playerWeapons[0];
+      if (enemies.length > 0 && now - lastPlayerShotTimestampRef.current >= currentWeapon.cooldown) {
+        let closestEnemy: Enemy | null = null;
+        let minDistanceSquared = currentWeapon.range ** 2;
 
-        const newEnemies: Enemy[] = [];
-        let newScore = score;
-        const newXpOrbs: XPOrbData[] = [];
+        const playerCenterX = player.x + player.width / 2;
+        const playerCenterY = player.y + player.height / 2;
 
         for (const enemy of enemies) {
-          let currentEnemy = {...enemy};
-          let enemyHitThisFrame = false;
-          
-          for (const proj of updatedProjectiles) {
-            // Simple AABB collision for projectile vs enemy
-            const projCenterX = proj.x + proj.size / 2;
-            const projCenterY = proj.y + proj.size / 2;
-            const enemyCenterX = currentEnemy.x + currentEnemy.width / 2;
-            const enemyCenterY = currentEnemy.y + currentEnemy.height / 2;
-
-            if (Math.abs(projCenterX - enemyCenterX) < (proj.size / 2 + currentEnemy.width / 2) &&
-                Math.abs(projCenterY - enemyCenterY) < (proj.size / 2 + currentEnemy.height / 2)) {
-              
-              currentEnemy.health -= playerWeapons[0].damage;
-              // Mark projectile for removal by filtering it out later
-              updatedProjectiles.splice(updatedProjectiles.indexOf(proj), 1); 
-              enemyHitThisFrame = true; 
-              break; 
-            }
-          }
-
-          if (currentEnemy.health <= 0) {
-            newScore += currentEnemy.xpValue * 5;
-            newXpOrbs.push({ 
-              id: `xp_${Date.now()}_${Math.random()}`, 
-              x: currentEnemy.x + currentEnemy.width / 2 - XP_ORB_SIZE / 2, 
-              y: currentEnemy.y + currentEnemy.height / 2 - XP_ORB_SIZE / 2, 
-              size: XP_ORB_SIZE, 
-              value: currentEnemy.xpValue 
-            });
-          } else {
-            newEnemies.push(currentEnemy);
+          const enemyCenterX = enemy.x + enemy.width / 2;
+          const enemyCenterY = enemy.y + enemy.height / 2;
+          const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
+          if (distSq < minDistanceSquared) {
+            minDistanceSquared = distSq;
+            closestEnemy = enemy;
           }
         }
-        if (newXpOrbs.length > 0) setXpOrbs(prev => [...prev, ...newXpOrbs]);
-        if (newScore !== score) setScore(newScore);
-        setEnemies(newEnemies);
-        return updatedProjectiles;
-      });
 
+        if (closestEnemy) {
+          lastPlayerShotTimestampRef.current = now;
+          const targetX = closestEnemy.x + closestEnemy.width / 2;
+          const targetY = closestEnemy.y + closestEnemy.height / 2;
+          const angle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
+          const projDx = Math.cos(angle);
+          const projDy = Math.sin(angle);
 
-      // Enemy Movement & Attack
-      if (timestamp - lastEnemyMoveTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
+          setProjectiles(prev => [...prev, {
+            id: `proj_${Date.now()}_${Math.random()}`,
+            x: playerCenterX - PROJECTILE_SIZE / 2,
+            y: playerCenterY - PROJECTILE_SIZE / 2,
+            size: PROJECTILE_SIZE,
+            dx: projDx,
+            dy: projDy,
+            traveledDistance: 0,
+            maxRange: currentWeapon.range, // Use weapon's range for projectile's max travel
+          }]);
+        }
+      }
+      
+      // --- Logic that runs less frequently (Enemy AI, Projectile updates) ---
+      if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
+        lastLogicUpdateTimestampRef.current = timestamp;
+
+        // Projectile Movement & Collision
+        setProjectiles(prevProjectiles => {
+          const updatedProjectiles = prevProjectiles.map(proj => ({
+            ...proj,
+            x: proj.x + proj.dx * PROJECTILE_SPEED,
+            y: proj.y + proj.dy * PROJECTILE_SPEED,
+            traveledDistance: proj.traveledDistance + PROJECTILE_SPEED,
+          })).filter(proj => 
+              proj.x > -proj.size && proj.x < GAME_WIDTH && 
+              proj.y > -proj.size && proj.y < GAME_HEIGHT &&
+              proj.traveledDistance < proj.maxRange
+          );
+
+          const newProjectilesAfterHits = [...updatedProjectiles]; // Copy to modify by splicing
+          let enemiesHitThisTick: Record<string, boolean> = {}; // Track if enemy already hit this tick by any projectile
+
+          setEnemies(currentEnemies => {
+            let newHitScore = 0;
+            const newXpOrbsFromHits: XPOrbData[] = [];
+            
+            const nextEnemiesState = currentEnemies.map(enemy => {
+              let currentEnemyState = {...enemy};
+              if (enemiesHitThisTick[enemy.id]) return currentEnemyState; // Already processed damage for this enemy
+
+              for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
+                const proj = newProjectilesAfterHits[i];
+                const projCenterX = proj.x + proj.size / 2;
+                const projCenterY = proj.y + proj.size / 2;
+                const enemyCenterX = currentEnemyState.x + currentEnemyState.width / 2;
+                const enemyCenterY = currentEnemyState.y + currentEnemyState.height / 2;
+
+                if (Math.abs(projCenterX - enemyCenterX) < (proj.size / 2 + currentEnemyState.width / 2) &&
+                    Math.abs(projCenterY - enemyCenterY) < (proj.size / 2 + currentEnemyState.height / 2)) {
+                  
+                  currentEnemyState.health -= playerWeapons[0].damage;
+                  newProjectilesAfterHits.splice(i, 1); // Remove projectile
+                  enemiesHitThisTick[enemy.id] = true; // Mark enemy as hit for this tick
+                  
+                  if (currentEnemyState.health <= 0) {
+                    newHitScore += currentEnemyState.xpValue * 5;
+                    newXpOrbsFromHits.push({ 
+                      id: `xp_${Date.now()}_${Math.random()}_${currentEnemyState.id}`, 
+                      x: currentEnemyState.x + currentEnemyState.width / 2 - XP_ORB_SIZE / 2, 
+                      y: currentEnemyState.y + currentEnemyState.height / 2 - XP_ORB_SIZE / 2, 
+                      size: XP_ORB_SIZE, 
+                      value: currentEnemyState.xpValue 
+                    });
+                  }
+                  break; // Projectile hits one enemy, inner loop breaks
+                }
+              }
+              return currentEnemyState;
+            }).filter(enemy => enemy.health > 0); // Filter out defeated enemies
+
+            if (newXpOrbsFromHits.length > 0) {
+              setXpOrbs(prevOrbs => [...prevOrbs, ...newXpOrbsFromHits]);
+            }
+            if (newHitScore > 0) {
+              setScore(prevScore => prevScore + newHitScore);
+            }
+            return nextEnemiesState;
+          });
+          return newProjectilesAfterHits; // Return projectiles that didn't hit
+        });
+
+        // Enemy Movement & Attack
         setEnemies(currentEnemies =>
           currentEnemies.map(enemy => {
             let newX = enemy.x;
             let newY = enemy.y;
             let updatedEnemy = {...enemy, attackCooldownTimer: Math.max(0, enemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL) };
 
-            const deltaPlayerX = (player.x + player.width / 2) - (enemy.x + enemy.width / 2);
-            const deltaPlayerY = (player.y + player.height / 2) - (enemy.y + enemy.height / 2);
+            const deltaPlayerX = (player.x + player.width / 2) - (updatedEnemy.x + updatedEnemy.width / 2);
+            const deltaPlayerY = (player.y + player.height / 2) - (updatedEnemy.y + updatedEnemy.height / 2);
             const distToPlayerSquared = deltaPlayerX * deltaPlayerX + deltaPlayerY * deltaPlayerY;
 
-            if (distToPlayerSquared > (enemy.width / 2) ** 2) { 
+            // Only move if not too close (to avoid jittering on top of player)
+            if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) { 
               const dist = Math.sqrt(distToPlayerSquared);
               newX += (deltaPlayerX / dist) * updatedEnemy.speed;
               newY += (deltaPlayerY / dist) * updatedEnemy.speed;
             }
             
             if (distToPlayerSquared < ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED && updatedEnemy.attackCooldownTimer <= 0) {
-               setPlayer(p => ({...p, health: Math.max(0, p.health - ENEMY_ARROCEIRO_DAMAGE) }));
+               setPlayer(p => {
+                 const newHealth = Math.max(0, p.health - ENEMY_ARROCEIRO_DAMAGE);
+                 if (newHealth <= 0 && !isGameOver) {
+                   setIsGameOver(true);
+                 }
+                 return {...p, health: newHealth };
+               });
                updatedEnemy.attackCooldownTimer = ENEMY_ARROCEIRO_ATTACK_COOLDOWN;
             }
             return { ...updatedEnemy, x: newX, y: newY };
           })
         );
-        lastEnemyMoveTimestampRef.current = timestamp;
-      }
+        
+        // XP Orb Collection
+        setXpOrbs((currentOrbs) => {
+          const collectedOrbValues: number[] = [];
+          const remainingOrbs = currentOrbs.filter((orb) => {
+            const distX = (player.x + player.width / 2) - (orb.x + orb.size / 2);
+            const distY = (player.y + player.height / 2) - (orb.y + orb.size / 2);
+            const distanceSquared = distX * distX + distY * distY;
+            if (distanceSquared < XP_COLLECTION_RADIUS_SQUARED) {
+              collectedOrbValues.push(orb.value);
+              return false; 
+            }
+            return true; 
+          });
 
-      // XP Orb Collection
-      setXpOrbs((currentOrbs) => {
-        const collectedOrbValues: number[] = [];
-        const remainingOrbs = currentOrbs.filter((orb) => {
-          const distX = (player.x + player.width / 2) - (orb.x + orb.size / 2);
-          const distY = (player.y + player.height / 2) - (orb.y + orb.size / 2);
-          const distanceSquared = distX * distX + distY * distY;
-          if (distanceSquared < XP_COLLECTION_RADIUS_SQUARED) {
-            collectedOrbValues.push(orb.value);
-            return false; 
+          if (collectedOrbValues.length > 0) {
+            const totalCollectedXP = collectedOrbValues.reduce((sum, val) => sum + val, 0);
+            setPlayerXP((prevXP) => prevXP + totalCollectedXP);
           }
-          return true; 
+          return remainingOrbs;
         });
-
-        if (collectedOrbValues.length > 0) {
-          const totalCollectedXP = collectedOrbValues.reduce((sum, val) => sum + val, 0);
-          setPlayerXP((prevXP) => prevXP + totalCollectedXP);
-          // Score is now updated when enemy is defeated
-        }
-        return remainingOrbs;
-      });
+      } // End of less frequent logic update block
       
-      if (player.health <= 0) {
+      if (player.health <= 0 && !isGameOver) { // Double check game over condition
         setIsGameOver(true);
-        return; 
       }
 
-      animationFrameId = requestAnimationFrame(gameTick);
+      if (!isGameOver && !isShopPhase) {
+        animationFrameId = requestAnimationFrame(gameTick);
+      }
     };
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, player, wave, enemies, score, playerWeapons]); 
+  // Key dependencies for the game loop's effect. Player and enemies are crucial.
+  // Others like wave, score, playerWeapons are included if they influence direct calculations within gameTick
+  // or if their change should restart aspects of the loop (though most logic is inside).
+  // For a requestAnimationFrame loop, the function itself (gameTick) getting the latest state via functional updates
+  // to useState (e.g., setPlayer(p => ...)) is often more stable than numerous dependencies.
+  // However, if gameTick directly reads 'player.x', 'player' must be a dependency.
+  }, [isGameOver, isShopPhase, player, enemies, playerWeapons, wave, score]); 
 
   // Wave Timer Logic
   useEffect(() => {
@@ -358,9 +385,8 @@ export function DustbornGame() {
         if (prevTimer <= 1) {
           clearInterval(waveIntervalId.current!);
           setIsShopPhase(true);
-          // Do not clear enemies here, let them persist until shop is exited or new wave logic handles it.
           if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
-          return 0;
+          return WAVE_DURATION; // Reset timer for shop or next wave
         }
         return prevTimer - 1;
       });
@@ -370,31 +396,42 @@ export function DustbornGame() {
     };
   }, [isGameOver, isShopPhase, wave]);
 
-  const spawnEnemy = useCallback(() => {
-    if (isShopPhase || isGameOver || enemies.length >= MAX_ENEMIES_INITIAL + wave * 3) return;
 
-    const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + wave * 5; // Scales health
-    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + wave * 0.15;
+  const spawnEnemy = useCallback(() => {
+    const maxEnemiesForWave = MAX_ENEMIES_BASE + wave * 2; // Scaled max enemies
+    if (isShopPhase || isGameOver || enemies.length >= maxEnemiesForWave) {
+        return;
+    }
+
+    const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + wave * 3; // Scales health
+    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + wave * 0.1;
     let newX, newY;
     let attempts = 0;
-    const maxAttempts = 10;
+    const maxAttempts = 10; // Prevent infinite loop if game area is too crowded
+    
+    // Capture current player state for positioning check
+    const currentPlayerX = player.x;
+    const currentPlayerY = player.y;
 
     do {
-        const side = Math.floor(Math.random() * 4);
-        if (side === 0) { 
-            newX = Math.random() * (GAME_WIDTH - ENEMY_ARROCEIRO_SPRITE_WIDTH); newY = -ENEMY_ARROCEIRO_SPRITE_HEIGHT;
-        } else if (side === 1) {
-            newX = Math.random() * (GAME_WIDTH - ENEMY_ARROCEIRO_SPRITE_WIDTH); newY = GAME_HEIGHT;
-        } else if (side === 2) {
-            newX = -ENEMY_ARROCEIRO_SPRITE_WIDTH; newY = Math.random() * (GAME_HEIGHT - ENEMY_ARROCEIRO_SPRITE_HEIGHT);
-        } else { 
-            newX = GAME_WIDTH; newY = Math.random() * (GAME_HEIGHT - ENEMY_ARROCEIRO_SPRITE_HEIGHT);
+        const side = Math.floor(Math.random() * 4); // 0: top, 1: bottom, 2: left, 3: right
+        const margin = 50; // Spawn slightly off-screen
+
+        if (side === 0) { // Top
+            newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SPRITE_HEIGHT - margin;
+        } else if (side === 1) { // Bottom
+            newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + margin;
+        } else if (side === 2) { // Left
+            newX = -ENEMY_ARROCEIRO_SPRITE_WIDTH - margin; newY = Math.random() * GAME_HEIGHT;
+        } else { // Right
+            newX = GAME_WIDTH + margin; newY = Math.random() * GAME_HEIGHT;
         }
         attempts++;
     } while (
-        (Math.abs(newX - player.x) < PLAYER_SIZE * 4 && Math.abs(newY - player.y) < PLAYER_SIZE * 4) && attempts < maxAttempts
+        // Check distance from player to avoid immediate spawn collision
+        (Math.abs(newX - currentPlayerX) < PLAYER_SIZE * 5 && Math.abs(newY - currentPlayerY) < PLAYER_SIZE * 5) && attempts < maxAttempts
     );
-
+    
     setEnemies((prevEnemies) => [
       ...prevEnemies,
       {
@@ -404,13 +441,14 @@ export function DustbornGame() {
         health: enemyHealth, maxHealth: enemyHealth,
         type: 'ArruaceiroSaloon',
         spriteUrl: '/assets/enemy_arruaceiro_saloon.png',
-        xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave * 2,
-        attackCooldownTimer: 0,
+        xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave, // XP scales with wave
+        attackCooldownTimer: Math.random() * ENEMY_ARROCEIRO_ATTACK_COOLDOWN, // Stagger initial attacks
         speed: enemySpeed,
       },
     ]);
-  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver]);
+  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver, setEnemies]); // Added setEnemies
 
+  // Enemy Spawning Loop
   useEffect(() => {
     if (isShopPhase || isGameOver) {
       if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
@@ -419,23 +457,29 @@ export function DustbornGame() {
     
     const spawnLoop = () => {
       spawnEnemy();
-      const nextSpawnTime = Math.max(500, ENEMY_SPAWN_INTERVAL_INITIAL - wave * 150);
+      // Scale spawn interval: faster spawns in later waves, but with a minimum
+      const nextSpawnTime = Math.max(300, ENEMY_SPAWN_INTERVAL_INITIAL - wave * 100); 
       enemySpawnTimerId.current = setTimeout(spawnLoop, nextSpawnTime);
     };
     
-    spawnLoop();
+    // Initial call to start the loop if not in shop/game over
+    spawnLoop(); 
     
     return () => {
       if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
     };
-  }, [isShopPhase, isGameOver, spawnEnemy, wave]);
+  }, [isShopPhase, isGameOver, spawnEnemy, wave]); // spawnEnemy is now a dependency
   
   const startNextWave = () => {
     setIsShopPhase(false);
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
-    setEnemies([]); // Clear remaining enemies from previous wave
+    // Keep existing enemies, or clear them? For Brotato style, usually clear.
+    setEnemies([]); 
     setProjectiles([]); // Clear remaining projectiles
+    setXpOrbs([]); // Clear remaining XP orbs
+    lastPlayerShotTimestampRef.current = 0; // Reset shot timer for new wave
+    lastLogicUpdateTimestampRef.current = 0; // Reset logic timer
   };
 
   if (isGameOver) {
@@ -465,11 +509,11 @@ export function DustbornGame() {
       <Card className="mt-4 shadow-2xl overflow-hidden border-2 border-primary">
         <div
           ref={gameAreaRef}
-          className="relative bg-muted/30 overflow-hidden cursor-crosshair"
+          className="relative bg-muted/30 overflow-hidden" // Removed cursor-crosshair
           style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
           role="application"
           aria-label="Dustborn game area"
-          tabIndex={0} // Make it focusable for mouse events if needed outside typical inputs
+          tabIndex={-1} 
         >
           <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} />
           {enemies.map((enemy) => (
@@ -489,8 +533,9 @@ export function DustbornGame() {
         </div>
       </Card>
        <div className="mt-4 text-sm text-muted-foreground">
-        Use Arrow Keys or WASD to move. Left-click to shoot. Survive the onslaught!
+        Use Arrow Keys or WASD to move. Weapon fires automatically at the closest enemy. Survive!
       </div>
     </div>
   );
 }
+
