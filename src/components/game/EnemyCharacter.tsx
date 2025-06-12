@@ -2,20 +2,18 @@
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 
 interface EnemyCharacterProps {
   x: number;
   y: number;
   width: number;
   height: number;
-  spriteUrl?: string;
   health: number;
   maxHealth: number;
-  color?: string; // Fallback if no sprite
+  color?: string; 
 }
 
-export function EnemyCharacter({ x, y, width, height, spriteUrl, health, maxHealth, color = 'purple' }: EnemyCharacterProps) {
+export function EnemyCharacter({ x, y, width, height, health, maxHealth, color = 'purple' }: EnemyCharacterProps) {
   const healthPercentage = (health / maxHealth) * 100;
 
   return (
@@ -26,21 +24,12 @@ export function EnemyCharacter({ x, y, width, height, spriteUrl, health, maxHeal
         top: y,
         width: width,
         height: height,
-        backgroundColor: spriteUrl ? 'transparent' : color,
+        backgroundColor: color,
       }}
       role="img"
       aria-label={`Enemy character`}
       title={`HP: ${health}/${maxHealth}`}
     >
-      {spriteUrl && (
-        <Image 
-          src={spriteUrl} 
-          alt="Enemy Sprite" 
-          width={width} 
-          height={height} 
-          className="object-contain"
-        />
-      )}
       {/* Health Bar */}
       <div 
         className="absolute top-[-10px] left-0 w-full h-[6px] bg-muted rounded-sm overflow-hidden border border-background"
@@ -54,5 +43,6 @@ export function EnemyCharacter({ x, y, width, height, spriteUrl, health, maxHeal
     </div>
   );
 }
+    
 
     

@@ -20,12 +20,11 @@ const PLAYER_SPEED = 5;
 const PLAYER_INITIAL_HEALTH = 100;
 
 // Enemy: Arruaceiro de Saloon (Saloon Brawler)
-const ENEMY_ARROCEIRO_SPRITE_WIDTH = PLAYER_SIZE; // Adjusted to player size
-const ENEMY_ARROCEIRO_SPRITE_HEIGHT = PLAYER_SIZE * (70 / 50); // Adjusted to player size, maintaining aspect ratio (30 * 1.4 = 42)
+const ENEMY_ARROCEIRO_SIZE = PLAYER_SIZE; // Enemies are now squares of PLAYER_SIZE
 const ENEMY_ARROCEIRO_INITIAL_HEALTH = 10;
 const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
-const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SPRITE_WIDTH / 3) ** 2; 
+const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2) ** 2; 
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; // ms
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
 
@@ -63,10 +62,10 @@ interface Enemy extends Entity {
   health: number;
   maxHealth: number;
   type: 'ArruaceiroSaloon';
-  spriteUrl?: string;
   xpValue: number;
   attackCooldownTimer: number;
   speed: number;
+  color: string;
 }
 
 interface XPOrbData extends Entity {
@@ -402,11 +401,11 @@ export function DustbornGame() {
         const margin = 50; 
 
         if (side === 0) { 
-            newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SPRITE_HEIGHT - margin;
+            newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SIZE - margin;
         } else if (side === 1) { 
             newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + margin;
         } else if (side === 2) { 
-            newX = -ENEMY_ARROCEIRO_SPRITE_WIDTH - margin; newY = Math.random() * GAME_HEIGHT;
+            newX = -ENEMY_ARROCEIRO_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
         } else { 
             newX = GAME_WIDTH + margin; newY = Math.random() * GAME_HEIGHT;
         }
@@ -419,11 +418,11 @@ export function DustbornGame() {
       ...prevEnemies,
       {
         id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY, 
-        width: ENEMY_ARROCEIRO_SPRITE_WIDTH, 
-        height: ENEMY_ARROCEIRO_SPRITE_HEIGHT,
+        width: ENEMY_ARROCEIRO_SIZE, 
+        height: ENEMY_ARROCEIRO_SIZE,
         health: enemyHealth, maxHealth: enemyHealth,
         type: 'ArruaceiroSaloon',
-        spriteUrl: '/assets/enemy_arruaceiro_saloon.png',
+        color: 'blue', // Arruaceiro de Saloon is now a blue square
         xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave, 
         attackCooldownTimer: Math.random() * ENEMY_ARROCEIRO_ATTACK_COOLDOWN, 
         speed: enemySpeed,
@@ -499,8 +498,8 @@ export function DustbornGame() {
             <EnemyCharacter 
               key={enemy.id} x={enemy.x} y={enemy.y} 
               width={enemy.width} height={enemy.height}
-              spriteUrl={enemy.spriteUrl}
               health={enemy.health} maxHealth={enemy.maxHealth}
+              color={enemy.color}
             />
           ))}
           {xpOrbs.map((orb) => (
@@ -517,5 +516,6 @@ export function DustbornGame() {
     </div>
   );
 }
+    
 
     
