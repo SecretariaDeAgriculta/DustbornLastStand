@@ -10,6 +10,7 @@ import { XPOrb } from './XPOrb';
 import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
+import { DamageNumber } from './DamageNumber';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
@@ -20,13 +21,14 @@ const PLAYER_SPEED = 5;
 const PLAYER_INITIAL_HEALTH = 100;
 
 // Enemy: Arruaceiro de Saloon (Saloon Brawler)
-const ENEMY_ARROCEIRO_SIZE = PLAYER_SIZE; // Enemies are now squares of PLAYER_SIZE
+const ENEMY_ARROCEIRO_SIZE = PLAYER_SIZE;
 const ENEMY_ARROCEIRO_INITIAL_HEALTH = 10;
 const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
-const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2) ** 2; 
+const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2; // Slightly larger for attack trigger
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; // ms
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
+const ENEMY_ARROCEIRO_COLOR = '#60a5fa'; // Lighter blue
 
 // Player Weapon: Revólver Enferrujado
 const PLAYER_WEAPON_DAMAGE = 4;
@@ -43,6 +45,10 @@ const ENEMY_SPAWN_INTERVAL_INITIAL = 2500; // milliseconds
 const MAX_ENEMIES_BASE = 3; // Base max enemies
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
 const ENEMY_MOVE_INTERVAL = 50; // ms (controls how often enemy logic updates)
+
+// Damage Number constants
+const DAMAGE_NUMBER_LIFESPAN = 700; // ms
+const DAMAGE_NUMBER_FLOAT_SPEED = 0.8; // pixels per ENEMY_MOVE_INTERVAL tick
 
 interface Entity {
   id: string;
@@ -89,6 +95,13 @@ interface Weapon {
   range: number; // Weapon's targeting range
 }
 
+interface DamageNumberData extends Entity {
+  amount: number;
+  life: number;
+  opacity: number;
+}
+
+
 export function DustbornGame() {
   const [player, setPlayer] = useState<Player>({
     id: 'player',
@@ -101,6 +114,7 @@ export function DustbornGame() {
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [xpOrbs, setXpOrbs] = useState<XPOrbData[]>([]);
   const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
+  const [damageNumbers, setDamageNumbers] = useState<DamageNumberData[]>([]);
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
   const [waveTimer, setWaveTimer] = useState(WAVE_DURATION);
@@ -130,6 +144,7 @@ export function DustbornGame() {
     setEnemies([]);
     setXpOrbs([]);
     setProjectiles([]);
+    setDamageNumbers([]);
     setScore(0);
     setWave(1);
     setWaveTimer(WAVE_DURATION);
@@ -230,6 +245,7 @@ export function DustbornGame() {
       
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
         lastLogicUpdateTimestampRef.current = timestamp;
+        const newlyCreatedDamageNumbers: DamageNumberData[] = [];
 
         setProjectiles(prevProjectiles => {
           const updatedProjectiles = prevProjectiles.map(proj => ({
@@ -264,9 +280,19 @@ export function DustbornGame() {
                 if (Math.abs(projCenterX - enemyCenterX) < (proj.size / 2 + currentEnemyState.width / 2) &&
                     Math.abs(projCenterY - enemyCenterY) < (proj.size / 2 + currentEnemyState.height / 2)) {
                   
-                  currentEnemyState.health -= playerWeapons[0].damage;
+                  const damageDealt = playerWeapons[0].damage;
+                  currentEnemyState.health -= damageDealt;
                   newProjectilesAfterHits.splice(i, 1); 
                   enemiesHitThisTick[enemy.id] = true;
+
+                  newlyCreatedDamageNumbers.push({
+                    id: `dmg_${Date.now()}_${Math.random()}`,
+                    x: currentEnemyState.x + currentEnemyState.width / 2,
+                    y: currentEnemyState.y,
+                    amount: damageDealt,
+                    life: DAMAGE_NUMBER_LIFESPAN,
+                    opacity: 1,
+                  });
                   
                   if (currentEnemyState.health <= 0) {
                     newHitScore += currentEnemyState.xpValue * 5;
@@ -294,6 +320,10 @@ export function DustbornGame() {
           });
           return newProjectilesAfterHits;
         });
+
+        if (newlyCreatedDamageNumbers.length > 0) {
+          setDamageNumbers(prev => [...prev, ...newlyCreatedDamageNumbers]);
+        }
 
         setEnemies(currentEnemies =>
           currentEnemies.map(enemy => {
@@ -344,6 +374,20 @@ export function DustbornGame() {
           }
           return remainingOrbs;
         });
+
+        setDamageNumbers(prevDamageNumbers =>
+          prevDamageNumbers
+            .map(dn => {
+              const newLife = dn.life - ENEMY_MOVE_INTERVAL;
+              return {
+                ...dn,
+                y: dn.y - DAMAGE_NUMBER_FLOAT_SPEED,
+                life: newLife,
+                opacity: Math.max(0, Math.min(1, newLife / (DAMAGE_NUMBER_LIFESPAN * 0.75))),
+              };
+            })
+            .filter(dn => dn.life > 0 && dn.opacity > 0)
+        );
       }
       
       if (player.health <= 0 && !isGameOver) {
@@ -422,7 +466,7 @@ export function DustbornGame() {
         height: ENEMY_ARROCEIRO_SIZE,
         health: enemyHealth, maxHealth: enemyHealth,
         type: 'ArruaceiroSaloon',
-        color: '#60a5fa', // Lighter blue: Tailwind's blue-400
+        color: ENEMY_ARROCEIRO_COLOR,
         xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave, 
         attackCooldownTimer: Math.random() * ENEMY_ARROCEIRO_ATTACK_COOLDOWN, 
         speed: enemySpeed,
@@ -454,9 +498,10 @@ export function DustbornGame() {
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
     setEnemies([]); 
-    setProjectiles([]); 
+    setProjectiles([]);
+    setDamageNumbers([]);
     setXpOrbs([]); 
-    setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH })); // Reset player health
+    setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH })); 
     lastPlayerShotTimestampRef.current = 0; 
     lastLogicUpdateTimestampRef.current = 0; 
   };
@@ -509,6 +554,15 @@ export function DustbornGame() {
           {projectiles.map((proj) => (
             <Projectile key={proj.id} x={proj.x} y={proj.y} size={proj.size} />
           ))}
+          {damageNumbers.map((dn) => (
+            <DamageNumber
+              key={dn.id}
+              x={dn.x}
+              y={dn.y}
+              amount={dn.amount}
+              opacity={dn.opacity}
+            />
+          ))}
         </div>
       </Card>
        <div className="mt-4 text-sm text-muted-foreground">
@@ -520,3 +574,4 @@ export function DustbornGame() {
     
 
     
+
