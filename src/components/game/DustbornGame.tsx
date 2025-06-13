@@ -344,7 +344,6 @@ export function DustbornGame() {
                   } else {
                     newProjectilesAfterHits.splice(i, 1); 
                   }
-                  // An enemy can be hit by multiple projectiles in one frame. Do not break here.
                 }
               }
               return currentEnemyState;
@@ -471,8 +470,8 @@ export function DustbornGame() {
         return;
     }
 
-    const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + wave * 3; 
-    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + wave * 0.1;
+    const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + (wave - 1) * 3; // Health scales from Wave 2 onwards
+    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + (wave -1) * 0.1; // Speed scales from Wave 2 onwards
     let newX, newY;
     let attempts = 0;
     const maxAttempts = 10; 
