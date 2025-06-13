@@ -331,7 +331,7 @@ export function DustbornGame() {
             if (inputDx !== 0 && inputDy !== 0) { 
                 const length = Math.sqrt(inputDx * inputDx + inputDy * inputDy); 
                 moveX = (inputDx / length) * PLAYER_SPEED;
-                moveY = (dy / length) * PLAYER_SPEED;
+                moveY = (inputDy / length) * PLAYER_SPEED;
             } else { 
                 moveX = inputDx * PLAYER_SPEED;
                 moveY = inputDy * PLAYER_SPEED;
