@@ -28,7 +28,7 @@ export const initialWeapon: Weapon = {
   range: 300, // Alcance: Médio
   effectDescription: 'Nenhum.',
   icon: HelpCircle,
-  xpCost: 0,
+  xpCost: 0, // Initial weapon costs 0 XP
 };
 
 export const commonWeapons: Weapon[] = [
@@ -65,7 +65,7 @@ export const commonWeapons: Weapon[] = [
     damage: 6,
     cooldown: 500, // Cadência: Alta
     range: 400, // Alcance: Longo
-    penetrationCount: 1, // Penetra até 2 inimigos (hits first + 1 more)
+    penetrationCount: 1, 
     effectDescription: 'Penetra mais 1 inimigo.',
     icon: GitFork,
     xpCost: 70,
@@ -108,7 +108,7 @@ export const rareWeapons: Weapon[] = [
     damage: 15,
     cooldown: 900,
     range: 500,
-    penetrationCount: 2, // Hits first + 2 more = 3 total
+    penetrationCount: 2, 
     effectDescription: 'Disparos poderosos que atravessam múltiplos inimigos.',
     icon: Waves,
     xpCost: 250,
@@ -131,9 +131,9 @@ export const rareWeapons: Weapon[] = [
     name: 'Carabina Winchester',
     rarity: 'Raro',
     damage: 8,
-    cooldown: 400, // Cadência: Alta
-    range: 500,   // Alcance: Longo
-    penetrationCount: 1, // Tiros atravessam 1 inimigo
+    cooldown: 400, 
+    range: 500,   
+    penetrationCount: 1, 
     effectDescription: 'Tiros rápidos e precisos que atravessam um inimigo.',
     icon: Crosshair,
     xpCost: 280,
@@ -144,41 +144,40 @@ export const rareWeapons: Weapon[] = [
     rarity: 'Raro',
     damage: 5,
     projectilesPerShot: 5,
-    cooldown: 700, // Cadência: Média
-    range: 250,   // Alcance: Médio
+    cooldown: 700, 
+    range: 250,   
     shotgunSpreadAngle: 40,
     effectDescription: 'Dispara 5 projéteis em um cone largo, cobrindo uma grande área frontal.',
-    icon: Aperture, // Re-using Aperture for shotguns
+    icon: Aperture, 
     xpCost: 320,
   },
   {
     id: 'lanca_molotov',
     name: 'Lança-Molotov',
     rarity: 'Raro',
-    damage: 10, // Dano ao acertar
-    cooldown: 1500, // Cadência: Lenta
-    range: 200,    // Alcance: Médio
+    damage: 10, 
+    cooldown: 1500, 
+    range: 200,    
     effectDescription: 'Impacto causa 10 de dano. Cria área em chamas (3 dano/s por 5s). (Efeito de área e DoT ainda não implementado).',
     icon: Flame,
     xpCost: 350,
   }
 ];
 
-export const allWeapons: Weapon[] = [
-  initialWeapon,
+// All weapons EXCLUDING the initial one, for shop generation purposes.
+const allPurchasableWeapons: Weapon[] = [
   ...commonWeapons,
   ...uncommonWeapons,
   ...rareWeapons,
 ];
 
 export function getPurchasableWeapons(): Weapon[] {
-  return [
-    ...commonWeapons,
-    ...uncommonWeapons,
-    ...rareWeapons,
-  ];
+  return allPurchasableWeapons;
 }
 
 export function getWeaponById(id: string): Weapon | undefined {
-  return allWeapons.find(weapon => weapon.id === id);
+  // Check purchasable first, then initial
+  return allPurchasableWeapons.find(weapon => weapon.id === id) || (id === initialWeapon.id ? initialWeapon : undefined) ;
 }
+
+    

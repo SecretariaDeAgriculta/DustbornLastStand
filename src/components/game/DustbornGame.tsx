@@ -24,7 +24,7 @@ const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 
 const PLAYER_SIZE = 30;
-const PLAYER_SPEED = 3.5; // Slightly reduced speed for potentially more granular joystick control
+const PLAYER_SPEED = 3.5; 
 const PLAYER_INITIAL_HEALTH = 100;
 const MAX_PLAYER_WEAPONS = 5;
 const RECYCLE_XP_PERCENTAGE = 0.3; 
@@ -38,7 +38,7 @@ const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2; 
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; 
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
-const ENEMY_ARROCEIRO_COLOR = '#60a5fa'; // Light blue
+const ENEMY_ARROCEIRO_COLOR = '#60a5fa'; 
 
 const PROJECTILE_SIZE = 8;
 const PROJECTILE_SPEED = 10;
@@ -162,45 +162,67 @@ export function DustbornGame() {
     setIsGameOver(false);
     setIsPaused(false);
     setPlayerXP(0);
-    setPlayerWeapons([initialWeapon]);
+    setPlayerWeapons([{...initialWeapon}]); // Reset to a fresh copy of initial weapon
     setShopOfferings([]);
     activeKeys.current.clear();
-    setJoystickInput({ dx: 0, dy: 0}); // Reset joystick input
+    setJoystickInput({ dx: 0, dy: 0}); 
     lastLogicUpdateTimestampRef.current = 0;
     lastPlayerShotTimestampRef.current = {};
   }, []);
 
   const generateShopOfferings = useCallback(() => {
-    const available = getPurchasableWeapons().filter(
-      w => !playerWeapons.some(pw => pw.id === w.id)
-    );
-
+    const purchasable = getPurchasableWeapons(); 
     const weightedList: Weapon[] = [];
-    available.forEach(weapon => {
-      if (weapon.rarity === 'Comum') for (let i = 0; i < 3; i++) weightedList.push(weapon);
-      else if (weapon.rarity === 'Incomum') for (let i = 0; i < 2; i++) weightedList.push(weapon);
+    purchasable.forEach(weapon => {
+      if (weapon.rarity === 'Comum') for (let i = 0; i < 5; i++) weightedList.push(weapon); // Higher weight for common
+      else if (weapon.rarity === 'Incomum') for (let i = 0; i < 3; i++) weightedList.push(weapon);
       else weightedList.push(weapon); 
     });
 
     const shuffled = weightedList.sort(() => 0.5 - Math.random());
     const uniqueOfferings = Array.from(new Set(shuffled.map(w => w.id)))
-                               .map(id => shuffled.find(w => w.id === id)!)
+                               .map(id => ({...shuffled.find(w => w.id === id)!})) // Return copies
                                .slice(0, 3);
     setShopOfferings(uniqueOfferings);
-  }, [playerWeapons]);
+  }, []);
 
-  const handleBuyWeapon = (weaponToBuy: Weapon) => {
-    if (playerXP >= weaponToBuy.xpCost && playerWeapons.length < MAX_PLAYER_WEAPONS) {
-      setPlayerXP(prevXP => prevXP - weaponToBuy.xpCost);
-      setPlayerWeapons(prevWeapons => [...prevWeapons, weaponToBuy]);
-      toast({ title: "Arma Comprada!", description: `${weaponToBuy.name} adicionada ao seu arsenal.` });
-      generateShopOfferings(); 
-    } else if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
-      toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
-    } else {
-      toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToBuy.xpCost} XP para comprar ${weaponToBuy.name}.`, variant: "destructive" });
+
+  const handleBuyWeapon = (weaponToHandle: Weapon) => {
+    const existingWeaponIndex = playerWeapons.findIndex(pw => pw.id === weaponToHandle.id);
+    const isUpgrade = existingWeaponIndex !== -1;
+
+    if (playerXP < weaponToHandle.xpCost) {
+      toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToHandle.xpCost} XP.`, variant: "destructive" });
+      return;
     }
+
+    if (isUpgrade) {
+      setPlayerWeapons(prevWeapons => 
+        prevWeapons.map((weapon, index) => {
+          if (index === existingWeaponIndex) {
+            return {
+              ...weapon,
+              damage: weapon.damage + 1,
+              cooldown: Math.max(100, weapon.cooldown - 50),
+            };
+          }
+          return weapon;
+        })
+      );
+      setPlayerXP(prevXP => prevXP - weaponToHandle.xpCost);
+      toast({ title: "Arma Aprimorada!", description: `${weaponToHandle.name} teve seus atributos melhorados.` });
+    } else { // New weapon purchase
+      if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
+        toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
+        return;
+      }
+      setPlayerXP(prevXP => prevXP - weaponToHandle.xpCost);
+      setPlayerWeapons(prevWeapons => [...prevWeapons, {...weaponToHandle}]); // Add a copy
+      toast({ title: "Arma Comprada!", description: `${weaponToHandle.name} adicionada ao seu arsenal.` });
+    }
+    // DO NOT regenerate shop offerings here to keep them fixed for the wave
   };
+
 
   const handleRecycleWeapon = (weaponIdToRecycle: string) => {
     if (playerWeapons.length <= 1) {
@@ -230,11 +252,11 @@ export function DustbornGame() {
         setIsPaused(prev => !prev);
         return;
       }
-      if (isPaused || isShopPhase || isMobile) return; // Ignore keyboard if mobile
+      if (isPaused || isShopPhase || isMobile) return; 
       activeKeys.current.add(event.key.toLowerCase());
     };
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (isGameOver || isPaused || isShopPhase || isMobile) return; // Ignore keyboard if mobile
+      if (isGameOver || isPaused || isShopPhase || isMobile) return; 
       activeKeys.current.delete(event.key.toLowerCase());
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -257,7 +279,6 @@ export function DustbornGame() {
         return;
       }
 
-      // Player movement
       let inputDx = 0;
       let inputDy = 0;
       let usingJoystick = false;
@@ -545,7 +566,7 @@ export function DustbornGame() {
           setIsShopPhase(true);
           generateShopOfferings(); 
           if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
-          setJoystickInput({ dx: 0, dy: 0}); // Reset joystick when shop opens
+          setJoystickInput({ dx: 0, dy: 0}); 
           return WAVE_DURATION; 
         }
         return prevTimer - 1;
@@ -581,7 +602,7 @@ export function DustbornGame() {
         } else if (side === 1) { 
             newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + margin;
         } else if (side === 2) { 
-            newX = -ENEMY_ARROCEIRO_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
+            newX = -ENEMY_ARROCEiro_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
         } else { 
             newX = GAME_WIDTH + margin; newY = Math.random() * GAME_HEIGHT;
         }
@@ -637,7 +658,7 @@ export function DustbornGame() {
     lastPlayerShotTimestampRef.current = {}; 
     lastLogicUpdateTimestampRef.current = 0; 
     setIsPaused(false);
-    setJoystickInput({ dx: 0, dy: 0}); // Reset joystick for next wave
+    setJoystickInput({ dx: 0, dy: 0}); 
   };
 
   if (isGameOver) {
@@ -738,3 +759,5 @@ export function DustbornGame() {
     </div>
   );
 }
+
+    

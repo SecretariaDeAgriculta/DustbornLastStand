@@ -86,15 +86,21 @@ export function ShopDialog({
                 <div className="space-y-3">
                 {shopOfferings.map((weapon) => {
                   const IconComponent = weapon.icon || HelpCircle;
+                  const isOwned = playerWeapons.some(pw => pw.id === weapon.id);
                   const affordable = canAfford(weapon.xpCost);
-                  const alreadyOwned = playerWeapons.some(pw => pw.id === weapon.id);
+                  const actionText = isOwned ? "Aprimorar" : "Comprar";
+                  const isDisabled = !affordable || (inventoryFull && !isOwned);
                   
+                  let titleText = `${actionText} ${weapon.name}`;
+                  if (!affordable) titleText = "XP insuficiente";
+                  else if (inventoryFull && !isOwned) titleText = "Inventário cheio (Máx 5)";
+
                   return (
                     <Card key={weapon.id} className="p-3 bg-card/80 hover:bg-card transition-colors">
                       <div className="flex items-start space-x-3">
                         <IconComponent className={`h-10 w-10 mt-1 flex-shrink-0 ${getRarityColor(weapon.rarity)}`} />
                         <div className="flex-grow">
-                          <h4 className={`text-lg font-semibold ${getRarityColor(weapon.rarity)}`}>{weapon.name}</h4>
+                          <h4 className={`text-lg font-semibold ${getRarityColor(weapon.rarity)}`}>{weapon.name} {isOwned ? "(Aprimorar)" : ""}</h4>
                           <p className="text-xs text-muted-foreground mb-1">Raridade: <span className={getRarityColor(weapon.rarity)}>{weapon.rarity}</span></p>
                           <p className="text-sm">
                             Dano: {weapon.damage} {weapon.projectilesPerShot && weapon.projectilesPerShot > 1 ? `x ${weapon.projectilesPerShot}` : ''}
@@ -106,18 +112,13 @@ export function ShopDialog({
                         </div>
                         <Button 
                           size="sm" 
-                          variant={affordable && !inventoryFull && !alreadyOwned ? "default" : "outline"} 
+                          variant={affordable && (!inventoryFull || isOwned) ? "default" : "outline"} 
                           className="self-center"
                           onClick={() => onBuyWeapon(weapon)}
-                          disabled={!affordable || inventoryFull || alreadyOwned}
-                          title={
-                            alreadyOwned ? "Você já possui esta arma" :
-                            inventoryFull ? "Inventário cheio (Máx 5)" : 
-                            !affordable ? "XP insuficiente" : 
-                            `Comprar ${weapon.name}`
-                          }
+                          disabled={isDisabled}
+                          title={titleText}
                         >
-                          {alreadyOwned ? "Adquirida" : inventoryFull ? "Cheio" : "Comprar"}
+                          {actionText}
                         </Button>
                       </div>
                     </Card>
@@ -140,3 +141,5 @@ export function ShopDialog({
     </div>
   );
 }
+
+    
