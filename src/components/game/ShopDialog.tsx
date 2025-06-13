@@ -79,7 +79,7 @@ export function ShopDialog({
               className="md:col-span-1"
             />
             
-            <div className="space-y-2 flex flex-col h-full md:col-span-2">
+            <div className="space-y-2 flex flex-col h-full md:col-span-2 min-h-0">
               <h3 className="text-xl font-semibold text-center text-accent mb-2 flex-shrink-0">Loja de Armas</h3>
               <ScrollArea className="flex-grow rounded-md border p-2 bg-muted/30">
                 {shopOfferings.length === 0 && <p className="text-center text-muted-foreground p-4">Nenhuma arma nova disponível nesta rodada.</p>}
