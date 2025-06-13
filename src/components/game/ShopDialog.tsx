@@ -5,29 +5,42 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Weapon } from '@/config/weapons'; 
-import { HelpCircle } from 'lucide-react'; // Default icon
+import type { Weapon } from '@/config/weapons';
+import { HelpCircle, Coins } from 'lucide-react';
+import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
 
 interface ShopDialogProps {
   onStartNextWave: () => void;
   wave: number;
   score: number;
   playerXP: number;
-  availableWeapons: Weapon[];
+  shopOfferings: Weapon[];
+  playerWeapons: Weapon[];
+  onBuyWeapon: (weapon: Weapon) => void;
+  onRecycleWeapon: (weaponId: string) => void;
+  canAfford: (cost: number) => boolean;
+  inventoryFull: boolean;
 }
 
-export function ShopDialog({ onStartNextWave, wave, score, playerXP, availableWeapons }: ShopDialogProps) {
+export function ShopDialog({
+  onStartNextWave,
+  wave,
+  score,
+  playerXP,
+  shopOfferings,
+  playerWeapons,
+  onBuyWeapon,
+  onRecycleWeapon,
+  canAfford,
+  inventoryFull
+}: ShopDialogProps) {
   
   const getRarityColor = (rarity: Weapon['rarity']) => {
     switch (rarity) {
-      case 'Comum':
-        return 'text-gray-400';
-      case 'Incomum':
-        return 'text-green-400';
-      case 'Raro':
-        return 'text-blue-400';
-      default:
-        return 'text-gray-200';
+      case 'Comum': return 'text-gray-400';
+      case 'Incomum': return 'text-green-400';
+      case 'Raro': return 'text-blue-400';
+      default: return 'text-gray-200';
     }
   };
 
@@ -38,45 +51,48 @@ export function ShopDialog({ onStartNextWave, wave, score, playerXP, availableWe
   };
 
   const getRangeText = (range: number): string => {
-    if (range <= 150) return "Curto";
-    if (range <= 300) return "Médio";
+    if (range <= 200) return "Curto";
+    if (range <= 400) return "Médio";
     return "Longo";
   }
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-      <Card className="w-full max-w-2xl shadow-2xl flex flex-col" style={{maxHeight: '90vh'}}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+      <Card className="w-full max-w-4xl shadow-2xl flex flex-col" style={{maxHeight: '90vh'}}>
         <CardHeader className="flex-shrink-0">
-          <CardTitle className="text-3xl text-center text-primary">Wave {wave} Cleared!</CardTitle>
+          <CardTitle className="text-3xl text-center text-primary">Wave {wave} Concluída!</CardTitle>
           <CardDescription className="text-center">
-            Prepare for the next onslaught. Spend your XP wisely!
+            Prepare-se para a próxima horda. Gaste seu XP com sabedoria!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6 flex-grow overflow-hidden">
-          <div className="text-center mb-6">
-            <p className="text-lg">Current Score: <span className="font-bold text-primary">{score}</span></p>
-            <p className="text-lg">Available XP: <span className="font-bold text-yellow-400">{playerXP}</span></p>
+          <div className="text-center mb-4">
+            <p className="text-lg">Pontuação Atual: <span className="font-bold text-primary">{score}</span></p>
+            <p className="text-lg">XP Disponível: <span className="font-bold text-yellow-400">{playerXP}</span></p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-center text-accent mb-2">Attribute Upgrades</h3>
-              <Button className="w-full text-lg py-6" disabled>
-                Upgrade Attributes (Coming Soon)
-              </Button>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+            <PlayerInventoryDisplay 
+              weapons={playerWeapons}
+              onRecycleWeapon={onRecycleWeapon}
+              canRecycle={true}
+              className="md:col-span-1"
+            />
             
-            <div className="space-y-2 flex flex-col h-full">
-              <h3 className="text-xl font-semibold text-center text-accent mb-2 flex-shrink-0">Weapon Shop</h3>
+            <div className="space-y-2 flex flex-col h-full md:col-span-2">
+              <h3 className="text-xl font-semibold text-center text-accent mb-2 flex-shrink-0">Loja de Armas</h3>
               <ScrollArea className="flex-grow rounded-md border p-2 bg-muted/30">
-                {availableWeapons.length === 0 && <p className="text-center text-muted-foreground p-4">No weapons available in this tier.</p>}
+                {shopOfferings.length === 0 && <p className="text-center text-muted-foreground p-4">Nenhuma arma nova disponível nesta rodada.</p>}
                 <div className="space-y-3">
-                {availableWeapons.map((weapon) => {
+                {shopOfferings.map((weapon) => {
                   const IconComponent = weapon.icon || HelpCircle;
+                  const affordable = canAfford(weapon.xpCost);
+                  const alreadyOwned = playerWeapons.some(pw => pw.id === weapon.id);
+                  
                   return (
                     <Card key={weapon.id} className="p-3 bg-card/80 hover:bg-card transition-colors">
                       <div className="flex items-start space-x-3">
-                        <IconComponent className={`h-8 w-8 mt-1 flex-shrink-0 ${getRarityColor(weapon.rarity)}`} />
+                        <IconComponent className={`h-10 w-10 mt-1 flex-shrink-0 ${getRarityColor(weapon.rarity)}`} />
                         <div className="flex-grow">
                           <h4 className={`text-lg font-semibold ${getRarityColor(weapon.rarity)}`}>{weapon.name}</h4>
                           <p className="text-xs text-muted-foreground mb-1">Raridade: <span className={getRarityColor(weapon.rarity)}>{weapon.rarity}</span></p>
@@ -85,10 +101,23 @@ export function ShopDialog({ onStartNextWave, wave, score, playerXP, availableWe
                           </p>
                           <p className="text-sm">Cadência: {getCadenceText(weapon.cooldown)}</p>
                           <p className="text-sm">Alcance: {getRangeText(weapon.range)}</p>
-                          <p className="text-sm">Efeito: <span className="italic text-accent-foreground/80">{weapon.effectDescription}</span></p>
+                           <p className="text-sm">Custo: <span className="font-semibold text-yellow-400">{weapon.xpCost} XP</span></p>
+                          <p className="text-sm mt-1">Efeito: <span className="italic text-accent-foreground/80">{weapon.effectDescription}</span></p>
                         </div>
-                        <Button size="sm" variant="outline" className="self-center" disabled>
-                          Buy (TODO)
+                        <Button 
+                          size="sm" 
+                          variant={affordable && !inventoryFull && !alreadyOwned ? "default" : "outline"} 
+                          className="self-center"
+                          onClick={() => onBuyWeapon(weapon)}
+                          disabled={!affordable || inventoryFull || alreadyOwned}
+                          title={
+                            alreadyOwned ? "Você já possui esta arma" :
+                            inventoryFull ? "Inventário cheio (Máx 5)" : 
+                            !affordable ? "XP insuficiente" : 
+                            `Comprar ${weapon.name}`
+                          }
+                        >
+                          {alreadyOwned ? "Adquirida" : inventoryFull ? "Cheio" : "Comprar"}
                         </Button>
                       </div>
                     </Card>
@@ -104,7 +133,7 @@ export function ShopDialog({ onStartNextWave, wave, score, playerXP, availableWe
             onClick={onStartNextWave} 
             className="w-full md:w-1/2 text-lg py-6 bg-accent hover:bg-accent/90 text-accent-foreground"
           >
-            Start Wave {wave + 1}
+            Começar Wave {wave + 1}
           </Button>
         </CardFooter>
       </Card>

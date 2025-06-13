@@ -11,41 +11,44 @@ import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
 import { DamageNumber } from './DamageNumber';
+import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
 import { PauseIcon, PlayIcon } from 'lucide-react';
 import type { Weapon } from '@/config/weapons';
-import { initialWeapon, commonWeapons } from '@/config/weapons';
+import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
+import { useToast } from "@/hooks/use-toast";
+
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
 
-// Player Stats
 const PLAYER_SIZE = 30;
 const PLAYER_SPEED = 5;
 const PLAYER_INITIAL_HEALTH = 100;
+const MAX_PLAYER_WEAPONS = 5;
+const RECYCLE_XP_PERCENTAGE = 0.3; // 30% of original cost back
+const INITIAL_WEAPON_RECYCLE_XP = 5;
 
-// Enemy: Arruaceiro de Saloon (Saloon Brawler)
+
 const ENEMY_ARROCEIRO_SIZE = PLAYER_SIZE;
 const ENEMY_ARROCEIRO_INITIAL_HEALTH = 10;
 const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2; 
-const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; // ms
+const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; 
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
-const ENEMY_ARROCEIRO_COLOR = '#60a5fa'; // Lighter blue
+const ENEMY_ARROCEIRO_COLOR = '#60a5fa';
 
-// Projectile Stats (base, can be overridden by weapon)
 const PROJECTILE_SIZE = 8;
 const PROJECTILE_SPEED = 10;
 
 const XP_ORB_SIZE = 10;
-const WAVE_DURATION = 120; // 2 minutes in seconds
-const ENEMY_SPAWN_INTERVAL_INITIAL = 2500; // milliseconds
+const WAVE_DURATION = 120; 
+const ENEMY_SPAWN_INTERVAL_INITIAL = 2500; 
 const MAX_ENEMIES_BASE = 3; 
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
-const ENEMY_MOVE_INTERVAL = 50; // ms 
+const ENEMY_MOVE_INTERVAL = 50; 
 
-// Damage Number constants
-const DAMAGE_NUMBER_LIFESPAN = 700; // ms
+const DAMAGE_NUMBER_LIFESPAN = 700; 
 const DAMAGE_NUMBER_FLOAT_SPEED = 0.8; 
 
 interface Entity {
@@ -85,7 +88,7 @@ interface ProjectileData extends Entity {
   traveledDistance: number;
   maxRange: number;
   critical?: boolean;
-  penetrationLeft?: number;
+  penetrationLeft: number; 
   hitEnemyIds: Set<string>; 
 }
 
@@ -117,9 +120,10 @@ export function DustbornGame() {
   const [isShopPhase, setIsShopPhase] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [playerXP, setPlayerXP] = useState(0);
+  const [playerXP, setPlayerXP] = useState(0); // Start with some XP for testing shop: 100
   
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([initialWeapon]);
+  const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
   
   const activeKeys = useRef<Set<string>>(new Set());
   const enemySpawnTimerId = useRef<NodeJS.Timeout | null>(null);
@@ -127,6 +131,7 @@ export function DustbornGame() {
   const lastLogicUpdateTimestampRef = useRef(0);
   const lastPlayerShotTimestampRef = useRef<Record<string, number>>({}); 
   const gameAreaRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
 
   const resetGameState = useCallback(() => {
     setPlayer({
@@ -147,12 +152,67 @@ export function DustbornGame() {
     setIsShopPhase(false);
     setIsGameOver(false);
     setIsPaused(false);
-    setPlayerXP(0);
+    setPlayerXP(0); // Reset XP
     setPlayerWeapons([initialWeapon]);
+    setShopOfferings([]);
     activeKeys.current.clear();
     lastLogicUpdateTimestampRef.current = 0;
     lastPlayerShotTimestampRef.current = {};
   }, []);
+
+  const generateShopOfferings = useCallback(() => {
+    const available = getPurchasableWeapons().filter(
+      w => !playerWeapons.some(pw => pw.id === w.id)
+    );
+
+    const weightedList: Weapon[] = [];
+    available.forEach(weapon => {
+      if (weapon.rarity === 'Comum') for (let i = 0; i < 3; i++) weightedList.push(weapon);
+      else if (weapon.rarity === 'Incomum') for (let i = 0; i < 2; i++) weightedList.push(weapon);
+      else weightedList.push(weapon); // Raro
+    });
+
+    const shuffled = weightedList.sort(() => 0.5 - Math.random());
+    const uniqueOfferings = Array.from(new Set(shuffled.map(w => w.id)))
+                               .map(id => shuffled.find(w => w.id === id)!)
+                               .slice(0, 3);
+    setShopOfferings(uniqueOfferings);
+  }, [playerWeapons]);
+
+  const handleBuyWeapon = (weaponToBuy: Weapon) => {
+    if (playerXP >= weaponToBuy.xpCost && playerWeapons.length < MAX_PLAYER_WEAPONS) {
+      setPlayerXP(prevXP => prevXP - weaponToBuy.xpCost);
+      setPlayerWeapons(prevWeapons => [...prevWeapons, weaponToBuy]);
+      toast({ title: "Arma Comprada!", description: `${weaponToBuy.name} adicionada ao seu arsenal.` });
+      // Re-generate shop offerings to remove bought item or offer new ones
+      generateShopOfferings(); 
+    } else if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
+      toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
+    } else {
+      toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToBuy.xpCost} XP para comprar ${weaponToBuy.name}.`, variant: "destructive" });
+    }
+  };
+
+  const handleRecycleWeapon = (weaponIdToRecycle: string) => {
+    if (playerWeapons.length <= 1) {
+      toast({ title: "Não Pode Reciclar", description: "Você não pode reciclar sua última arma.", variant: "destructive" });
+      return;
+    }
+    const weaponToRecycle = playerWeapons.find(w => w.id === weaponIdToRecycle);
+    if (weaponToRecycle) {
+      let xpGained = 0;
+      if (weaponToRecycle.id === initialWeapon.id) {
+        xpGained = INITIAL_WEAPON_RECYCLE_XP;
+      } else {
+        xpGained = Math.floor(weaponToRecycle.xpCost * RECYCLE_XP_PERCENTAGE);
+      }
+      
+      setPlayerXP(prevXP => prevXP + xpGained);
+      setPlayerWeapons(prevWeapons => prevWeapons.filter(w => w.id !== weaponIdToRecycle));
+      toast({ title: "Arma Reciclada!", description: `${weaponToRecycle.name} removida. +${xpGained} XP.` });
+    }
+  };
+
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -161,11 +221,11 @@ export function DustbornGame() {
         setIsPaused(prev => !prev);
         return;
       }
-      if (isPaused) return;
+      if (isPaused || isShopPhase) return;
       activeKeys.current.add(event.key.toLowerCase());
     };
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (isGameOver || isPaused) return;
+      if (isGameOver || isPaused || isShopPhase) return;
       activeKeys.current.delete(event.key.toLowerCase());
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -175,7 +235,7 @@ export function DustbornGame() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isGameOver, isPaused]);
+  }, [isGameOver, isPaused, isShopPhase]);
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) return;
@@ -329,7 +389,7 @@ export function DustbornGame() {
                   });
                   
                   if (currentEnemyState.health <= 0) {
-                    newHitScore += currentEnemyState.xpValue * 5;
+                    newHitScore += currentEnemyState.xpValue * 5; // Score for kill
                     newXpOrbsFromHits.push({ 
                       id: `xp_${Date.now()}_${Math.random()}_${currentEnemyState.id}`, 
                       x: currentEnemyState.x + currentEnemyState.width / 2 - XP_ORB_SIZE / 2, 
@@ -339,10 +399,11 @@ export function DustbornGame() {
                     });
                   }
 
-                  if (proj.penetrationLeft !== undefined && proj.penetrationLeft > 0) {
+                  if (proj.penetrationLeft > 0) {
                     proj.penetrationLeft--;
                   } else {
-                    newProjectilesAfterHits.splice(i, 1); 
+                     // Only remove if penetration is 0 or less, and it has hit something
+                    newProjectilesAfterHits.splice(i, 1);
                   }
                 }
               }
@@ -440,7 +501,7 @@ export function DustbornGame() {
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score]); 
+  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score, playerXP, toast, generateShopOfferings]); 
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) {
@@ -452,6 +513,7 @@ export function DustbornGame() {
         if (prevTimer <= 1) {
           clearInterval(waveIntervalId.current!);
           setIsShopPhase(true);
+          generateShopOfferings(); // Generate offerings when shop phase starts
           if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
           return WAVE_DURATION; 
         }
@@ -461,7 +523,7 @@ export function DustbornGame() {
     return () => {
       if (waveIntervalId.current) clearInterval(waveIntervalId.current);
     };
-  }, [isGameOver, isShopPhase, isPaused, wave]);
+  }, [isGameOver, isShopPhase, isPaused, wave, generateShopOfferings]);
 
 
   const spawnEnemy = useCallback(() => {
@@ -470,8 +532,8 @@ export function DustbornGame() {
         return;
     }
 
-    const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + (wave - 1) * 3; // Health scales from Wave 2 onwards
-    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + (wave -1) * 0.1; // Speed scales from Wave 2 onwards
+    const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + (wave - 1) * 3;
+    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + (wave -1) * 0.1;
     let newX, newY;
     let attempts = 0;
     const maxAttempts = 10; 
@@ -549,15 +611,15 @@ export function DustbornGame() {
   if (isGameOver) {
     return (
       <div className="text-center p-8">
-        <h2 className="text-4xl font-bold text-destructive mb-4">Game Over!</h2>
-        <p className="text-xl mb-2">Final Score: {score}</p>
-        <p className="text-lg mb-2">Wave Reached: {wave}</p>
-        <p className="text-lg mb-4">Total XP Collected: {playerXP}</p>
+        <h2 className="text-4xl font-bold text-destructive mb-4">Fim de Jogo!</h2>
+        <p className="text-xl mb-2">Pontuação Final: {score}</p>
+        <p className="text-lg mb-2">Wave Alcançada: {wave}</p>
+        <p className="text-lg mb-4">Total XP Coletado: {playerXP}</p>
         <Button 
           onClick={resetGameState}
           className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-lg"
         >
-          Play Again
+          Jogar Novamente
         </Button>
       </div>
     );
@@ -569,7 +631,12 @@ export function DustbornGame() {
               wave={wave} 
               score={score} 
               playerXP={playerXP} 
-              availableWeapons={commonWeapons} 
+              shopOfferings={shopOfferings}
+              playerWeapons={playerWeapons}
+              onBuyWeapon={handleBuyWeapon}
+              onRecycleWeapon={handleRecycleWeapon}
+              canAfford={(cost) => playerXP >= cost}
+              inventoryFull={playerWeapons.length >= MAX_PLAYER_WEAPONS}
             />;
   }
 
@@ -582,7 +649,7 @@ export function DustbornGame() {
             variant="outline" 
             size="icon" 
             className="ml-4 mt-1 text-foreground hover:bg-accent hover:text-accent-foreground"
-            aria-label={isPaused ? "Resume game" : "Pause game"}
+            aria-label={isPaused ? "Continuar jogo" : "Pausar jogo"}
         >
             {isPaused ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
         </Button>
@@ -597,8 +664,9 @@ export function DustbornGame() {
           tabIndex={-1} 
         >
           {isPaused && (
-            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
-              <h2 className="text-5xl font-bold text-primary-foreground animate-pulse">PAUSED</h2>
+            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
+              <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>
+              <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90" />
             </div>
           )}
           <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} />
@@ -629,7 +697,7 @@ export function DustbornGame() {
         </div>
       </Card>
        <div className="mt-4 text-sm text-muted-foreground">
-        Use Arrow Keys or WASD to move. Weapon fires automatically. Press 'P' or click the button to pause. Survive!
+        Use as Teclas de Seta ou WASD para mover. A arma dispara automaticamente. Pressione 'P' ou clique no botão para pausar. Sobreviva!
       </div>
     </div>
   );
