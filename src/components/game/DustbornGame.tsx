@@ -119,15 +119,13 @@ export function DustbornGame() {
   const [isPaused, setIsPaused] = useState(false);
   const [playerXP, setPlayerXP] = useState(0);
   
-  // Player starts with 'Revólver Enferrujado'
-  // For now, player only has one weapon slot. Max 5 will be handled later.
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([initialWeapon]);
   
   const activeKeys = useRef<Set<string>>(new Set());
   const enemySpawnTimerId = useRef<NodeJS.Timeout | null>(null);
   const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
   const lastLogicUpdateTimestampRef = useRef(0);
-  const lastPlayerShotTimestampRef = useRef<Record<string, number>>({}); // Tracks cooldown per weapon
+  const lastPlayerShotTimestampRef = useRef<Record<string, number>>({}); 
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
   const resetGameState = useCallback(() => {
@@ -214,7 +212,6 @@ export function DustbornGame() {
 
       const now = Date.now();
       
-      // Automatic shooting for each equipped weapon
       playerWeapons.forEach(weapon => {
         const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
         if (enemies.length > 0 && now - lastShotTime >= weapon.cooldown) {
@@ -243,12 +240,11 @@ export function DustbornGame() {
             const projectilesToSpawn: Omit<ProjectileData, 'id'>[] = [];
 
             const numProjectiles = weapon.projectilesPerShot || 1;
-            const spread = weapon.shotgunSpreadAngle ? weapon.shotgunSpreadAngle * (Math.PI / 180) : 0; // Convert to radians
+            const spread = weapon.shotgunSpreadAngle ? weapon.shotgunSpreadAngle * (Math.PI / 180) : 0; 
 
             for (let i = 0; i < numProjectiles; i++) {
               let currentAngle = baseAngle;
               if (numProjectiles > 1 && spread > 0) {
-                // Distribute projectiles within the spread angle
                 currentAngle += (i - (numProjectiles - 1) / 2) * (spread / (numProjectiles > 1 ? numProjectiles -1 : 1));
               }
               
@@ -308,7 +304,6 @@ export function DustbornGame() {
 
               for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
                 const proj = newProjectilesAfterHits[i];
-                // Ensure projectile hasn't already hit this enemy in its penetration path
                 if (proj.hitEnemyIds.has(enemy.id)) continue;
 
                 const projCenterX = proj.x + proj.size / 2;
@@ -349,10 +344,7 @@ export function DustbornGame() {
                   } else {
                     newProjectilesAfterHits.splice(i, 1); 
                   }
-                  // Only one projectile interaction per enemy per tick for simplicity for now
-                  // unless projectiles can hit multiple times (e.g. piercing through and hitting again if enemy is large)
-                  // but current logic: one hit = one damage instance.
-                  break; 
+                  // An enemy can be hit by multiple projectiles in one frame. Do not break here.
                 }
               }
               return currentEnemyState;
@@ -578,7 +570,7 @@ export function DustbornGame() {
               wave={wave} 
               score={score} 
               playerXP={playerXP} 
-              availableWeapons={commonWeapons} // Pass common weapons to the shop
+              availableWeapons={commonWeapons} 
             />;
   }
 
