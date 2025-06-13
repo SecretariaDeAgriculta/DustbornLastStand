@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
 import { DamageNumber } from './DamageNumber';
 import { PauseIcon, PlayIcon } from 'lucide-react';
+import type { Weapon } from '@/config/weapons';
+import { initialWeapon, commonWeapons } from '@/config/weapons';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
@@ -26,30 +28,25 @@ const ENEMY_ARROCEIRO_SIZE = PLAYER_SIZE;
 const ENEMY_ARROCEIRO_INITIAL_HEALTH = 10;
 const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
-const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2; // Slightly larger for attack trigger
+const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2; 
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; // ms
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
 const ENEMY_ARROCEIRO_COLOR = '#60a5fa'; // Lighter blue
 
-// Player Weapon: Revólver Enferrujado
-const PLAYER_WEAPON_DAMAGE = 4;
-const PLAYER_WEAPON_COOLDOWN = 1000; // ms
-const PLAYER_WEAPON_RANGE = 300; // projectile max travel distance
-
-// Projectile Stats
+// Projectile Stats (base, can be overridden by weapon)
 const PROJECTILE_SIZE = 8;
 const PROJECTILE_SPEED = 10;
 
 const XP_ORB_SIZE = 10;
 const WAVE_DURATION = 120; // 2 minutes in seconds
 const ENEMY_SPAWN_INTERVAL_INITIAL = 2500; // milliseconds
-const MAX_ENEMIES_BASE = 3; // Base max enemies
+const MAX_ENEMIES_BASE = 3; 
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
-const ENEMY_MOVE_INTERVAL = 50; // ms (controls how often enemy logic updates)
+const ENEMY_MOVE_INTERVAL = 50; // ms 
 
 // Damage Number constants
 const DAMAGE_NUMBER_LIFESPAN = 700; // ms
-const DAMAGE_NUMBER_FLOAT_SPEED = 0.8; // pixels per ENEMY_MOVE_INTERVAL tick
+const DAMAGE_NUMBER_FLOAT_SPEED = 0.8; 
 
 interface Entity {
   id: string;
@@ -84,22 +81,20 @@ interface ProjectileData extends Entity {
   size: number;
   dx: number;
   dy: number;
+  damage: number;
   traveledDistance: number;
   maxRange: number;
+  critical?: boolean;
+  penetrationLeft?: number;
+  hitEnemyIds: Set<string>; 
 }
 
-interface Weapon {
-  id: string;
-  name: string;
-  damage: number;
-  cooldown: number;
-  range: number; // Weapon's targeting range
-}
 
 interface DamageNumberData extends Entity {
   amount: number;
   life: number;
   opacity: number;
+  isCritical?: boolean;
 }
 
 
@@ -123,15 +118,16 @@ export function DustbornGame() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [playerXP, setPlayerXP] = useState(0);
-  const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([
-    { id: 'w1', name: 'Revólver Enferrujado', damage: PLAYER_WEAPON_DAMAGE, cooldown: PLAYER_WEAPON_COOLDOWN, range: PLAYER_WEAPON_RANGE },
-  ]);
+  
+  // Player starts with 'Revólver Enferrujado'
+  // For now, player only has one weapon slot. Max 5 will be handled later.
+  const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([initialWeapon]);
   
   const activeKeys = useRef<Set<string>>(new Set());
   const enemySpawnTimerId = useRef<NodeJS.Timeout | null>(null);
   const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
   const lastLogicUpdateTimestampRef = useRef(0);
-  const lastPlayerShotTimestampRef = useRef(0);
+  const lastPlayerShotTimestampRef = useRef<Record<string, number>>({}); // Tracks cooldown per weapon
   const gameAreaRef = useRef<HTMLDivElement>(null);
 
   const resetGameState = useCallback(() => {
@@ -154,10 +150,10 @@ export function DustbornGame() {
     setIsGameOver(false);
     setIsPaused(false);
     setPlayerXP(0);
-    setPlayerWeapons([{ id: 'w1', name: 'Revólver Enferrujado', damage: PLAYER_WEAPON_DAMAGE, cooldown: PLAYER_WEAPON_COOLDOWN, range: PLAYER_WEAPON_RANGE }]);
+    setPlayerWeapons([initialWeapon]);
     activeKeys.current.clear();
     lastLogicUpdateTimestampRef.current = 0;
-    lastPlayerShotTimestampRef.current = 0;
+    lastPlayerShotTimestampRef.current = {};
   }, []);
 
   useEffect(() => {
@@ -189,7 +185,7 @@ export function DustbornGame() {
     let animationFrameId: number;
 
     const gameTick = (timestamp: number) => {
-      if (isPaused) { // Double check pause state inside animation frame
+      if (isPaused) { 
         animationFrameId = requestAnimationFrame(gameTick);
         return;
       }
@@ -217,44 +213,73 @@ export function DustbornGame() {
       }
 
       const now = Date.now();
-      const currentWeapon = playerWeapons[0];
-      if (enemies.length > 0 && now - lastPlayerShotTimestampRef.current >= currentWeapon.cooldown) {
-        let closestEnemy: Enemy | null = null;
-        let minDistanceSquared = currentWeapon.range ** 2;
+      
+      // Automatic shooting for each equipped weapon
+      playerWeapons.forEach(weapon => {
+        const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
+        if (enemies.length > 0 && now - lastShotTime >= weapon.cooldown) {
+          let closestEnemy: Enemy | null = null;
+          let minDistanceSquared = weapon.range ** 2;
 
-        const playerCenterX = player.x + player.width / 2;
-        const playerCenterY = player.y + player.height / 2;
+          const playerCenterX = player.x + player.width / 2;
+          const playerCenterY = player.y + player.height / 2;
 
-        for (const enemy of enemies) {
-          const enemyCenterX = enemy.x + enemy.width / 2;
-          const enemyCenterY = enemy.y + enemy.height / 2;
-          const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
-          if (distSq < minDistanceSquared) {
-            minDistanceSquared = distSq;
-            closestEnemy = enemy;
+          for (const enemy of enemies) {
+            const enemyCenterX = enemy.x + enemy.width / 2;
+            const enemyCenterY = enemy.y + enemy.height / 2;
+            const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
+            if (distSq < minDistanceSquared) {
+              minDistanceSquared = distSq;
+              closestEnemy = enemy;
+            }
+          }
+
+          if (closestEnemy) {
+            lastPlayerShotTimestampRef.current = { ...lastPlayerShotTimestampRef.current, [weapon.id]: now };
+            const targetX = closestEnemy.x + closestEnemy.width / 2;
+            const targetY = closestEnemy.y + closestEnemy.height / 2;
+            
+            const baseAngle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
+            const projectilesToSpawn: Omit<ProjectileData, 'id'>[] = [];
+
+            const numProjectiles = weapon.projectilesPerShot || 1;
+            const spread = weapon.shotgunSpreadAngle ? weapon.shotgunSpreadAngle * (Math.PI / 180) : 0; // Convert to radians
+
+            for (let i = 0; i < numProjectiles; i++) {
+              let currentAngle = baseAngle;
+              if (numProjectiles > 1 && spread > 0) {
+                // Distribute projectiles within the spread angle
+                currentAngle += (i - (numProjectiles - 1) / 2) * (spread / (numProjectiles > 1 ? numProjectiles -1 : 1));
+              }
+              
+              const projDx = Math.cos(currentAngle);
+              const projDy = Math.sin(currentAngle);
+              
+              let damage = weapon.damage;
+              let isCritical = false;
+              if (weapon.criticalChance && Math.random() < weapon.criticalChance) {
+                damage = Math.round(damage * (weapon.criticalMultiplier || 1.5));
+                isCritical = true;
+              }
+
+              projectilesToSpawn.push({
+                x: playerCenterX - PROJECTILE_SIZE / 2,
+                y: playerCenterY - PROJECTILE_SIZE / 2,
+                size: PROJECTILE_SIZE,
+                dx: projDx,
+                dy: projDy,
+                damage: damage,
+                traveledDistance: 0,
+                maxRange: weapon.range,
+                critical: isCritical,
+                penetrationLeft: weapon.penetrationCount || 0,
+                hitEnemyIds: new Set<string>(),
+              });
+            }
+            setProjectiles(prev => [...prev, ...projectilesToSpawn.map(p => ({...p, id: `proj_${Date.now()}_${Math.random()}`}))]);
           }
         }
-
-        if (closestEnemy) {
-          lastPlayerShotTimestampRef.current = now;
-          const targetX = closestEnemy.x + closestEnemy.width / 2;
-          const targetY = closestEnemy.y + closestEnemy.height / 2;
-          const angle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
-          const projDx = Math.cos(angle);
-          const projDy = Math.sin(angle);
-
-          setProjectiles(prev => [...prev, {
-            id: `proj_${Date.now()}_${Math.random()}`,
-            x: playerCenterX - PROJECTILE_SIZE / 2,
-            y: playerCenterY - PROJECTILE_SIZE / 2,
-            size: PROJECTILE_SIZE,
-            dx: projDx,
-            dy: projDy,
-            traveledDistance: 0,
-            maxRange: currentWeapon.range,
-          }]);
-        }
-      }
+      });
       
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
         lastLogicUpdateTimestampRef.current = timestamp;
@@ -273,18 +298,19 @@ export function DustbornGame() {
           );
 
           const newProjectilesAfterHits = [...updatedProjectiles];
-          let enemiesHitThisTick: Record<string, boolean> = {};
-
+          
           setEnemies(currentEnemies => {
             let newHitScore = 0;
             const newXpOrbsFromHits: XPOrbData[] = [];
             
             const nextEnemiesState = currentEnemies.map(enemy => {
               let currentEnemyState = {...enemy};
-              if (enemiesHitThisTick[enemy.id]) return currentEnemyState;
 
               for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
                 const proj = newProjectilesAfterHits[i];
+                // Ensure projectile hasn't already hit this enemy in its penetration path
+                if (proj.hitEnemyIds.has(enemy.id)) continue;
+
                 const projCenterX = proj.x + proj.size / 2;
                 const projCenterY = proj.y + proj.size / 2;
                 const enemyCenterX = currentEnemyState.x + currentEnemyState.width / 2;
@@ -293,10 +319,9 @@ export function DustbornGame() {
                 if (Math.abs(projCenterX - enemyCenterX) < (proj.size / 2 + currentEnemyState.width / 2) &&
                     Math.abs(projCenterY - enemyCenterY) < (proj.size / 2 + currentEnemyState.height / 2)) {
                   
-                  const damageDealt = playerWeapons[0].damage;
+                  const damageDealt = proj.damage;
                   currentEnemyState.health -= damageDealt;
-                  newProjectilesAfterHits.splice(i, 1); 
-                  enemiesHitThisTick[enemy.id] = true;
+                  proj.hitEnemyIds.add(enemy.id);
 
                   newlyCreatedDamageNumbers.push({
                     id: `dmg_${Date.now()}_${Math.random()}`,
@@ -305,6 +330,7 @@ export function DustbornGame() {
                     amount: damageDealt,
                     life: DAMAGE_NUMBER_LIFESPAN,
                     opacity: 1,
+                    isCritical: proj.critical,
                   });
                   
                   if (currentEnemyState.health <= 0) {
@@ -317,6 +343,15 @@ export function DustbornGame() {
                       value: currentEnemyState.xpValue 
                     });
                   }
+
+                  if (proj.penetrationLeft !== undefined && proj.penetrationLeft > 0) {
+                    proj.penetrationLeft--;
+                  } else {
+                    newProjectilesAfterHits.splice(i, 1); 
+                  }
+                  // Only one projectile interaction per enemy per tick for simplicity for now
+                  // unless projectiles can hit multiple times (e.g. piercing through and hitting again if enemy is large)
+                  // but current logic: one hit = one damage instance.
                   break; 
                 }
               }
@@ -485,7 +520,7 @@ export function DustbornGame() {
         speed: enemySpeed,
       },
     ]);
-  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver, isPaused, setEnemies]); 
+  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver, isPaused]); 
 
   useEffect(() => {
     if (isShopPhase || isGameOver || isPaused) {
@@ -515,9 +550,9 @@ export function DustbornGame() {
     setDamageNumbers([]);
     setXpOrbs([]); 
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH })); 
-    lastPlayerShotTimestampRef.current = 0; 
+    lastPlayerShotTimestampRef.current = {}; 
     lastLogicUpdateTimestampRef.current = 0; 
-    setIsPaused(false); // Ensure game isn't paused when next wave starts
+    setIsPaused(false); 
   };
 
   if (isGameOver) {
@@ -538,7 +573,13 @@ export function DustbornGame() {
   }
 
   if (isShopPhase) {
-    return <ShopDialog onStartNextWave={startNextWave} wave={wave} score={score} playerXP={playerXP} />;
+    return <ShopDialog 
+              onStartNextWave={startNextWave} 
+              wave={wave} 
+              score={score} 
+              playerXP={playerXP} 
+              availableWeapons={commonWeapons} // Pass common weapons to the shop
+            />;
   }
 
   return (
@@ -591,6 +632,7 @@ export function DustbornGame() {
               y={dn.y}
               amount={dn.amount}
               opacity={dn.opacity}
+              isCritical={dn.isCritical}
             />
           ))}
         </div>
@@ -601,10 +643,3 @@ export function DustbornGame() {
     </div>
   );
 }
-    
-
-    
-
-
-
-    
