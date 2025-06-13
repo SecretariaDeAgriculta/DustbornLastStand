@@ -171,56 +171,78 @@ export function DustbornGame() {
   }, []);
 
   const generateShopOfferings = useCallback(() => {
-    const purchasable = getPurchasableWeapons(); 
+    const purchasable = getPurchasableWeapons().filter(
+      (shopWeapon) => shopWeapon.id !== initialWeapon.id // Exclude initial weapon from shop
+    );
     const weightedList: Weapon[] = [];
+  
     purchasable.forEach(weapon => {
-      if (weapon.rarity === 'Comum') for (let i = 0; i < 5; i++) weightedList.push(weapon); // Higher weight for common
+      if (weapon.rarity === 'Comum') for (let i = 0; i < 5; i++) weightedList.push(weapon);
       else if (weapon.rarity === 'Incomum') for (let i = 0; i < 3; i++) weightedList.push(weapon);
-      else weightedList.push(weapon); 
+      else weightedList.push(weapon);
     });
-
+  
     const shuffled = weightedList.sort(() => 0.5 - Math.random());
-    const uniqueOfferings = Array.from(new Set(shuffled.map(w => w.id)))
-                               .map(id => ({...shuffled.find(w => w.id === id)!})) // Return copies
-                               .slice(0, 3);
-    setShopOfferings(uniqueOfferings);
+    
+    // Ensure we get 3 *unique* offerings if possible
+    const uniqueWeaponIds = new Set<string>();
+    const currentOfferings: Weapon[] = [];
+    
+    for (const weapon of shuffled) {
+      if (!uniqueWeaponIds.has(weapon.id)) {
+        uniqueWeaponIds.add(weapon.id);
+        currentOfferings.push({...weapon}); // Add a copy
+        if (currentOfferings.length >= 3) break;
+      }
+    }
+    setShopOfferings(currentOfferings);
   }, []);
 
 
-  const handleBuyWeapon = (weaponToHandle: Weapon) => {
-    const existingWeaponIndex = playerWeapons.findIndex(pw => pw.id === weaponToHandle.id);
+  const handleBuyWeapon = (weaponToBuyOrUpgrade: Weapon) => {
+    const existingWeaponIndex = playerWeapons.findIndex(pw => pw.id === weaponToBuyOrUpgrade.id);
     const isUpgrade = existingWeaponIndex !== -1;
-
-    if (playerXP < weaponToHandle.xpCost) {
-      toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToHandle.xpCost} XP.`, variant: "destructive" });
+  
+    if (playerXP < weaponToBuyOrUpgrade.xpCost) {
+      toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToBuyOrUpgrade.xpCost} XP.`, variant: "destructive" });
       return;
     }
-
+  
     if (isUpgrade) {
       setPlayerWeapons(prevWeapons => 
         prevWeapons.map((weapon, index) => {
           if (index === existingWeaponIndex) {
+            // Apply stat buffs for upgrade
             return {
               ...weapon,
-              damage: weapon.damage + 1,
-              cooldown: Math.max(100, weapon.cooldown - 50),
+              damage: weapon.damage + 1, // Example buff: +1 damage
+              cooldown: Math.max(100, weapon.cooldown - 50), // Example buff: -50ms cooldown (min 100ms)
+              // Note: xpCost of the weapon in inventory doesn't change for upgrades
             };
           }
           return weapon;
         })
       );
-      setPlayerXP(prevXP => prevXP - weaponToHandle.xpCost);
-      toast({ title: "Arma Aprimorada!", description: `${weaponToHandle.name} teve seus atributos melhorados.` });
+      setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
+      toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
     } else { // New weapon purchase
       if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
         toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
         return;
       }
-      setPlayerXP(prevXP => prevXP - weaponToHandle.xpCost);
-      setPlayerWeapons(prevWeapons => [...prevWeapons, {...weaponToHandle}]); // Add a copy
-      toast({ title: "Arma Comprada!", description: `${weaponToHandle.name} adicionada ao seu arsenal.` });
+      setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
+      // Add a fresh copy of the weapon from its definition to avoid shared state issues
+      const freshWeaponDefinition = getWeaponById(weaponToBuyOrUpgrade.id);
+      if (freshWeaponDefinition) {
+        setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition}]); 
+        toast({ title: "Arma Comprada!", description: `${weaponToBuyOrUpgrade.name} adicionada ao seu arsenal.` });
+      } else {
+        toast({ title: "Erro na Loja", description: `Não foi possível encontrar a definição da arma ${weaponToBuyOrUpgrade.name}.`, variant: "destructive" });
+      }
     }
-    // DO NOT regenerate shop offerings here to keep them fixed for the wave
+    // Shop offerings are fixed for the wave, so no regeneration here.
+    // Re-filter shop offerings to update "Aprimorar" status, though it's mostly handled by ShopDialog's props
+    setShopOfferings(prevOfferings => [...prevOfferings]); 
   };
 
 
@@ -235,7 +257,9 @@ export function DustbornGame() {
       if (weaponToRecycle.id === initialWeapon.id) {
         xpGained = INITIAL_WEAPON_RECYCLE_XP;
       } else {
-        xpGained = Math.floor(weaponToRecycle.xpCost * RECYCLE_XP_PERCENTAGE);
+        // Use the base xpCost from the weapon definition, not potentially modified one
+        const baseWeapon = getWeaponById(weaponIdToRecycle);
+        xpGained = Math.floor((baseWeapon?.xpCost || 0) * RECYCLE_XP_PERCENTAGE);
       }
       
       setPlayerXP(prevXP => prevXP + xpGained);
@@ -307,7 +331,7 @@ export function DustbornGame() {
             if (inputDx !== 0 && inputDy !== 0) { 
                 const length = Math.sqrt(inputDx * inputDx + inputDy * inputDy); 
                 moveX = (inputDx / length) * PLAYER_SPEED;
-                moveY = (inputDy / length) * PLAYER_SPEED;
+                moveY = (dy / length) * PLAYER_SPEED;
             } else { 
                 moveX = inputDx * PLAYER_SPEED;
                 moveY = inputDy * PLAYER_SPEED;
@@ -585,7 +609,7 @@ export function DustbornGame() {
     }
 
     const enemyHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + (wave - 1) * 3;
-    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + (wave -1) * 0.1;
+    const enemySpeed = ENEMY_ARROCEIRO_BASE_SPEED + (wave - 1) * 0.1;
     let newX, newY;
     let attempts = 0;
     const maxAttempts = 10; 
@@ -602,7 +626,7 @@ export function DustbornGame() {
         } else if (side === 1) { 
             newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + margin;
         } else if (side === 2) { 
-            newX = -ENEMY_ARROCEiro_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
+            newX = -ENEMY_ARROCEIRO_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
         } else { 
             newX = GAME_WIDTH + margin; newY = Math.random() * GAME_HEIGHT;
         }
