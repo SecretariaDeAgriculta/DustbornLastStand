@@ -13,7 +13,7 @@ import { Projectile } from './Projectile';
 import { DamageNumber } from './DamageNumber';
 import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
 import { PauseIcon, PlayIcon } from 'lucide-react';
-import type { Weapon } from '@/config/weapons';
+import type { Weapon, ProjectileType } from '@/config/weapons';
 import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
 import { useToast } from "@/hooks/use-toast";
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -38,9 +38,9 @@ const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2; 
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800; 
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
-const ENEMY_ARROCEIRO_COLOR = '#60a5fa'; 
+const ENEMY_ARROCEIRO_COLOR = '#a7f3d0'; // Lighter, softer green/blue
 
-const PROJECTILE_SIZE = 8;
+const PROJECTILE_SIZE = 8; // Base size, can be overridden by projectile type
 const PROJECTILE_SPEED = 10;
 
 const XP_ORB_SIZE = 10;
@@ -83,7 +83,9 @@ interface XPOrbData extends Entity {
 }
 
 interface ProjectileData extends Entity {
-  size: number;
+  size: number; // Can be overridden by projectile type
+  width?: number; // For non-square projectiles like knives
+  height?: number; // For non-square projectiles like knives
   dx: number;
   dy: number;
   damage: number;
@@ -92,6 +94,7 @@ interface ProjectileData extends Entity {
   critical?: boolean;
   penetrationLeft: number; 
   hitEnemyIds: Set<string>; 
+  projectileType: ProjectileType;
 }
 
 
@@ -124,7 +127,7 @@ export function DustbornGame() {
   const [isPaused, setIsPaused] = useState(false);
   const [playerXP, setPlayerXP] = useState(0);
   
-  const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([initialWeapon]);
+  const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([{...initialWeapon, upgradedThisRound: false}]);
   const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
   
   const activeKeys = useRef<Set<string>>(new Set());
@@ -162,7 +165,7 @@ export function DustbornGame() {
     setIsGameOver(false);
     setIsPaused(false);
     setPlayerXP(0);
-    setPlayerWeapons([{...initialWeapon}]); 
+    setPlayerWeapons([{...initialWeapon, upgradedThisRound: false}]); 
     setShopOfferings([]);
     activeKeys.current.clear();
     setJoystickInput({ dx: 0, dy: 0}); 
@@ -177,7 +180,7 @@ export function DustbornGame() {
     const weightedList: Weapon[] = [];
   
     purchasable.forEach(weapon => {
-      const copies = weapon.rarity === 'Comum' ? 5 : weapon.rarity === 'Incomum' ? 3 : 1;
+      const copies = weapon.rarity === 'Comum' ? 5 : weapon.rarity === 'Incomum' ? 3 : 1; // Incomum not used yet
       for (let i = 0; i < copies; i++) weightedList.push(weapon);
     });
   
@@ -188,7 +191,7 @@ export function DustbornGame() {
     for (const weapon of shuffled) {
       if (!uniqueWeaponIds.has(weapon.id)) {
         uniqueWeaponIds.add(weapon.id);
-        currentOfferings.push({...weapon, upgradedThisRound: false }); // Ensure fresh copy with flag
+        currentOfferings.push({...weapon, upgradedThisRound: false });
         if (currentOfferings.length >= 3) break;
       }
     }
@@ -199,7 +202,16 @@ export function DustbornGame() {
   const handleBuyWeapon = (weaponToBuyOrUpgrade: Weapon) => {
     const existingWeaponIndex = playerWeapons.findIndex(pw => pw.id === weaponToBuyOrUpgrade.id);
     const isUpgrade = existingWeaponIndex !== -1;
-  
+    
+    const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
+    if (shopOfferingIndex === -1) return; // Should not happen
+
+    const currentShopOffering = shopOfferings[shopOfferingIndex];
+    if (currentShopOffering.upgradedThisRound) {
+      toast({ title: "Já Interagido", description: "Você já comprou ou aprimorou esta oferta nesta rodada.", variant: "destructive" });
+      return;
+    }
+
     if (playerXP < weaponToBuyOrUpgrade.xpCost) {
       toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToBuyOrUpgrade.xpCost} XP.`, variant: "destructive" });
       return;
@@ -221,7 +233,6 @@ export function DustbornGame() {
       setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
       toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
       
-      // Mark this specific offering in the shop as upgraded for this round
       setShopOfferings(prevOfferings => 
         prevOfferings.map(offering => 
           offering.id === weaponToBuyOrUpgrade.id ? { ...offering, upgradedThisRound: true } : offering
@@ -236,12 +247,12 @@ export function DustbornGame() {
       setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
       const freshWeaponDefinition = getWeaponById(weaponToBuyOrUpgrade.id);
       if (freshWeaponDefinition) {
-        setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition}]); 
-        toast({ title: "Arma Comprada!", description: `${weaponToBuyOrUpgrade.name} adicionada ao seu arsenal.` });
-         // Mark this specific offering in the shop as "bought" (effectively disabled for re-buy)
+        setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition, upgradedThisRound: false}]); 
+        toast({ title: "Arma Comprada!", description: `${freshWeaponDefinition.name} adicionada ao seu arsenal.` });
+
         setShopOfferings(prevOfferings => 
           prevOfferings.map(offering => 
-            offering.id === weaponToBuyOrUpgrade.id ? { ...offering, upgradedThisRound: true } : offering // Using same flag for simplicity
+            offering.id === weaponToBuyOrUpgrade.id ? { ...offering, upgradedThisRound: true } : offering
           )
         );
       } else {
@@ -262,7 +273,7 @@ export function DustbornGame() {
       if (weaponToRecycle.id === initialWeapon.id) {
         xpGained = INITIAL_WEAPON_RECYCLE_XP;
       } else {
-        const baseWeapon = getWeaponById(weaponIdToRecycle);
+        const baseWeapon = getWeaponById(weaponIdToRecycle); // Get original cost
         xpGained = Math.floor((baseWeapon?.xpCost || 0) * RECYCLE_XP_PERCENTAGE);
       }
       
@@ -399,9 +410,9 @@ export function DustbornGame() {
               }
 
               projectilesToSpawn.push({
-                x: playerCenterX - PROJECTILE_SIZE / 2,
+                x: playerCenterX - PROJECTILE_SIZE / 2, // Initial position adjusted by half projectile size later
                 y: playerCenterY - PROJECTILE_SIZE / 2,
-                size: PROJECTILE_SIZE,
+                size: PROJECTILE_SIZE, // Default, will be overridden in Projectile.tsx if needed by type
                 dx: projDx,
                 dy: projDy,
                 damage: damage,
@@ -410,6 +421,7 @@ export function DustbornGame() {
                 critical: isCritical,
                 penetrationLeft: weapon.penetrationCount || 0,
                 hitEnemyIds: new Set<string>(),
+                projectileType: weapon.projectileType,
               });
             }
             setProjectiles(prev => [...prev, ...projectilesToSpawn.map(p => ({...p, id: `proj_${Date.now()}_${Math.random()}`}))]);
@@ -428,8 +440,8 @@ export function DustbornGame() {
             y: proj.y + proj.dy * PROJECTILE_SPEED,
             traveledDistance: proj.traveledDistance + PROJECTILE_SPEED,
           })).filter(proj => 
-              proj.x > -proj.size && proj.x < GAME_WIDTH && 
-              proj.y > -proj.size && proj.y < GAME_HEIGHT &&
+              proj.x > -(proj.width || proj.size) && proj.x < GAME_WIDTH && 
+              proj.y > -(proj.height || proj.size) && proj.y < GAME_HEIGHT &&
               proj.traveledDistance < proj.maxRange
           );
 
@@ -445,14 +457,16 @@ export function DustbornGame() {
               for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
                 const proj = newProjectilesAfterHits[i];
                 if (proj.hitEnemyIds.has(enemy.id)) continue;
-
-                const projCenterX = proj.x + proj.size / 2;
-                const projCenterY = proj.y + proj.size / 2;
+                
+                const projWidth = proj.width || proj.size;
+                const projHeight = proj.height || proj.size;
+                const projCenterX = proj.x + projWidth / 2;
+                const projCenterY = proj.y + projHeight / 2;
                 const enemyCenterX = currentEnemyState.x + currentEnemyState.width / 2;
                 const enemyCenterY = currentEnemyState.y + currentEnemyState.height / 2;
 
-                if (Math.abs(projCenterX - enemyCenterX) < (proj.size / 2 + currentEnemyState.width / 2) &&
-                    Math.abs(projCenterY - enemyCenterY) < (proj.size / 2 + currentEnemyState.height / 2)) {
+                if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + currentEnemyState.width / 2) &&
+                    Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + currentEnemyState.height / 2)) {
                   
                   const damageDealt = proj.damage;
                   currentEnemyState.health -= damageDealt;
@@ -687,8 +701,6 @@ export function DustbornGame() {
     lastLogicUpdateTimestampRef.current = 0; 
     setIsPaused(false);
     setJoystickInput({ dx: 0, dy: 0}); 
-    // Reset upgradedThisRound flag for all shop offerings if they were to persist (they are regenerated instead)
-    // generateShopOfferings(); // This will automatically provide fresh offerings without the flag
   };
 
   if (isGameOver) {
@@ -765,7 +777,14 @@ export function DustbornGame() {
             <XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} />
           ))}
           {projectiles.map((proj) => (
-            <Projectile key={proj.id} x={proj.x} y={proj.y} size={proj.size} />
+            <Projectile 
+              key={proj.id} 
+              x={proj.x} y={proj.y} 
+              size={proj.size} 
+              projectileType={proj.projectileType}
+              width={proj.width}
+              height={proj.height}
+            />
           ))}
           {damageNumbers.map((dn) => (
             <DamageNumber

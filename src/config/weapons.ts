@@ -1,6 +1,8 @@
 
 import type { Icon } from 'lucide-react';
-import { Target, Zap, Gem, Aperture, TrendingUp, Waves, Shuffle, Umbrella, GitFork, HelpCircle, MinusCircle, Diamond, Crosshair, Flame } from 'lucide-react';
+import { Target, Aperture, GitFork, HelpCircle, Crosshair, Flame } from 'lucide-react';
+
+export type ProjectileType = 'bullet' | 'shotgun_pellet' | 'knife' | 'molotov_flask';
 
 export interface Weapon {
   id: string;
@@ -16,8 +18,9 @@ export interface Weapon {
   shotgunSpreadAngle?: number;
   penetrationCount?: number;
   icon?: Icon;
-  xpCost: number; // XP cost to buy
-  upgradedThisRound?: boolean; // Flag for shop UI
+  xpCost: number; 
+  upgradedThisRound?: boolean;
+  projectileType: ProjectileType;
 }
 
 export const initialWeapon: Weapon = {
@@ -25,11 +28,12 @@ export const initialWeapon: Weapon = {
   name: 'Revólver Enferrujado',
   rarity: 'Comum',
   damage: 4,
-  cooldown: 1000, // Cadência: Lenta
-  range: 300, // Alcance: Médio
+  cooldown: 1000, 
+  range: 300, 
   effectDescription: 'Nenhum.',
   icon: HelpCircle,
   xpCost: 0, 
+  projectileType: 'bullet',
 };
 
 export const commonWeapons: Weapon[] = [
@@ -38,13 +42,14 @@ export const commonWeapons: Weapon[] = [
     name: 'Revólver de Tambor',
     rarity: 'Comum',
     damage: 5,
-    cooldown: 750, // Cadência: Média
-    range: 300, // Alcance: Médio
+    cooldown: 750, 
+    range: 300, 
     criticalChance: 0.1,
     criticalMultiplier: 1.5,
     effectDescription: '10% de chance de tiro crítico (x1.5 dano).',
     icon: Target,
     xpCost: 50,
+    projectileType: 'bullet',
   },
   {
     id: 'espingarda_cano_curto',
@@ -52,29 +57,28 @@ export const commonWeapons: Weapon[] = [
     rarity: 'Comum',
     damage: 3,
     projectilesPerShot: 3,
-    cooldown: 1200, // Cadência: Lenta
-    range: 150, // Alcance: Curto
+    cooldown: 1200, 
+    range: 150, 
     shotgunSpreadAngle: 30,
     effectDescription: 'Dispara 3 projéteis em cone.',
     icon: Aperture,
     xpCost: 60,
+    projectileType: 'shotgun_pellet',
   },
   {
     id: 'faca_arremesso',
     name: 'Faca de Arremesso',
     rarity: 'Comum',
     damage: 6,
-    cooldown: 500, // Cadência: Alta
-    range: 400, // Alcance: Longo
+    cooldown: 500, 
+    range: 400, 
     penetrationCount: 1, 
     effectDescription: 'Penetra mais 1 inimigo.',
     icon: GitFork,
     xpCost: 70,
+    projectileType: 'knife',
   },
 ];
-
-// No uncommon weapons explicitly requested by user.
-export const uncommonWeapons: Weapon[] = [];
 
 export const rareWeapons: Weapon[] = [
   {
@@ -88,6 +92,7 @@ export const rareWeapons: Weapon[] = [
     effectDescription: 'Tiros rápidos e precisos que atravessam um inimigo.',
     icon: Crosshair,
     xpCost: 280,
+    projectileType: 'bullet',
   },
   {
     id: 'espingarda_caca',
@@ -101,6 +106,7 @@ export const rareWeapons: Weapon[] = [
     effectDescription: 'Dispara 5 projéteis em um cone largo, cobrindo uma grande área frontal.',
     icon: Aperture, 
     xpCost: 320,
+    projectileType: 'shotgun_pellet',
   },
   {
     id: 'lanca_molotov',
@@ -109,25 +115,25 @@ export const rareWeapons: Weapon[] = [
     damage: 10, 
     cooldown: 1500, 
     range: 200,    
-    effectDescription: 'Impacto causa 10 de dano. Cria área em chamas (3 dano/s por 5s). (Efeito de área e DoT ainda não implementado).',
+    effectDescription: 'Impacto causa 10 de dano. Cria área em chamas (Efeito de área não implementado).',
     icon: Flame,
     xpCost: 350,
+    projectileType: 'molotov_flask',
   }
 ];
 
 const allPurchasableWeapons: Weapon[] = [
   ...commonWeapons,
-  ...uncommonWeapons, // Will be empty based on current user requests
   ...rareWeapons,
-];
+].filter(weapon => weapon.id !== initialWeapon.id);
+
 
 export function getPurchasableWeapons(): Weapon[] {
-  // Return copies to prevent mutation of original definitions
   return allPurchasableWeapons.map(w => ({...w, upgradedThisRound: false }));
 }
 
 export function getWeaponById(id: string): Weapon | undefined {
-  const foundWeapon = allPurchasableWeapons.find(weapon => weapon.id === id) || (id === initialWeapon.id ? initialWeapon : undefined);
-  // Return a copy to prevent mutation of original definitions
+  const allGameWeapons = [initialWeapon, ...commonWeapons, ...rareWeapons];
+  const foundWeapon = allGameWeapons.find(weapon => weapon.id === id);
   return foundWeapon ? {...foundWeapon, upgradedThisRound: false} : undefined;
 }
