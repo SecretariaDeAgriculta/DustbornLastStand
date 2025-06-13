@@ -162,7 +162,7 @@ export function DustbornGame() {
     setIsGameOver(false);
     setIsPaused(false);
     setPlayerXP(0);
-    setPlayerWeapons([{...initialWeapon}]); // Reset to a fresh copy of initial weapon
+    setPlayerWeapons([{...initialWeapon}]); 
     setShopOfferings([]);
     activeKeys.current.clear();
     setJoystickInput({ dx: 0, dy: 0}); 
@@ -172,26 +172,23 @@ export function DustbornGame() {
 
   const generateShopOfferings = useCallback(() => {
     const purchasable = getPurchasableWeapons().filter(
-      (shopWeapon) => shopWeapon.id !== initialWeapon.id // Exclude initial weapon from shop
+      (shopWeapon) => shopWeapon.id !== initialWeapon.id 
     );
     const weightedList: Weapon[] = [];
   
     purchasable.forEach(weapon => {
-      if (weapon.rarity === 'Comum') for (let i = 0; i < 5; i++) weightedList.push(weapon);
-      else if (weapon.rarity === 'Incomum') for (let i = 0; i < 3; i++) weightedList.push(weapon);
-      else weightedList.push(weapon);
+      const copies = weapon.rarity === 'Comum' ? 5 : weapon.rarity === 'Incomum' ? 3 : 1;
+      for (let i = 0; i < copies; i++) weightedList.push(weapon);
     });
   
     const shuffled = weightedList.sort(() => 0.5 - Math.random());
-    
-    // Ensure we get 3 *unique* offerings if possible
     const uniqueWeaponIds = new Set<string>();
     const currentOfferings: Weapon[] = [];
     
     for (const weapon of shuffled) {
       if (!uniqueWeaponIds.has(weapon.id)) {
         uniqueWeaponIds.add(weapon.id);
-        currentOfferings.push({...weapon}); // Add a copy
+        currentOfferings.push({...weapon, upgradedThisRound: false }); // Ensure fresh copy with flag
         if (currentOfferings.length >= 3) break;
       }
     }
@@ -212,12 +209,10 @@ export function DustbornGame() {
       setPlayerWeapons(prevWeapons => 
         prevWeapons.map((weapon, index) => {
           if (index === existingWeaponIndex) {
-            // Apply stat buffs for upgrade
             return {
               ...weapon,
-              damage: weapon.damage + 1, // Example buff: +1 damage
-              cooldown: Math.max(100, weapon.cooldown - 50), // Example buff: -50ms cooldown (min 100ms)
-              // Note: xpCost of the weapon in inventory doesn't change for upgrades
+              damage: weapon.damage + 1, 
+              cooldown: Math.max(100, weapon.cooldown - 50), 
             };
           }
           return weapon;
@@ -225,24 +220,34 @@ export function DustbornGame() {
       );
       setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
       toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
-    } else { // New weapon purchase
+      
+      // Mark this specific offering in the shop as upgraded for this round
+      setShopOfferings(prevOfferings => 
+        prevOfferings.map(offering => 
+          offering.id === weaponToBuyOrUpgrade.id ? { ...offering, upgradedThisRound: true } : offering
+        )
+      );
+
+    } else { 
       if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
         toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
         return;
       }
       setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
-      // Add a fresh copy of the weapon from its definition to avoid shared state issues
       const freshWeaponDefinition = getWeaponById(weaponToBuyOrUpgrade.id);
       if (freshWeaponDefinition) {
         setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition}]); 
         toast({ title: "Arma Comprada!", description: `${weaponToBuyOrUpgrade.name} adicionada ao seu arsenal.` });
+         // Mark this specific offering in the shop as "bought" (effectively disabled for re-buy)
+        setShopOfferings(prevOfferings => 
+          prevOfferings.map(offering => 
+            offering.id === weaponToBuyOrUpgrade.id ? { ...offering, upgradedThisRound: true } : offering // Using same flag for simplicity
+          )
+        );
       } else {
         toast({ title: "Erro na Loja", description: `Não foi possível encontrar a definição da arma ${weaponToBuyOrUpgrade.name}.`, variant: "destructive" });
       }
     }
-    // Shop offerings are fixed for the wave, so no regeneration here.
-    // Re-filter shop offerings to update "Aprimorar" status, though it's mostly handled by ShopDialog's props
-    setShopOfferings(prevOfferings => [...prevOfferings]); 
   };
 
 
@@ -257,7 +262,6 @@ export function DustbornGame() {
       if (weaponToRecycle.id === initialWeapon.id) {
         xpGained = INITIAL_WEAPON_RECYCLE_XP;
       } else {
-        // Use the base xpCost from the weapon definition, not potentially modified one
         const baseWeapon = getWeaponById(weaponIdToRecycle);
         xpGained = Math.floor((baseWeapon?.xpCost || 0) * RECYCLE_XP_PERCENTAGE);
       }
@@ -683,6 +687,8 @@ export function DustbornGame() {
     lastLogicUpdateTimestampRef.current = 0; 
     setIsPaused(false);
     setJoystickInput({ dx: 0, dy: 0}); 
+    // Reset upgradedThisRound flag for all shop offerings if they were to persist (they are regenerated instead)
+    // generateShopOfferings(); // This will automatically provide fresh offerings without the flag
   };
 
   if (isGameOver) {
@@ -783,5 +789,3 @@ export function DustbornGame() {
     </div>
   );
 }
-
-    

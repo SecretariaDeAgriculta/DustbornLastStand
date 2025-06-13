@@ -38,7 +38,7 @@ export function ShopDialog({
   const getRarityColor = (rarity: Weapon['rarity']) => {
     switch (rarity) {
       case 'Comum': return 'text-gray-400';
-      case 'Incomum': return 'text-green-400';
+      case 'Incomum': return 'text-green-400'; // Should not appear with current config
       case 'Raro': return 'text-blue-400';
       default: return 'text-gray-200';
     }
@@ -59,19 +59,19 @@ export function ShopDialog({
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
       <Card className="w-full max-w-4xl shadow-2xl flex flex-col" style={{maxHeight: '90vh'}}>
-        <CardHeader className="flex-shrink-0">
-          <CardTitle className="text-3xl text-center text-primary">Wave {wave} Concluída!</CardTitle>
-          <CardDescription className="text-center">
+        <CardHeader className="flex-shrink-0 p-4">
+          <CardTitle className="text-2xl text-center text-primary">Wave {wave} Concluída!</CardTitle>
+          <CardDescription className="text-center text-sm">
             Prepare-se para a próxima horda. Gaste seu XP com sabedoria!
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6 flex-grow overflow-hidden">
-          <div className="text-center mb-4">
-            <p className="text-lg">Pontuação Atual: <span className="font-bold text-primary">{score}</span></p>
-            <p className="text-lg">XP Disponível: <span className="font-bold text-yellow-400">{playerXP}</span></p>
+        <CardContent className="space-y-4 flex-grow overflow-hidden p-4">
+          <div className="text-center mb-2">
+            <p className="text-md">Pontuação Atual: <span className="font-bold text-primary">{score}</span></p>
+            <p className="text-md">XP Disponível: <span className="font-bold text-yellow-400">{playerXP}</span></p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 h-full">
             <PlayerInventoryDisplay 
               weapons={playerWeapons}
               onRecycleWeapon={onRecycleWeapon}
@@ -79,41 +79,44 @@ export function ShopDialog({
               className="md:col-span-1"
             />
             
-            <div className="space-y-2 flex flex-col h-full md:col-span-2 min-h-0">
-              <h3 className="text-xl font-semibold text-center text-accent mb-2 flex-shrink-0">Loja de Armas</h3>
-              <ScrollArea className="flex-grow rounded-md border p-2 bg-muted/30">
+            <div className="space-y-1 flex flex-col h-full md:col-span-2 min-h-0">
+              <h3 className="text-lg font-semibold text-center text-accent mb-1 flex-shrink-0">Loja de Armas</h3>
+              <ScrollArea className="flex-grow rounded-md border p-1 bg-muted/30">
                 {shopOfferings.length === 0 && <p className="text-center text-muted-foreground p-4">Nenhuma arma nova disponível nesta rodada.</p>}
-                <div className="space-y-3">
+                <div className="space-y-2">
                 {shopOfferings.map((weapon) => {
                   const IconComponent = weapon.icon || HelpCircle;
                   const isOwned = playerWeapons.some(pw => pw.id === weapon.id);
                   const affordable = canAfford(weapon.xpCost);
                   const actionText = isOwned ? "Aprimorar" : "Comprar";
-                  const isDisabled = !affordable || (inventoryFull && !isOwned);
+                  
+                  // Disable if already upgraded/bought this round, OR cannot afford, OR inventory full for new purchase
+                  const isDisabled = weapon.upgradedThisRound || !affordable || (inventoryFull && !isOwned);
                   
                   let titleText = `${actionText} ${weapon.name}`;
-                  if (!affordable) titleText = "XP insuficiente";
+                  if (weapon.upgradedThisRound && isOwned) titleText = "Já aprimorado nesta rodada";
+                  else if (weapon.upgradedThisRound && !isOwned) titleText = "Já comprado nesta rodada";
+                  else if (!affordable) titleText = "XP insuficiente";
                   else if (inventoryFull && !isOwned) titleText = "Inventário cheio (Máx 5)";
 
                   return (
-                    <Card key={weapon.id} className="p-3 bg-card/80 hover:bg-card transition-colors">
-                      <div className="flex items-start space-x-3">
-                        <IconComponent className={`h-10 w-10 mt-1 flex-shrink-0 ${getRarityColor(weapon.rarity)}`} />
+                    <Card key={weapon.id} className="p-2 bg-card/80 hover:bg-card transition-colors">
+                      <div className="flex items-start space-x-2">
+                        <IconComponent className={`h-8 w-8 mt-1 flex-shrink-0 ${getRarityColor(weapon.rarity)}`} />
                         <div className="flex-grow">
-                          <h4 className={`text-lg font-semibold ${getRarityColor(weapon.rarity)}`}>{weapon.name} {isOwned ? "(Aprimorar)" : ""}</h4>
-                          <p className="text-xs text-muted-foreground mb-1">Raridade: <span className={getRarityColor(weapon.rarity)}>{weapon.rarity}</span></p>
-                          <p className="text-sm">
+                          <h4 className={`text-md font-semibold ${getRarityColor(weapon.rarity)}`}>{weapon.name} {isOwned && !weapon.upgradedThisRound ? "(Aprimorar)" : ""}</h4>
+                          <p className="text-xs text-muted-foreground mb-0.5">Raridade: <span className={getRarityColor(weapon.rarity)}>{weapon.rarity}</span></p>
+                          <p className="text-xs">
                             Dano: {weapon.damage} {weapon.projectilesPerShot && weapon.projectilesPerShot > 1 ? `x ${weapon.projectilesPerShot}` : ''}
                           </p>
-                          <p className="text-sm">Cadência: {getCadenceText(weapon.cooldown)}</p>
-                          <p className="text-sm">Alcance: {getRangeText(weapon.range)}</p>
-                           <p className="text-sm">Custo: <span className="font-semibold text-yellow-400">{weapon.xpCost} XP</span></p>
-                          <p className="text-sm mt-1">Efeito: <span className="italic text-accent-foreground/80">{weapon.effectDescription}</span></p>
+                          <p className="text-xs">Cadência: {getCadenceText(weapon.cooldown)} | Alcance: {getRangeText(weapon.range)}</p>
+                          <p className="text-xs">Custo: <span className="font-semibold text-yellow-400">{weapon.xpCost} XP</span></p>
+                          <p className="text-xs mt-0.5 italic text-accent-foreground/80">{weapon.effectDescription}</p>
                         </div>
                         <Button 
                           size="sm" 
-                          variant={affordable && (!inventoryFull || isOwned) ? "default" : "outline"} 
-                          className="self-center"
+                          variant={isDisabled ? "outline" : "default"} 
+                          className="self-center px-3 py-1 text-xs"
                           onClick={() => onBuyWeapon(weapon)}
                           disabled={isDisabled}
                           title={titleText}
@@ -129,10 +132,10 @@ export function ShopDialog({
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-center flex-shrink-0 mt-4">
+        <CardFooter className="flex justify-center flex-shrink-0 mt-2 p-4">
            <Button 
             onClick={onStartNextWave} 
-            className="w-full md:w-1/2 text-lg py-6 bg-accent hover:bg-accent/90 text-accent-foreground"
+            className="w-full md:w-1/2 text-md py-4 bg-accent hover:bg-accent/90 text-accent-foreground"
           >
             Começar Wave {wave + 1}
           </Button>
@@ -141,5 +144,3 @@ export function ShopDialog({
     </div>
   );
 }
-
-    

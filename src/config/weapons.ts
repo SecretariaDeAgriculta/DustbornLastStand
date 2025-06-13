@@ -17,6 +17,7 @@ export interface Weapon {
   penetrationCount?: number;
   icon?: Icon;
   xpCost: number; // XP cost to buy
+  upgradedThisRound?: boolean; // Flag for shop UI
 }
 
 export const initialWeapon: Weapon = {
@@ -28,7 +29,7 @@ export const initialWeapon: Weapon = {
   range: 300, // Alcance: Médio
   effectDescription: 'Nenhum.',
   icon: HelpCircle,
-  xpCost: 0, // Initial weapon costs 0 XP
+  xpCost: 0, 
 };
 
 export const commonWeapons: Weapon[] = [
@@ -72,60 +73,10 @@ export const commonWeapons: Weapon[] = [
   },
 ];
 
-export const uncommonWeapons: Weapon[] = [
-  {
-    id: 'peacemaker_polido',
-    name: 'Peacemaker Polido',
-    rarity: 'Incomum',
-    damage: 8,
-    cooldown: 650,
-    range: 350,
-    criticalChance: 0.15,
-    criticalMultiplier: 1.7,
-    effectDescription: 'Tiros mais precisos e potentes. Chance de crítico aumentada.',
-    icon: Zap,
-    xpCost: 120,
-  },
-  {
-    id: 'rifle_repeticao',
-    name: 'Rifle de Repetição',
-    rarity: 'Incomum',
-    damage: 10,
-    cooldown: 800,
-    range: 450,
-    penetrationCount: 0,
-    effectDescription: 'Disparos fortes com bom alcance.',
-    icon: TrendingUp,
-    xpCost: 150,
-  }
-];
+// No uncommon weapons explicitly requested by user.
+export const uncommonWeapons: Weapon[] = [];
 
 export const rareWeapons: Weapon[] = [
-  {
-    id: 'winchester_trovejante',
-    name: 'Winchester Trovejante',
-    rarity: 'Raro',
-    damage: 15,
-    cooldown: 900,
-    range: 500,
-    penetrationCount: 2, 
-    effectDescription: 'Disparos poderosos que atravessam múltiplos inimigos.',
-    icon: Waves,
-    xpCost: 250,
-  },
-  {
-    id: 'colt_banhado_ouro',
-    name: 'Colt Banhado a Ouro',
-    rarity: 'Raro',
-    damage: 12,
-    cooldown: 550,
-    range: 380,
-    criticalChance: 0.25,
-    criticalMultiplier: 2.0,
-    effectDescription: 'Luxuoso e mortal. Alta chance de crítico com dano dobrado.',
-    icon: Diamond,
-    xpCost: 300,
-  },
   {
     id: 'carabina_winchester',
     name: 'Carabina Winchester',
@@ -164,20 +115,19 @@ export const rareWeapons: Weapon[] = [
   }
 ];
 
-// All weapons EXCLUDING the initial one, for shop generation purposes.
 const allPurchasableWeapons: Weapon[] = [
   ...commonWeapons,
-  ...uncommonWeapons,
+  ...uncommonWeapons, // Will be empty based on current user requests
   ...rareWeapons,
 ];
 
 export function getPurchasableWeapons(): Weapon[] {
-  return allPurchasableWeapons;
+  // Return copies to prevent mutation of original definitions
+  return allPurchasableWeapons.map(w => ({...w, upgradedThisRound: false }));
 }
 
 export function getWeaponById(id: string): Weapon | undefined {
-  // Check purchasable first, then initial
-  return allPurchasableWeapons.find(weapon => weapon.id === id) || (id === initialWeapon.id ? initialWeapon : undefined) ;
+  const foundWeapon = allPurchasableWeapons.find(weapon => weapon.id === id) || (id === initialWeapon.id ? initialWeapon : undefined);
+  // Return a copy to prevent mutation of original definitions
+  return foundWeapon ? {...foundWeapon, upgradedThisRound: false} : undefined;
 }
-
-    
