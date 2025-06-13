@@ -11,6 +11,7 @@ import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
 import { DamageNumber } from './DamageNumber';
+import { PauseIcon, PlayIcon } from 'lucide-react';
 
 const GAME_WIDTH = 800;
 const GAME_HEIGHT = 600;
@@ -120,6 +121,7 @@ export function DustbornGame() {
   const [waveTimer, setWaveTimer] = useState(WAVE_DURATION);
   const [isShopPhase, setIsShopPhase] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [playerXP, setPlayerXP] = useState(0);
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([
     { id: 'w1', name: 'Revólver Enferrujado', damage: PLAYER_WEAPON_DAMAGE, cooldown: PLAYER_WEAPON_COOLDOWN, range: PLAYER_WEAPON_RANGE },
@@ -150,6 +152,7 @@ export function DustbornGame() {
     setWaveTimer(WAVE_DURATION);
     setIsShopPhase(false);
     setIsGameOver(false);
+    setIsPaused(false);
     setPlayerXP(0);
     setPlayerWeapons([{ id: 'w1', name: 'Revólver Enferrujado', damage: PLAYER_WEAPON_DAMAGE, cooldown: PLAYER_WEAPON_COOLDOWN, range: PLAYER_WEAPON_RANGE }]);
     activeKeys.current.clear();
@@ -160,10 +163,15 @@ export function DustbornGame() {
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isGameOver) return;
+      if (event.key.toLowerCase() === 'p') {
+        setIsPaused(prev => !prev);
+        return;
+      }
+      if (isPaused) return;
       activeKeys.current.add(event.key.toLowerCase());
     };
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (isGameOver) return;
+      if (isGameOver || isPaused) return;
       activeKeys.current.delete(event.key.toLowerCase());
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -173,14 +181,19 @@ export function DustbornGame() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isGameOver]);
+  }, [isGameOver, isPaused]);
 
   useEffect(() => {
-    if (isGameOver || isShopPhase) return;
+    if (isGameOver || isShopPhase || isPaused) return;
 
     let animationFrameId: number;
 
     const gameTick = (timestamp: number) => {
+      if (isPaused) { // Double check pause state inside animation frame
+        animationFrameId = requestAnimationFrame(gameTick);
+        return;
+      }
+
       let dx = 0;
       let dy = 0;
       if (activeKeys.current.has('arrowup') || activeKeys.current.has('w')) dy -= 1;
@@ -394,17 +407,17 @@ export function DustbornGame() {
         setIsGameOver(true);
       }
 
-      if (!isGameOver && !isShopPhase) {
+      if (!isGameOver && !isShopPhase && !isPaused) {
         animationFrameId = requestAnimationFrame(gameTick);
       }
     };
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, player, enemies, playerWeapons, wave, score]); 
+  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score]); 
 
   useEffect(() => {
-    if (isGameOver || isShopPhase) {
+    if (isGameOver || isShopPhase || isPaused) {
       if (waveIntervalId.current) clearInterval(waveIntervalId.current);
       return;
     }
@@ -422,12 +435,12 @@ export function DustbornGame() {
     return () => {
       if (waveIntervalId.current) clearInterval(waveIntervalId.current);
     };
-  }, [isGameOver, isShopPhase, wave]);
+  }, [isGameOver, isShopPhase, isPaused, wave]);
 
 
   const spawnEnemy = useCallback(() => {
     const maxEnemiesForWave = MAX_ENEMIES_BASE + wave * 2; 
-    if (isShopPhase || isGameOver || enemies.length >= maxEnemiesForWave) {
+    if (isShopPhase || isGameOver || isPaused || enemies.length >= maxEnemiesForWave) {
         return;
     }
 
@@ -472,10 +485,10 @@ export function DustbornGame() {
         speed: enemySpeed,
       },
     ]);
-  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver, setEnemies]); 
+  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver, isPaused, setEnemies]); 
 
   useEffect(() => {
-    if (isShopPhase || isGameOver) {
+    if (isShopPhase || isGameOver || isPaused) {
       if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
       return;
     }
@@ -491,7 +504,7 @@ export function DustbornGame() {
     return () => {
       if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
     };
-  }, [isShopPhase, isGameOver, spawnEnemy, wave]); 
+  }, [isShopPhase, isGameOver, isPaused, spawnEnemy, wave]); 
   
   const startNextWave = () => {
     setIsShopPhase(false);
@@ -504,6 +517,7 @@ export function DustbornGame() {
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH })); 
     lastPlayerShotTimestampRef.current = 0; 
     lastLogicUpdateTimestampRef.current = 0; 
+    setIsPaused(false); // Ensure game isn't paused when next wave starts
   };
 
   if (isGameOver) {
@@ -529,8 +543,19 @@ export function DustbornGame() {
 
   return (
     <div className="flex flex-col items-center p-4">
-      <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerXP={playerXP} />
-      <Card className="mt-4 shadow-2xl overflow-hidden border-2 border-primary">
+      <div className="w-full max-w-2xl flex justify-between items-start mb-2">
+        <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerXP={playerXP} />
+        <Button 
+            onClick={() => setIsPaused(!isPaused)} 
+            variant="outline" 
+            size="icon" 
+            className="ml-4 mt-1 text-foreground hover:bg-accent hover:text-accent-foreground"
+            aria-label={isPaused ? "Resume game" : "Pause game"}
+        >
+            {isPaused ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
+        </Button>
+      </div>
+      <Card className="mt-0 shadow-2xl overflow-hidden border-2 border-primary">
         <div
           ref={gameAreaRef}
           className="relative bg-muted/30 overflow-hidden"
@@ -539,6 +564,11 @@ export function DustbornGame() {
           aria-label="Dustborn game area"
           tabIndex={-1} 
         >
+          {isPaused && (
+            <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-50">
+              <h2 className="text-5xl font-bold text-primary-foreground animate-pulse">PAUSED</h2>
+            </div>
+          )}
           <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} />
           {enemies.map((enemy) => (
             <EnemyCharacter 
@@ -566,7 +596,7 @@ export function DustbornGame() {
         </div>
       </Card>
        <div className="mt-4 text-sm text-muted-foreground">
-        Use Arrow Keys or WASD to move. Weapon fires automatically at the closest enemy. Survive!
+        Use Arrow Keys or WASD to move. Weapon fires automatically. Press 'P' or click the button to pause. Survive!
       </div>
     </div>
   );
@@ -575,3 +605,6 @@ export function DustbornGame() {
 
     
 
+
+
+    
