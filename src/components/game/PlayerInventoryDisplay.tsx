@@ -18,8 +18,9 @@ export function PlayerInventoryDisplay({ weapons, onRecycleWeapon, canRecycle, c
   const getRarityColor = (rarity: Weapon['rarity']) => {
     switch (rarity) {
       case 'Comum': return 'text-gray-400';
-      case 'Incomum': return 'text-green-400';
+      // case 'Incomum': return 'text-green-400'; // Not currently used
       case 'Raro': return 'text-blue-400';
+      case 'Lendária': return 'text-purple-400'; // Color for Legendary
       default: return 'text-gray-200';
     }
   };
