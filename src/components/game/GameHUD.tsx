@@ -26,28 +26,28 @@ export function GameHUD({ score, wave, playerHealth, waveTimer, playerXP }: Game
         <div className="flex flex-col items-center">
           <div className="flex items-center text-md font-semibold text-primary">
             <Zap className="w-4 h-4 mr-1" />
-            <span>Score</span>
+            <span>Pontos</span>
           </div>
           <p className="text-xl font-bold">{score}</p>
         </div>
         <div className="flex flex-col items-center">
            <div className="flex items-center text-md font-semibold text-accent">
             <TrendingUp className="w-4 h-4 mr-1" />
-            <span>Wave</span>
+            <span>Onda</span>
           </div>
           <p className="text-xl font-bold">{wave}</p>
         </div>
          <div className="flex flex-col items-center">
            <div className="flex items-center text-md font-semibold text-green-500">
             <Shield className="w-4 h-4 mr-1" />
-            <span>Health</span>
+            <span>Vida</span>
           </div>
           <p className="text-xl font-bold">{Math.round(playerHealth)}%</p>
         </div>
         <div className="flex flex-col items-center">
            <div className="flex items-center text-md font-semibold text-blue-400">
             <Clock className="w-4 h-4 mr-1" />
-            <span>Timer</span>
+            <span>Tempo</span>
           </div>
           <p className="text-xl font-bold">{formatTime(waveTimer)}</p>
         </div>
@@ -62,5 +62,3 @@ export function GameHUD({ score, wave, playerHealth, waveTimer, playerXP }: Game
     </Card>
   );
 }
-
-    

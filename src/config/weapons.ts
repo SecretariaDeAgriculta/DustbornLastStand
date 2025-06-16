@@ -16,12 +16,12 @@ export interface Weapon {
   criticalChance?: number;
   criticalMultiplier?: number;
   shotgunSpreadAngle?: number; // degrees
-  penetrationCount?: number; // How many enemies it can pass through after the first hit. 0 or undefined means no penetration beyond the first target.
+  penetrationCount?: number;
   icon?: Icon;
   xpCost: number;
   upgradedThisRound?: boolean;
   projectileType: ProjectileType;
-  stunDuration?: number; // milliseconds, for weapons that stun
+  stunDuration?: number; // milliseconds
 }
 
 export const initialWeapon: Weapon = {
@@ -31,14 +31,14 @@ export const initialWeapon: Weapon = {
   damage: 4,
   cooldown: 1000,
   range: 300,
-  effectDescription: 'Nenhum.',
+  effectDescription: 'Uma relíquia enferrujada, mas ainda funciona.',
   icon: HelpCircle,
   xpCost: 0,
   projectileType: 'bullet',
   penetrationCount: 0,
 };
 
-export const commonWeapons: Weapon[] = [
+const commonWeapons: Weapon[] = [
   {
     id: 'revolver_tambor',
     name: 'Revólver de Tambor',
@@ -84,7 +84,7 @@ export const commonWeapons: Weapon[] = [
   },
 ];
 
-export const rareWeapons: Weapon[] = [
+const rareWeapons: Weapon[] = [
   {
     id: 'carabina_winchester',
     name: 'Carabina Winchester',
@@ -120,7 +120,7 @@ export const rareWeapons: Weapon[] = [
     damage: 10,
     cooldown: 1500,
     range: 200,
-    effectDescription: 'Impacto causa 10 de dano. Cria área em chamas (Efeito de área não implementado).',
+    effectDescription: 'Impacto causa dano. (Efeito de área de fogo não implementado).',
     icon: Flame,
     xpCost: 350,
     projectileType: 'molotov_flask',
@@ -128,16 +128,16 @@ export const rareWeapons: Weapon[] = [
   }
 ];
 
-export const legendaryWeapons: Weapon[] = [
+const legendaryWeapons: Weapon[] = [
   {
     id: 'vibora_aco',
     name: '“Víbora de Aço”',
     rarity: 'Lendária',
     damage: 15,
-    projectilesPerShot: 1, // Base is 1, effect can make it 2
+    projectilesPerShot: 1,
     cooldown: 200,
     range: 350,
-    effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros em vez de 1.',
+    effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros.',
     icon: Sparkles,
     xpCost: 750,
     projectileType: 'bullet',
@@ -152,12 +152,12 @@ export const legendaryWeapons: Weapon[] = [
     cooldown: 800,
     range: 200,
     shotgunSpreadAngle: 35,
-    effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto.',
+    effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto por 1s.',
     icon: Volume2,
     xpCost: 800,
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
-    stunDuration: 1000, // Stuns for 1 second
+    stunDuration: 1000,
   },
   {
     id: 'justica_ferro',
@@ -166,7 +166,7 @@ export const legendaryWeapons: Weapon[] = [
     damage: 40,
     cooldown: 2000,
     range: 700,
-    penetrationCount: 99, // Atravessa "todos" os inimigos
+    penetrationCount: 99,
     effectDescription: 'Rifle de precisão. Tiros atravessam todos os inimigos em linha reta.',
     icon: LocateFixed,
     xpCost: 900,

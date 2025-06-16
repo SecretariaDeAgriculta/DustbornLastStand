@@ -8,7 +8,7 @@ export default function Home() {
         <DustbornGame />
       </main>
       <footer className="w-full max-w-screen-lg text-center py-4 mt-4 text-muted-foreground text-xs">
-        <p>&copy; {new Date().getFullYear()} Dustborn-Style Game. Built in Firebase Studio.</p>
+        <p>&copy; {new Date().getFullYear()} Dustborn: Última Resistência. Construído no Firebase Studio.</p>
       </footer>
     </div>
   );
