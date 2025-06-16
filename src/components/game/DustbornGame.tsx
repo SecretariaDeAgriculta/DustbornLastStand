@@ -38,7 +38,6 @@ const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2;
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800;
 const ENEMY_ARROCEIRO_XP_VALUE = 15;
-const ENEMY_ARROCEIRO_COLOR = '#a7f3d0';
 
 const ENEMY_CAODEFAZENDA_SIZE = PLAYER_SIZE * 0.8;
 const ENEMY_CAODEFAZENDA_INITIAL_HEALTH = 12;
@@ -47,7 +46,6 @@ const ENEMY_CAODEFAZENDA_BASE_SPEED = 2.5; // Faster than Arruaceiro
 const ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_CAODEFAZENDA_SIZE / 2 + 5) ** 2;
 const ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN = 700; // Slightly faster attack
 const ENEMY_CAODEFAZENDA_XP_VALUE = 20;
-const ENEMY_CAODEFAZENDA_COLOR = '#f59e0b'; // Amber/Brown color
 
 
 const PROJECTILE_SIZE = 8;
@@ -86,8 +84,7 @@ interface Enemy extends Entity {
   xpValue: number;
   attackCooldownTimer: number;
   speed: number;
-  color: string;
-  damage: number; // Added damage property for specific enemy types
+  damage: number;
   attackRangeSquared: number;
   attackCooldown: number;
 }
@@ -207,8 +204,6 @@ export function DustbornGame() {
     const currentOfferings: Weapon[] = [];
 
     for (const weapon of shuffled) {
-        const playerOwnsThisType = playerWeapons.some(pw => pw.id === weapon.id);
-        // Offer only if player doesn't own it OR if it's an upgradeable type (all types are for now)
         if (currentOfferings.length < 3 && !uniqueWeaponIds.has(weapon.id) ) {
              uniqueWeaponIds.add(weapon.id);
              currentOfferings.push({...weapon, upgradedThisRound: false});
@@ -216,7 +211,7 @@ export function DustbornGame() {
         if (currentOfferings.length >= 3) break;
     }
     setShopOfferings(currentOfferings);
-  }, [playerWeapons]);
+  }, []);
 
 
   const handleBuyWeapon = (weaponToBuyOrUpgrade: Weapon) => {
@@ -557,7 +552,7 @@ export function DustbornGame() {
 
             if (distToPlayerSquared < updatedEnemy.attackRangeSquared && updatedEnemy.attackCooldownTimer <= 0) {
                setPlayer(p => {
-                 const newHealth = Math.max(0, p.health - updatedEnemy.damage); // Use enemy's specific damage
+                 const newHealth = Math.max(0, p.health - updatedEnemy.damage);
                  if (newHealth <= 0 && !isGameOver) {
                    setIsGameOver(true);
                  }
@@ -656,10 +651,10 @@ export function DustbornGame() {
 
     do {
         const side = Math.floor(Math.random() * 4);
-        const margin = 50; // Margin to spawn enemies further off-screen
+        const margin = 50;
 
         if (side === 0) { // Top
-            newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SIZE - margin; // Use a base size for margin
+            newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SIZE - margin;
         } else if (side === 1) { // Bottom
             newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + margin;
         } else if (side === 2) { // Left
@@ -673,18 +668,17 @@ export function DustbornGame() {
     );
 
     let enemyToSpawn: Enemy;
-    const spawnDogChance = 0.35; // 35% chance to spawn a dog from wave 2 onwards
+    const spawnDogChance = 0.35;
 
     if (wave >= 2 && Math.random() < spawnDogChance) {
-        const dogHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH + (wave - 1) * 2; // Dogs get less HP bonus per wave
-        const dogSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED + (wave - 1) * 0.15;
+        const dogHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH + (wave - 2) * 2;
+        const dogSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED + (wave - 2) * 0.15;
         enemyToSpawn = {
             id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY,
             width: ENEMY_CAODEFAZENDA_SIZE,
             height: ENEMY_CAODEFAZENDA_SIZE,
             health: dogHealth, maxHealth: dogHealth,
             type: 'Cão de Fazenda',
-            color: ENEMY_CAODEFAZENDA_COLOR,
             xpValue: ENEMY_CAODEFAZENDA_XP_VALUE + wave,
             attackCooldownTimer: Math.random() * ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN,
             speed: dogSpeed,
@@ -701,7 +695,6 @@ export function DustbornGame() {
             height: ENEMY_ARROCEIRO_SIZE,
             health: arruaceiroHealth, maxHealth: arruaceiroHealth,
             type: 'ArruaceiroSaloon',
-            color: ENEMY_ARROCEIRO_COLOR,
             xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave,
             attackCooldownTimer: Math.random() * ENEMY_ARROCEIRO_ATTACK_COOLDOWN,
             speed: arruaceiroSpeed,
@@ -742,7 +735,7 @@ export function DustbornGame() {
     setProjectiles([]);
     setDamageNumbers([]);
     setXpOrbs([]);
-    setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH })); // Reset player health
+    setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
     lastLogicUpdateTimestampRef.current = 0;
     setIsPaused(false);
@@ -802,7 +795,7 @@ export function DustbornGame() {
           style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
           role="application"
           aria-label="Dustborn game area"
-          tabIndex={-1} // Allows focus for keyboard events if needed, though events are global
+          tabIndex={-1}
         >
           {isPaused && (
             <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
@@ -816,7 +809,7 @@ export function DustbornGame() {
               key={enemy.id} x={enemy.x} y={enemy.y}
               width={enemy.width} height={enemy.height}
               health={enemy.health} maxHealth={enemy.maxHealth}
-              color={enemy.color}
+              type={enemy.type}
             />
           ))}
           {xpOrbs.map((orb) => (
@@ -854,4 +847,3 @@ export function DustbornGame() {
     </div>
   );
 }
-
