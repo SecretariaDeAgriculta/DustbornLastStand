@@ -13,9 +13,10 @@ interface EnemyCharacterProps {
   health: number;
   maxHealth: number;
   type: EnemyType;
+  isStunned?: boolean;
 }
 
-export function EnemyCharacter({ x, y, width, height, health, maxHealth, type }: EnemyCharacterProps) {
+export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, isStunned }: EnemyCharacterProps) {
   const healthPercentage = (health / maxHealth) * 100;
 
   const getEnemyEmoji = () => {
@@ -25,9 +26,11 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type }:
       case 'Cão de Fazenda':
         return '🐕';
       default:
-        return '?'; // Fallback for unknown types
+        return '?'; 
     }
   };
+  
+  const emoji = getEnemyEmoji();
 
   return (
     <div
@@ -37,14 +40,16 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type }:
         top: y,
         width: width,
         height: height,
-        fontSize: `${Math.min(width, height) * 0.8}px`, // Scale emoji size with component size
-        lineHeight: `${height}px`, // Center emoji vertically
+        fontSize: `${Math.min(width, height) * 0.8}px`,
+        lineHeight: `${height}px`,
+        opacity: isStunned ? 0.5 : 1,
+        transition: 'opacity 0.15s linear',
       }}
       role="img"
-      aria-label={`Enemy character: ${type}`}
+      aria-label={`Enemy character: ${type}${isStunned ? ' (stunned)' : ''}`}
       title={`HP: ${health}/${maxHealth}`}
     >
-      {getEnemyEmoji()}
+      {emoji}
       {/* Health Bar */}
       <div
         className="absolute top-[-10px] left-0 w-full h-[6px] bg-muted rounded-sm overflow-hidden border border-background"

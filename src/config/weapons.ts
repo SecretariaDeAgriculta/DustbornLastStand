@@ -1,13 +1,13 @@
 
 import type { Icon } from 'lucide-react';
-import { Target, Aperture, GitFork, HelpCircle, Crosshair, Flame, Zap, Volume2, LocateFixed, Sparkles } from 'lucide-react';
+import { Target, Aperture, GitFork, HelpCircle, Crosshair, Flame, Sparkles, Volume2, LocateFixed } from 'lucide-react';
 
 export type ProjectileType = 'bullet' | 'shotgun_pellet' | 'knife' | 'molotov_flask';
 
 export interface Weapon {
   id: string;
   name: string;
-  rarity: 'Comum' | 'Raro' | 'Lendária'; // Removed 'Incomum' as it's not used
+  rarity: 'Comum' | 'Raro' | 'Lendária';
   damage: number;
   projectilesPerShot?: number;
   cooldown: number; // milliseconds
@@ -16,11 +16,12 @@ export interface Weapon {
   criticalChance?: number;
   criticalMultiplier?: number;
   shotgunSpreadAngle?: number; // degrees
-  penetrationCount?: number;
+  penetrationCount?: number; // How many enemies it can pass through after the first hit. 0 or undefined means no penetration beyond the first target.
   icon?: Icon;
   xpCost: number;
   upgradedThisRound?: boolean;
   projectileType: ProjectileType;
+  stunDuration?: number; // milliseconds, for weapons that stun
 }
 
 export const initialWeapon: Weapon = {
@@ -34,6 +35,7 @@ export const initialWeapon: Weapon = {
   icon: HelpCircle,
   xpCost: 0,
   projectileType: 'bullet',
+  penetrationCount: 0,
 };
 
 export const commonWeapons: Weapon[] = [
@@ -50,6 +52,7 @@ export const commonWeapons: Weapon[] = [
     icon: Target,
     xpCost: 50,
     projectileType: 'bullet',
+    penetrationCount: 0,
   },
   {
     id: 'espingarda_cano_curto',
@@ -64,6 +67,7 @@ export const commonWeapons: Weapon[] = [
     icon: Aperture,
     xpCost: 60,
     projectileType: 'shotgun_pellet',
+    penetrationCount: 0,
   },
   {
     id: 'faca_arremesso',
@@ -107,6 +111,7 @@ export const rareWeapons: Weapon[] = [
     icon: Aperture,
     xpCost: 320,
     projectileType: 'shotgun_pellet',
+    penetrationCount: 0,
   },
   {
     id: 'lanca_molotov',
@@ -119,6 +124,7 @@ export const rareWeapons: Weapon[] = [
     icon: Flame,
     xpCost: 350,
     projectileType: 'molotov_flask',
+    penetrationCount: 0,
   }
 ];
 
@@ -128,12 +134,14 @@ export const legendaryWeapons: Weapon[] = [
     name: '“Víbora de Aço”',
     rarity: 'Lendária',
     damage: 15,
-    cooldown: 200, // Muito alta
-    range: 350,   // Médio
-    effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros em vez de 1 (Efeito de chance não implementado).',
-    icon: Sparkles, // Using Sparkles to denote legendary/special
+    projectilesPerShot: 1, // Base is 1, effect can make it 2
+    cooldown: 200,
+    range: 350,
+    effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros em vez de 1.',
+    icon: Sparkles,
     xpCost: 750,
     projectileType: 'bullet',
+    penetrationCount: 0,
   },
   {
     id: 'voz_trovao',
@@ -141,21 +149,23 @@ export const legendaryWeapons: Weapon[] = [
     rarity: 'Lendária',
     damage: 10,
     projectilesPerShot: 6,
-    cooldown: 800, // Média
-    range: 200,   // Médio
+    cooldown: 800,
+    range: 200,
     shotgunSpreadAngle: 35,
-    effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto (Efeito de atordoar não implementado).',
+    effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto.',
     icon: Volume2,
     xpCost: 800,
     projectileType: 'shotgun_pellet',
+    penetrationCount: 0,
+    stunDuration: 1000, // Stuns for 1 second
   },
   {
     id: 'justica_ferro',
     name: '“Justiça de Ferro”',
     rarity: 'Lendária',
     damage: 40,
-    cooldown: 2000, // Muito lenta
-    range: 700,    // Muito longo
+    cooldown: 2000,
+    range: 700,
     penetrationCount: 99, // Atravessa "todos" os inimigos
     effectDescription: 'Rifle de precisão. Tiros atravessam todos os inimigos em linha reta.',
     icon: LocateFixed,

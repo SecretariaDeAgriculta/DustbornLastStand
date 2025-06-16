@@ -56,7 +56,7 @@ const WAVE_DURATION = 120;
 const ENEMY_SPAWN_INTERVAL_INITIAL = 2500;
 const MAX_ENEMIES_BASE = 3;
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
-const ENEMY_MOVE_INTERVAL = 50;
+const ENEMY_MOVE_INTERVAL = 50; // Milliseconds, effectively the game's tick rate for logic
 
 const DAMAGE_NUMBER_LIFESPAN = 700;
 const DAMAGE_NUMBER_FLOAT_SPEED = 0.8;
@@ -87,6 +87,8 @@ interface Enemy extends Entity {
   damage: number;
   attackRangeSquared: number;
   attackCooldown: number;
+  isStunned?: boolean;
+  stunTimer?: number;
 }
 
 interface XPOrbData extends Entity {
@@ -107,6 +109,7 @@ interface ProjectileData extends Entity {
   penetrationLeft: number;
   hitEnemyIds: Set<string>;
   projectileType: ProjectileType;
+  originWeaponId: string;
 }
 
 
@@ -206,7 +209,11 @@ export function DustbornGame() {
     for (const weapon of shuffled) {
         if (currentOfferings.length < 3 && !uniqueWeaponIds.has(weapon.id) ) {
              uniqueWeaponIds.add(weapon.id);
-             currentOfferings.push({...weapon, upgradedThisRound: false});
+             // Get a fresh definition to ensure no stale 'upgradedThisRound' from previous shop appearances
+             const freshShopWeapon = getWeaponById(weapon.id);
+             if (freshShopWeapon) {
+                currentOfferings.push({...freshShopWeapon, upgradedThisRound: false});
+             }
         }
         if (currentOfferings.length >= 3) break;
     }
@@ -219,7 +226,7 @@ export function DustbornGame() {
     const isUpgrade = existingWeaponIndex !== -1;
 
     const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
-    if (shopOfferingIndex === -1) return;
+    if (shopOfferingIndex === -1) return; // Should not happen
 
     const currentShopOffering = shopOfferings[shopOfferingIndex];
     if (currentShopOffering.upgradedThisRound) {
@@ -247,13 +254,6 @@ export function DustbornGame() {
       );
       setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
       toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
-
-      setShopOfferings(prevOfferings =>
-        prevOfferings.map((offering, index) =>
-          index === shopOfferingIndex ? { ...offering, upgradedThisRound: true } : offering
-        )
-      );
-
     } else {
       if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
         toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
@@ -264,16 +264,16 @@ export function DustbornGame() {
       if (freshWeaponDefinition) {
         setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition, upgradedThisRound: false}]);
         toast({ title: "Arma Comprada!", description: `${freshWeaponDefinition.name} adicionada ao seu arsenal.` });
-
-        setShopOfferings(prevOfferings =>
-          prevOfferings.map((offering, index) =>
-            index === shopOfferingIndex ? { ...offering, upgradedThisRound: true } : offering
-          )
-        );
       } else {
         toast({ title: "Erro na Loja", description: `Não foi possível encontrar a definição da arma ${weaponToBuyOrUpgrade.name}.`, variant: "destructive" });
       }
     }
+    // Mark this specific offering as interacted with for this shop round
+    setShopOfferings(prevOfferings =>
+      prevOfferings.map((offering, index) =>
+        index === shopOfferingIndex ? { ...offering, upgradedThisRound: true } : offering
+      )
+    );
   };
 
 
@@ -288,7 +288,7 @@ export function DustbornGame() {
       if (weaponToRecycle.id === initialWeapon.id) {
         xpGained = INITIAL_WEAPON_RECYCLE_XP;
       } else {
-        const baseWeapon = getWeaponById(weaponIdToRecycle);
+        const baseWeapon = getWeaponById(weaponIdToRecycle); // Get base cost for recycling
         xpGained = Math.floor((baseWeapon?.xpCost || 0) * RECYCLE_XP_PERCENTAGE);
       }
 
@@ -405,13 +405,17 @@ export function DustbornGame() {
             const baseAngle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
             const projectilesToSpawn: Omit<ProjectileData, 'id'>[] = [];
 
-            const numProjectiles = weapon.projectilesPerShot || 1;
+            let numProjectilesToFire = weapon.projectilesPerShot || 1;
+            if (weapon.id === 'vibora_aco' && Math.random() < 0.25) {
+              numProjectilesToFire = 2; // "Víbora de Aço" special effect
+            }
+            
             const spread = weapon.shotgunSpreadAngle ? weapon.shotgunSpreadAngle * (Math.PI / 180) : 0;
 
-            for (let i = 0; i < numProjectiles; i++) {
+            for (let i = 0; i < numProjectilesToFire; i++) {
               let currentAngle = baseAngle;
-              if (numProjectiles > 1 && spread > 0) {
-                currentAngle += (i - (numProjectiles - 1) / 2) * (spread / (numProjectiles > 1 ? numProjectiles -1 : 1));
+              if (numProjectilesToFire > 1 && spread > 0) {
+                currentAngle += (i - (numProjectilesToFire - 1) / 2) * (spread / (numProjectilesToFire > 1 ? numProjectilesToFire -1 : 1));
               }
               const projDx = Math.cos(currentAngle);
               const projDy = Math.sin(currentAngle);
@@ -424,8 +428,8 @@ export function DustbornGame() {
               }
 
               projectilesToSpawn.push({
-                x: playerCenterX - (weapon.projectileType === 'knife' ? (PLAYER_SIZE * 0.5) / 2 : PROJECTILE_SIZE / 2) , // Adjust for knife width
-                y: playerCenterY - (weapon.projectileType === 'knife' ? (PLAYER_SIZE * 1.5) / 2 : PROJECTILE_SIZE / 2) , // Adjust for knife height
+                x: playerCenterX - (weapon.projectileType === 'knife' ? (PLAYER_SIZE * 0.5) / 2 : PROJECTILE_SIZE / 2) ,
+                y: playerCenterY - (weapon.projectileType === 'knife' ? (PLAYER_SIZE * 1.5) / 2 : PROJECTILE_SIZE / 2) ,
                 size: PROJECTILE_SIZE,
                 width: weapon.projectileType === 'knife' ? PLAYER_SIZE * 0.5 : undefined,
                 height: weapon.projectileType === 'knife' ? PLAYER_SIZE * 1.5 : undefined,
@@ -438,6 +442,7 @@ export function DustbornGame() {
                 penetrationLeft: weapon.penetrationCount || 0,
                 hitEnemyIds: new Set<string>(),
                 projectileType: weapon.projectileType,
+                originWeaponId: weapon.id,
               });
             }
             setProjectiles(prev => [...prev, ...projectilesToSpawn.map(p => ({...p, id: `proj_${Date.now()}_${Math.random()}`}))]);
@@ -472,7 +477,7 @@ export function DustbornGame() {
 
               for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
                 const proj = newProjectilesAfterHits[i];
-                if (proj.hitEnemyIds.has(enemy.id)) continue;
+                if (proj.hitEnemyIds.has(enemy.id) && proj.penetrationLeft <= 0) continue; // Already hit and cannot penetrate further
 
                 const projWidth = proj.width || proj.size;
                 const projHeight = proj.height || proj.size;
@@ -483,10 +488,21 @@ export function DustbornGame() {
 
                 if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + currentEnemyState.width / 2) &&
                     Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + currentEnemyState.height / 2)) {
+                  
+                  // Check if this enemy has already been hit by THIS specific penetrating projectile instance
+                  if (proj.hitEnemyIds.has(enemy.id)) continue;
 
                   const damageDealt = proj.damage;
                   currentEnemyState.health -= damageDealt;
                   proj.hitEnemyIds.add(enemy.id);
+
+                  if (proj.originWeaponId === 'voz_trovao') {
+                    const vozDoTrovaoWeapon = getWeaponById('voz_trovao');
+                    if (vozDoTrovaoWeapon && vozDoTrovaoWeapon.stunDuration) {
+                       currentEnemyState.isStunned = true;
+                       currentEnemyState.stunTimer = vozDoTrovaoWeapon.stunDuration;
+                    }
+                  }
 
                   newlyCreatedDamageNumbers.push({
                     id: `dmg_${Date.now()}_${Math.random()}`,
@@ -536,15 +552,28 @@ export function DustbornGame() {
 
         setEnemies(currentEnemies =>
           currentEnemies.map(enemy => {
+            let updatedEnemy = {...enemy, 
+              attackCooldownTimer: Math.max(0, enemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL) 
+            };
+
+            if (updatedEnemy.isStunned && updatedEnemy.stunTimer && updatedEnemy.stunTimer > 0) {
+              updatedEnemy.stunTimer -= ENEMY_MOVE_INTERVAL;
+              if (updatedEnemy.stunTimer <= 0) {
+                updatedEnemy.isStunned = false;
+                updatedEnemy.stunTimer = 0;
+              } else {
+                return updatedEnemy; // Skip movement and attack if stunned
+              }
+            }
+            
             let newX = enemy.x;
             let newY = enemy.y;
-            let updatedEnemy = {...enemy, attackCooldownTimer: Math.max(0, enemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL) };
 
             const deltaPlayerX = (player.x + player.width / 2) - (updatedEnemy.x + updatedEnemy.width / 2);
             const deltaPlayerY = (player.y + player.height / 2) - (updatedEnemy.y + updatedEnemy.height / 2);
             const distToPlayerSquared = deltaPlayerX * deltaPlayerX + deltaPlayerY * deltaPlayerY;
 
-            if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) { // Prevents enemies from overlapping too much with player
+            if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) {
               const dist = Math.sqrt(distToPlayerSquared);
               newX += (deltaPlayerX / dist) * updatedEnemy.speed;
               newY += (deltaPlayerY / dist) * updatedEnemy.speed;
@@ -651,7 +680,7 @@ export function DustbornGame() {
 
     do {
         const side = Math.floor(Math.random() * 4);
-        const margin = 50;
+        const margin = 50; // Spawn further off-screen
 
         if (side === 0) { // Top
             newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SIZE - margin;
@@ -660,11 +689,15 @@ export function DustbornGame() {
         } else if (side === 2) { // Left
             newX = -ENEMY_ARROCEIRO_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
         } else { // Right
-            newX = GAME_WIDTH + margin; newY = Math.random() * GAME_HEIGHT;
+            newX = GAME_WIDTH + ENEMY_ARROCEIRO_SIZE + margin; newY = Math.random() * GAME_HEIGHT;
         }
         attempts++;
     } while (
-        (Math.abs(newX - currentPlayerX) < PLAYER_SIZE * 5 && Math.abs(newY - currentPlayerY) < PLAYER_SIZE * 5) && attempts < maxAttempts
+        // Check distance from player center to potential spawn center
+        (Math.sqrt(
+            ((newX + ENEMY_ARROCEIRO_SIZE/2) - (currentPlayerX + PLAYER_SIZE/2))**2 + 
+            ((newY + ENEMY_ARROCEIRO_SIZE/2) - (currentPlayerY + PLAYER_SIZE/2))**2
+          ) < PLAYER_SIZE * 5) && attempts < maxAttempts
     );
 
     let enemyToSpawn: Enemy;
@@ -810,6 +843,7 @@ export function DustbornGame() {
               width={enemy.width} height={enemy.height}
               health={enemy.health} maxHealth={enemy.maxHealth}
               type={enemy.type}
+              isStunned={enemy.isStunned}
             />
           ))}
           {xpOrbs.map((orb) => (
