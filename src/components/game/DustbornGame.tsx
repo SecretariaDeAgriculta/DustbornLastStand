@@ -16,8 +16,6 @@ import { PauseIcon, PlayIcon } from 'lucide-react';
 import type { Weapon, ProjectileType } from '@/config/weapons';
 import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
 import { useToast } from "@/hooks/use-toast";
-import { useIsMobile } from '@/hooks/use-mobile';
-import { VirtualJoystick } from './VirtualJoystick';
 
 
 const GAME_WIDTH = 800;
@@ -37,15 +35,15 @@ const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2;
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800;
-const ENEMY_ARROCEIRO_XP_VALUE = 2; // Adjusted XP
+const ENEMY_ARROCEIRO_XP_VALUE = 2;
 
 const ENEMY_CAODEFAZENDA_SIZE = PLAYER_SIZE * 0.8;
 const ENEMY_CAODEFAZENDA_INITIAL_HEALTH = 12;
 const ENEMY_CAODEFAZENDA_DAMAGE = 4;
-const ENEMY_CAODEFAZENDA_BASE_SPEED = 2.5; // Faster than Arruaceiro
+const ENEMY_CAODEFAZENDA_BASE_SPEED = 2.5; 
 const ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_CAODEFAZENDA_SIZE / 2 + 5) ** 2;
-const ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN = 700; // Slightly faster attack
-const ENEMY_CAODEFAZENDA_XP_VALUE = 1; // Adjusted XP
+const ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN = 700; 
+const ENEMY_CAODEFAZENDA_XP_VALUE = 1;
 
 
 const PROJECTILE_SIZE = 8;
@@ -56,7 +54,7 @@ const WAVE_DURATION = 120; // seconds
 const ENEMY_SPAWN_INTERVAL_INITIAL = 2500;
 const MAX_ENEMIES_BASE = 3;
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
-const ENEMY_MOVE_INTERVAL = 50; // Milliseconds, effectively the game's tick rate for logic
+const ENEMY_MOVE_INTERVAL = 50; 
 
 const DAMAGE_NUMBER_LIFESPAN = 700;
 const DAMAGE_NUMBER_FLOAT_SPEED = 0.8;
@@ -141,6 +139,7 @@ export function DustbornGame() {
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [playerXP, setPlayerXP] = useState(0);
+  const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
 
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([{...initialWeapon, upgradedThisRound: false}]);
   const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
@@ -152,13 +151,6 @@ export function DustbornGame() {
   const lastPlayerShotTimestampRef = useRef<Record<string, number>>({});
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-
-  const isMobile = useIsMobile();
-  const [joystickInput, setJoystickInput] = useState({ dx: 0, dy: 0 });
-
-  const handleJoystickMove = useCallback((dx: number, dy: number) => {
-    setJoystickInput({ dx, dy });
-  }, []);
 
   const resetGameState = useCallback(() => {
     setPlayer({
@@ -180,10 +172,10 @@ export function DustbornGame() {
     setIsGameOver(false);
     setIsPaused(false);
     setPlayerXP(0);
+    setIsPlayerTakingDamage(false);
     setPlayerWeapons([{...initialWeapon, upgradedThisRound: false}]);
     setShopOfferings([]);
     activeKeys.current.clear();
-    setJoystickInput({ dx: 0, dy: 0});
     lastLogicUpdateTimestampRef.current = 0;
     lastPlayerShotTimestampRef.current = {};
   }, []);
@@ -195,10 +187,9 @@ export function DustbornGame() {
 
     const weightedList: Weapon[] = [];
     purchasable.forEach(weapon => {
-        let copies = 1;
+        let copies = 1; // Default for Legendary
         if (weapon.rarity === 'Comum') copies = 5;
         else if (weapon.rarity === 'Raro') copies = 2;
-        else if (weapon.rarity === 'Lendária') copies = 1;
         for (let i = 0; i < copies; i++) weightedList.push(weapon);
     });
 
@@ -244,8 +235,8 @@ export function DustbornGame() {
           if (index === existingWeaponIndex) {
             return {
               ...weapon,
-              damage: weapon.damage + 1,
-              cooldown: Math.max(100, weapon.cooldown - 50),
+              damage: weapon.damage + 1, // Example: Simple damage upgrade
+              cooldown: Math.max(100, weapon.cooldown - 50), // Example: Cooldown reduction
             };
           }
           return weapon;
@@ -304,11 +295,11 @@ export function DustbornGame() {
         setIsPaused(prev => !prev);
         return;
       }
-      if (isPaused || isShopPhase || isMobile) return;
+      if (isPaused || isShopPhase) return;
       activeKeys.current.add(event.key.toLowerCase());
     };
     const handleKeyUp = (event: KeyboardEvent) => {
-      if (isGameOver || isPaused || isShopPhase || isMobile) return;
+      if (isGameOver || isPaused || isShopPhase) return;
       activeKeys.current.delete(event.key.toLowerCase());
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -318,7 +309,7 @@ export function DustbornGame() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isGameOver, isPaused, isShopPhase, isMobile]);
+  }, [isGameOver, isPaused, isShopPhase]);
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) return;
@@ -333,38 +324,26 @@ export function DustbornGame() {
 
       let inputDx = 0;
       let inputDy = 0;
-      let usingJoystick = false;
-
-      if (isMobile === true) {
-          if (joystickInput.dx !== 0 || joystickInput.dy !== 0) {
-            inputDx = joystickInput.dx;
-            inputDy = joystickInput.dy;
-            usingJoystick = true;
-          }
-      } else if (isMobile === false) {
-        if (activeKeys.current.has('arrowup') || activeKeys.current.has('w')) inputDy -= 1;
-        if (activeKeys.current.has('arrowdown') || activeKeys.current.has('s')) inputDy += 1;
-        if (activeKeys.current.has('arrowleft') || activeKeys.current.has('a')) inputDx -= 1;
-        if (activeKeys.current.has('arrowright') || activeKeys.current.has('d')) inputDx += 1;
-      }
+      
+      if (activeKeys.current.has('arrowup') || activeKeys.current.has('w')) inputDy -= 1;
+      if (activeKeys.current.has('arrowdown') || activeKeys.current.has('s')) inputDy += 1;
+      if (activeKeys.current.has('arrowleft') || activeKeys.current.has('a')) inputDx -= 1;
+      if (activeKeys.current.has('arrowright') || activeKeys.current.has('d')) inputDx += 1;
+      
 
       if (inputDx !== 0 || inputDy !== 0) {
         let moveX: number;
         let moveY: number;
 
-        if (usingJoystick) {
+        if (inputDx !== 0 && inputDy !== 0) {
+            const length = Math.sqrt(inputDx * inputDx + inputDy * inputDy);
+            moveX = (inputDx / length) * PLAYER_SPEED;
+            moveY = (inputDy / length) * PLAYER_SPEED;
+        } else {
             moveX = inputDx * PLAYER_SPEED;
             moveY = inputDy * PLAYER_SPEED;
-        } else {
-            if (inputDx !== 0 && inputDy !== 0) {
-                const length = Math.sqrt(inputDx * inputDx + inputDy * inputDy);
-                moveX = (inputDx / length) * PLAYER_SPEED;
-                moveY = (inputDy / length) * PLAYER_SPEED;
-            } else {
-                moveX = inputDx * PLAYER_SPEED;
-                moveY = inputDy * PLAYER_SPEED;
-            }
         }
+        
 
         setPlayer((p) => ({
           ...p,
@@ -579,6 +558,10 @@ export function DustbornGame() {
             if (distToPlayerSquared < updatedEnemy.attackRangeSquared && updatedEnemy.attackCooldownTimer <= 0) {
                setPlayer(p => {
                  const newHealth = Math.max(0, p.health - updatedEnemy.damage);
+                 if (newHealth < p.health && !isPlayerTakingDamage) { 
+                    setIsPlayerTakingDamage(true);
+                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                 }
                  if (newHealth <= 0 && !isGameOver) {
                    setIsGameOver(true);
                  }
@@ -636,7 +619,7 @@ export function DustbornGame() {
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score, playerXP, toast, generateShopOfferings, isMobile, joystickInput]);
+  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score, playerXP, toast, generateShopOfferings, isPlayerTakingDamage]);
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) {
@@ -659,7 +642,6 @@ export function DustbornGame() {
           setIsShopPhase(true);
           generateShopOfferings();
           if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
-          setJoystickInput({ dx: 0, dy: 0});
           return WAVE_DURATION;
         }
         return prevTimer - 1;
@@ -769,16 +751,13 @@ export function DustbornGame() {
     setIsShopPhase(false);
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
-    setEnemies([]); // Enemies are cleared here
+    setEnemies([]); 
     setProjectiles([]);
     setDamageNumbers([]);
-    // XP orbs are intentionally NOT cleared here, as they might have been collected at wave end or carried over.
-    // If some orbs were missed by auto-collect (e.g. spawned right at wave end), they remain.
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
     lastLogicUpdateTimestampRef.current = 0;
     setIsPaused(false);
-    setJoystickInput({ dx: 0, dy: 0});
   };
 
   if (isGameOver) {
@@ -842,7 +821,7 @@ export function DustbornGame() {
               <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90" />
             </div>
           )}
-          <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} />
+          <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} isTakingDamage={isPlayerTakingDamage} />
           {enemies.map((enemy) => (
             <EnemyCharacter
               key={enemy.id} x={enemy.x} y={enemy.y}
@@ -878,12 +857,9 @@ export function DustbornGame() {
         </div>
       </Card>
        <div className="mt-4 text-sm text-muted-foreground text-center">
-        {isMobile === true ? "Use o joystick virtual para mover." : "Use as Teclas de Seta ou WASD para mover."}
+        Use as Teclas de Seta ou WASD para mover.
         A arma dispara automaticamente. Pressione 'P' ou clique no botão para pausar. Sobreviva!
       </div>
-      {isMobile === true && !isShopPhase && !isGameOver && !isPaused && (
-         <VirtualJoystick onMove={handleJoystickMove} />
-      )}
     </div>
   );
 }
