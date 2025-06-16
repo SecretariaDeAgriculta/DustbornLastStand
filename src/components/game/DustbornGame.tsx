@@ -37,7 +37,7 @@ const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2;
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800;
-const ENEMY_ARROCEIRO_XP_VALUE = 15;
+const ENEMY_ARROCEIRO_XP_VALUE = 2; // Adjusted XP
 
 const ENEMY_CAODEFAZENDA_SIZE = PLAYER_SIZE * 0.8;
 const ENEMY_CAODEFAZENDA_INITIAL_HEALTH = 12;
@@ -45,14 +45,14 @@ const ENEMY_CAODEFAZENDA_DAMAGE = 4;
 const ENEMY_CAODEFAZENDA_BASE_SPEED = 2.5; // Faster than Arruaceiro
 const ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_CAODEFAZENDA_SIZE / 2 + 5) ** 2;
 const ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN = 700; // Slightly faster attack
-const ENEMY_CAODEFAZENDA_XP_VALUE = 20;
+const ENEMY_CAODEFAZENDA_XP_VALUE = 1; // Adjusted XP
 
 
 const PROJECTILE_SIZE = 8;
 const PROJECTILE_SPEED = 10;
 
 const XP_ORB_SIZE = 10;
-const WAVE_DURATION = 120;
+const WAVE_DURATION = 120; // seconds
 const ENEMY_SPAWN_INTERVAL_INITIAL = 2500;
 const MAX_ENEMIES_BASE = 3;
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
@@ -209,7 +209,6 @@ export function DustbornGame() {
     for (const weapon of shuffled) {
         if (currentOfferings.length < 3 && !uniqueWeaponIds.has(weapon.id) ) {
              uniqueWeaponIds.add(weapon.id);
-             // Get a fresh definition to ensure no stale 'upgradedThisRound' from previous shop appearances
              const freshShopWeapon = getWeaponById(weapon.id);
              if (freshShopWeapon) {
                 currentOfferings.push({...freshShopWeapon, upgradedThisRound: false});
@@ -226,7 +225,7 @@ export function DustbornGame() {
     const isUpgrade = existingWeaponIndex !== -1;
 
     const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
-    if (shopOfferingIndex === -1) return; // Should not happen
+    if (shopOfferingIndex === -1) return;
 
     const currentShopOffering = shopOfferings[shopOfferingIndex];
     if (currentShopOffering.upgradedThisRound) {
@@ -268,7 +267,6 @@ export function DustbornGame() {
         toast({ title: "Erro na Loja", description: `Não foi possível encontrar a definição da arma ${weaponToBuyOrUpgrade.name}.`, variant: "destructive" });
       }
     }
-    // Mark this specific offering as interacted with for this shop round
     setShopOfferings(prevOfferings =>
       prevOfferings.map((offering, index) =>
         index === shopOfferingIndex ? { ...offering, upgradedThisRound: true } : offering
@@ -288,7 +286,7 @@ export function DustbornGame() {
       if (weaponToRecycle.id === initialWeapon.id) {
         xpGained = INITIAL_WEAPON_RECYCLE_XP;
       } else {
-        const baseWeapon = getWeaponById(weaponIdToRecycle); // Get base cost for recycling
+        const baseWeapon = getWeaponById(weaponIdToRecycle); 
         xpGained = Math.floor((baseWeapon?.xpCost || 0) * RECYCLE_XP_PERCENTAGE);
       }
 
@@ -407,7 +405,7 @@ export function DustbornGame() {
 
             let numProjectilesToFire = weapon.projectilesPerShot || 1;
             if (weapon.id === 'vibora_aco' && Math.random() < 0.25) {
-              numProjectilesToFire = 2; // "Víbora de Aço" special effect
+              numProjectilesToFire = 2; 
             }
             
             const spread = weapon.shotgunSpreadAngle ? weapon.shotgunSpreadAngle * (Math.PI / 180) : 0;
@@ -477,7 +475,7 @@ export function DustbornGame() {
 
               for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
                 const proj = newProjectilesAfterHits[i];
-                if (proj.hitEnemyIds.has(enemy.id) && proj.penetrationLeft <= 0) continue; // Already hit and cannot penetrate further
+                if (proj.hitEnemyIds.has(enemy.id) && proj.penetrationLeft <= 0 && proj.originWeaponId !== 'justica_ferro') continue; 
 
                 const projWidth = proj.width || proj.size;
                 const projHeight = proj.height || proj.size;
@@ -489,8 +487,7 @@ export function DustbornGame() {
                 if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + currentEnemyState.width / 2) &&
                     Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + currentEnemyState.height / 2)) {
                   
-                  // Check if this enemy has already been hit by THIS specific penetrating projectile instance
-                  if (proj.hitEnemyIds.has(enemy.id)) continue;
+                  if (proj.hitEnemyIds.has(enemy.id) && proj.originWeaponId !== 'justica_ferro') continue;
 
                   const damageDealt = proj.damage;
                   currentEnemyState.health -= damageDealt;
@@ -562,7 +559,7 @@ export function DustbornGame() {
                 updatedEnemy.isStunned = false;
                 updatedEnemy.stunTimer = 0;
               } else {
-                return updatedEnemy; // Skip movement and attack if stunned
+                return updatedEnemy; 
               }
             }
             
@@ -650,6 +647,15 @@ export function DustbornGame() {
       setWaveTimer((prevTimer) => {
         if (prevTimer <= 1) {
           clearInterval(waveIntervalId.current!);
+          
+          setXpOrbs(currentXpOrbs => {
+            if (currentXpOrbs.length > 0) {
+              const totalRemainingXp = currentXpOrbs.reduce((sum, orb) => sum + orb.value, 0);
+              setPlayerXP(prevPlayerXP => prevPlayerXP + totalRemainingXp);
+            }
+            return []; 
+          });
+
           setIsShopPhase(true);
           generateShopOfferings();
           if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
@@ -674,26 +680,25 @@ export function DustbornGame() {
     let newX, newY;
     let attempts = 0;
     const maxAttempts = 10;
+    const spawnOffscreenMargin = ENEMY_ARROCEIRO_SIZE + 50; 
 
     const currentPlayerX = player.x;
     const currentPlayerY = player.y;
 
     do {
         const side = Math.floor(Math.random() * 4);
-        const margin = 50; // Spawn further off-screen
-
+        
         if (side === 0) { // Top
-            newX = Math.random() * GAME_WIDTH; newY = -ENEMY_ARROCEIRO_SIZE - margin;
+            newX = Math.random() * GAME_WIDTH; newY = -spawnOffscreenMargin;
         } else if (side === 1) { // Bottom
-            newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + margin;
+            newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + spawnOffscreenMargin - ENEMY_ARROCEIRO_SIZE;
         } else if (side === 2) { // Left
-            newX = -ENEMY_ARROCEIRO_SIZE - margin; newY = Math.random() * GAME_HEIGHT;
+            newX = -spawnOffscreenMargin; newY = Math.random() * GAME_HEIGHT;
         } else { // Right
-            newX = GAME_WIDTH + ENEMY_ARROCEIRO_SIZE + margin; newY = Math.random() * GAME_HEIGHT;
+            newX = GAME_WIDTH + spawnOffscreenMargin - ENEMY_ARROCEIRO_SIZE; newY = Math.random() * GAME_HEIGHT;
         }
         attempts++;
     } while (
-        // Check distance from player center to potential spawn center
         (Math.sqrt(
             ((newX + ENEMY_ARROCEIRO_SIZE/2) - (currentPlayerX + PLAYER_SIZE/2))**2 + 
             ((newY + ENEMY_ARROCEIRO_SIZE/2) - (currentPlayerY + PLAYER_SIZE/2))**2
@@ -764,10 +769,11 @@ export function DustbornGame() {
     setIsShopPhase(false);
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
-    setEnemies([]);
+    setEnemies([]); // Enemies are cleared here
     setProjectiles([]);
     setDamageNumbers([]);
-    setXpOrbs([]);
+    // XP orbs are intentionally NOT cleared here, as they might have been collected at wave end or carried over.
+    // If some orbs were missed by auto-collect (e.g. spawned right at wave end), they remain.
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
     lastLogicUpdateTimestampRef.current = 0;
@@ -881,3 +887,4 @@ export function DustbornGame() {
     </div>
   );
 }
+
