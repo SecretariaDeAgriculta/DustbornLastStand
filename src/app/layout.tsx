@@ -1,10 +1,11 @@
+
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 
 export const metadata: Metadata = {
-  title: 'Dustborn: Última Resistência',
-  description: 'Um jogo de sobrevivência ao estilo Dustborn.',
+  title: 'Dustborn: Last Stand',
+  description: 'Um jogo de sobrevivência ao estilo Dustborn no velho oeste.',
 };
 
 export default function RootLayout({
