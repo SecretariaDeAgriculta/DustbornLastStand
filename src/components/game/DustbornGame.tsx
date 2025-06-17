@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
 import { DamageNumber } from './DamageNumber';
 import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
-import { PauseIcon, PlayIcon } from 'lucide-react';
+import { PauseIcon, PlayIcon, HomeIcon } from 'lucide-react';
 import type { Weapon, ProjectileType } from '@/config/weapons';
 import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
 import { useToast } from "@/hooks/use-toast";
@@ -118,8 +118,12 @@ interface DamageNumberData extends Entity {
   isCritical?: boolean;
 }
 
+interface DustbornGameProps {
+  onExitToMenu?: () => void;
+}
 
-export function DustbornGame() {
+
+export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
   const [player, setPlayer] = useState<Player>({
     id: 'player',
     x: GAME_WIDTH / 2 - PLAYER_SIZE / 2,
@@ -152,7 +156,7 @@ export function DustbornGame() {
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
 
-  const resetGameState = useCallback(() => {
+  const resetGameState = useCallback((exitToMenu = false) => {
     setPlayer({
       id: 'player',
       x: GAME_WIDTH / 2 - PLAYER_SIZE / 2,
@@ -178,7 +182,10 @@ export function DustbornGame() {
     activeKeys.current.clear();
     lastLogicUpdateTimestampRef.current = 0;
     lastPlayerShotTimestampRef.current = {};
-  }, []);
+    if (exitToMenu && onExitToMenu) {
+      onExitToMenu();
+    }
+  }, [onExitToMenu]);
 
   const generateShopOfferings = useCallback(() => {
     const purchasable = getPurchasableWeapons().filter(
@@ -217,7 +224,7 @@ export function DustbornGame() {
     const isUpgrade = existingWeaponIndex !== -1;
 
     const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
-    if (shopOfferingIndex === -1) return; // Should not happen if UI is correct
+    if (shopOfferingIndex === -1) return;
 
     const currentShopOffering = shopOfferings[shopOfferingIndex];
     if (currentShopOffering.upgradedThisRound) {
@@ -769,7 +776,7 @@ export function DustbornGame() {
         <p className="text-lg mb-2">Wave Alcançada: {wave}</p>
         <p className="text-lg mb-4">Total XP Coletado: {playerXP}</p>
         <Button
-          onClick={resetGameState}
+          onClick={() => resetGameState()}
           className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-lg"
         >
           Jogar Novamente
@@ -819,7 +826,15 @@ export function DustbornGame() {
           {isPaused && (
             <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
               <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>
-              <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90" />
+              <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90 mb-6" />
+              <Button
+                onClick={() => resetGameState(true)}
+                variant="secondary"
+                className="text-lg py-3 px-6"
+              >
+                <HomeIcon className="mr-2 h-5 w-5" />
+                Voltar ao Menu Principal
+              </Button>
             </div>
           )}
           <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} isTakingDamage={isPlayerTakingDamage} />

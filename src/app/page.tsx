@@ -2,7 +2,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { DustbornGame } from '@/components/game/DustbornGame';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +13,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground">
         <main className="w-full max-w-screen-lg flex-grow flex flex-col items-center justify-center">
-          <DustbornGame />
+          <DustbornGame onExitToMenu={() => setGameMode('menu')} />
         </main>
         <footer className="w-full max-w-screen-lg text-center py-4 mt-4 text-muted-foreground text-xs">
           <p>&copy; {new Date().getFullYear()} Dustborn: Last Stand. Construído no Firebase Studio.</p>
@@ -25,16 +24,7 @@ export default function Home() {
 
   // Menu Mode
   return (
-    <div className="min-h-screen text-foreground flex flex-col items-center justify-center relative selection:bg-primary selection:text-primary-foreground">
-      <Image
-        src="https://placehold.co/1920x1080.png"
-        alt="Fundo do deserto árido do velho oeste ao pôr do sol"
-        layout="fill"
-        objectFit="cover"
-        quality={80}
-        className="opacity-30 z-0"
-        data-ai-hint="western desert sunset"
-      />
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground">
       <div className="z-10 flex flex-col items-center justify-center p-8 text-center">
         <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-primary mb-4" style={{ fontFamily: "'PT Sans', sans-serif" }}>
           Dustborn: <span className="text-accent">Last Stand</span>
