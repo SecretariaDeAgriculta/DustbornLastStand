@@ -2,7 +2,7 @@
 import type { Icon } from 'lucide-react';
 import { Target, Aperture, GitFork, HelpCircle, Crosshair, Flame, Sparkles, Volume2, LocateFixed } from 'lucide-react';
 
-export type ProjectileType = 'bullet' | 'shotgun_pellet' | 'knife' | 'molotov_flask';
+export type ProjectileType = 'bullet' | 'shotgun_pellet' | 'knife' | 'molotov_flask' | 'enemy_bullet';
 
 export interface Weapon {
   id: string;
@@ -36,6 +36,7 @@ export const initialWeapon: Weapon = {
   xpCost: 0,
   projectileType: 'bullet',
   penetrationCount: 0,
+  upgradedThisRound: false,
 };
 
 const commonWeapons: Weapon[] = [
@@ -117,14 +118,14 @@ const rareWeapons: Weapon[] = [
     id: 'lanca_molotov',
     name: 'Lança-Molotov',
     rarity: 'Raro',
-    damage: 10,
+    damage: 10, // Damage on impact
     cooldown: 1500,
-    range: 200,
+    range: 200, // Range of throw
     effectDescription: 'Impacto causa dano. (Efeito de área de fogo não implementado).',
     icon: Flame,
     xpCost: 350,
     projectileType: 'molotov_flask',
-    penetrationCount: 0,
+    penetrationCount: 0, // Molotovs don't typically penetrate
   }
 ];
 
@@ -134,9 +135,9 @@ const legendaryWeapons: Weapon[] = [
     name: '“Víbora de Aço”',
     rarity: 'Lendária',
     damage: 15,
-    projectilesPerShot: 1,
-    cooldown: 200,
-    range: 350,
+    projectilesPerShot: 1, // Base, effect can make it 2
+    cooldown: 200, // Muito alta
+    range: 350, // Médio
     effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros.',
     icon: Sparkles,
     xpCost: 750,
@@ -149,8 +150,8 @@ const legendaryWeapons: Weapon[] = [
     rarity: 'Lendária',
     damage: 10,
     projectilesPerShot: 6,
-    cooldown: 800,
-    range: 200,
+    cooldown: 800, // Média
+    range: 200, // Médio
     shotgunSpreadAngle: 35,
     effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto por 1s.',
     icon: Volume2,
@@ -164,9 +165,9 @@ const legendaryWeapons: Weapon[] = [
     name: '“Justiça de Ferro”',
     rarity: 'Lendária',
     damage: 40,
-    cooldown: 2000,
-    range: 700,
-    penetrationCount: 99,
+    cooldown: 2000, // Muito lenta
+    range: 700, // Muito longo
+    penetrationCount: 99, // Effectively pierces all
     effectDescription: 'Rifle de precisão. Tiros atravessam todos os inimigos em linha reta.',
     icon: LocateFixed,
     xpCost: 900,

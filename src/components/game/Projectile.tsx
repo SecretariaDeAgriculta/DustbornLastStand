@@ -47,28 +47,32 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
       style.height = currentHeight;
       style.borderRadius = '2px'; // Slightly rounded edges for a blade appearance
       style.border = '1px solid #6B7280'; // Darker gray
-      // Adjust position because default x,y is top-left of the bounding box
-      style.left = x - currentWidth / 2 + size / 2; // Center based on original size reference
+      style.left = x - currentWidth / 2 + size / 2; 
       style.top = y - currentHeight / 2 + size / 2;
       break;
     case 'molotov_flask':
       style.backgroundColor = '#FCA5A5'; // Light red
       style.width = size * 1.2;
       style.height = size * 1.2;
-      style.borderRadius = '30% 30% 40% 40% / 40% 40% 30% 30%'; // Flask-like shape
+      style.borderRadius = '30% 30% 40% 40% / 40% 40% 30% 30%'; 
       style.border = '1px solid #EF4444'; // Red border
-      style.transform = 'rotate(45deg)'; // Optional: make it look tumbling
+      style.transform = 'rotate(45deg)'; 
       break;
-    default: // Fallback to a generic look
-      style.backgroundColor = '#FDE047'; // Default yellow if type is unknown
+    case 'enemy_bullet':
+      style.backgroundColor = '#DC2626'; // Dark Red
+      style.width = size * 0.7;
+      style.height = size * 0.7;
+      style.borderRadius = '50%';
+      style.border = '1px solid #7F1D1D'; // Darker Red border
+      break;
+    default: 
+      style.backgroundColor = '#FDE047'; 
       style.width = size;
       style.height = size;
       style.borderRadius = '50%';
       style.border = '1px solid #A0522D';
   }
   
-  // Ensure position is centered if width/height changed from base size
-  // The knife example handles its own centering. For others, this ensures they are centered if their size changed from 'size'.
   if (projectileType !== 'knife') {
     style.left = x + (size - Number(style.width || size)) / 2;
     style.top = y + (size - Number(style.height || size)) / 2;
@@ -79,7 +83,7 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
     <div
       style={style}
       role="img"
-      aria-label={`Projectile type ${projectileType}`}
+      aria-label={`Projétil tipo ${projectileType}`}
     />
   );
 }

@@ -45,9 +45,20 @@ const ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_CAODEFA
 const ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN = 700;
 const ENEMY_CAODEFAZENDA_XP_VALUE = 1;
 
+const ENEMY_PISTOLEIRO_SIZE = PLAYER_SIZE;
+const ENEMY_PISTOLEIRO_INITIAL_HEALTH = 15;
+const ENEMY_PISTOLEIRO_DAMAGE = 5;
+const ENEMY_PISTOLEIRO_BASE_SPEED = 1.5; // Média
+const ENEMY_PISTOLEIRO_XP_VALUE = 4;
+const ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED = (350) ** 2; // Ranged attack
+const ENEMY_PISTOLEIRO_ATTACK_COOLDOWN = 2500; // Dispara lentamente
+const ENEMY_PISTOLEIRO_PROJECTILE_SPEED = 7;
+const ENEMY_PISTOLEIRO_PROJECTILE_SIZE = 8;
+const ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_PISTOLEIRO_SIZE / 2 + 10) ** 2;
 
-const PROJECTILE_SIZE = 8;
-const PROJECTILE_SPEED = 10;
+
+const PROJECTILE_SIZE = 8; // Base size for player projectiles
+const PROJECTILE_SPEED = 10; // Base speed for player projectiles
 
 const XP_ORB_SIZE = 10;
 const WAVE_DURATION = 120; // seconds
@@ -71,7 +82,7 @@ interface Player extends Entity {
   health: number;
 }
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo';
 
 interface Enemy extends Entity {
   width: number;
@@ -107,7 +118,8 @@ interface ProjectileData extends Entity {
   penetrationLeft: number;
   hitEnemyIds: Set<string>;
   projectileType: ProjectileType;
-  originWeaponId: string;
+  originWeaponId?: string; // For player projectiles
+  isEnemyProjectile?: boolean; // To distinguish enemy projectiles
 }
 
 
@@ -134,7 +146,8 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
   const [xpOrbs, setXpOrbs] = useState<XPOrbData[]>([]);
-  const [projectiles, setProjectiles] = useState<ProjectileData[]>([]);
+  const [playerProjectiles, setPlayerProjectiles] = useState<ProjectileData[]>([]);
+  const [enemyProjectiles, setEnemyProjectiles] = useState<ProjectileData[]>([]);
   const [damageNumbers, setDamageNumbers] = useState<DamageNumberData[]>([]);
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
@@ -167,7 +180,8 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     });
     setEnemies([]);
     setXpOrbs([]);
-    setProjectiles([]);
+    setPlayerProjectiles([]);
+    setEnemyProjectiles([]);
     setDamageNumbers([]);
     setScore(0);
     setWave(1);
@@ -224,7 +238,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     const isUpgrade = existingWeaponIndex !== -1;
 
     const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
-    if (shopOfferingIndex === -1) return;
+    if (shopOfferingIndex === -1) return; // Should not happen
 
     const currentShopOffering = shopOfferings[shopOfferingIndex];
     if (currentShopOffering.upgradedThisRound) {
@@ -428,9 +442,10 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                 hitEnemyIds: new Set<string>(),
                 projectileType: weapon.projectileType,
                 originWeaponId: weapon.id,
+                isEnemyProjectile: false,
               });
             }
-            setProjectiles(prev => [...prev, ...projectilesToSpawn.map(p => ({...p, id: `proj_${Date.now()}_${Math.random()}`}))]);
+            setPlayerProjectiles(prev => [...prev, ...projectilesToSpawn.map(p => ({...p, id: `proj_${Date.now()}_${Math.random()}`}))]);
           }
         }
       });
@@ -439,8 +454,9 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
         lastLogicUpdateTimestampRef.current = timestamp;
         const newlyCreatedDamageNumbers: DamageNumberData[] = [];
 
-        setProjectiles(prevProjectiles => {
-          const updatedProjectiles = prevProjectiles.map(proj => ({
+        // Player Projectile Logic
+        setPlayerProjectiles(prevPlayerProjectiles => {
+          const updatedProjectiles = prevPlayerProjectiles.map(proj => ({
             ...proj,
             x: proj.x + proj.dx * PROJECTILE_SPEED,
             y: proj.y + proj.dy * PROJECTILE_SPEED,
@@ -530,6 +546,49 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
           return newProjectilesAfterHits;
         });
 
+        // Enemy Projectile Logic
+        setEnemyProjectiles(prevEnemyProjectiles => {
+            const updatedEnemyProjectiles = prevEnemyProjectiles.map(proj => ({
+                ...proj,
+                x: proj.x + proj.dx * ENEMY_PISTOLEIRO_PROJECTILE_SPEED,
+                y: proj.y + proj.dy * ENEMY_PISTOLEIRO_PROJECTILE_SPEED,
+                traveledDistance: proj.traveledDistance + ENEMY_PISTOLEIRO_PROJECTILE_SPEED,
+            })).filter(proj =>
+                proj.x > -proj.size && proj.x < GAME_WIDTH &&
+                proj.y > -proj.size && proj.y < GAME_HEIGHT &&
+                proj.traveledDistance < proj.maxRange
+            );
+
+            const remainingEnemyProjectiles = [];
+            for (const proj of updatedEnemyProjectiles) {
+                const projCenterX = proj.x + proj.size / 2;
+                const projCenterY = proj.y + proj.size / 2;
+                const playerCenterX = player.x + player.width / 2;
+                const playerCenterY = player.y + player.height / 2;
+
+                if (Math.abs(projCenterX - playerCenterX) < (proj.size / 2 + player.width / 2) &&
+                    Math.abs(projCenterY - playerCenterY) < (proj.size / 2 + player.height / 2)) {
+                    
+                    setPlayer(p => {
+                        const newHealth = Math.max(0, p.health - proj.damage);
+                        if (newHealth < p.health && !isPlayerTakingDamage) {
+                            setIsPlayerTakingDamage(true);
+                            setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                        }
+                        if (newHealth <= 0 && !isGameOver) {
+                            setIsGameOver(true);
+                        }
+                        return { ...p, health: newHealth };
+                    });
+                    // Projectile is consumed, don't add to remainingEnemyProjectiles
+                } else {
+                    remainingEnemyProjectiles.push(proj);
+                }
+            }
+            return remainingEnemyProjectiles;
+        });
+
+
         if (newlyCreatedDamageNumbers.length > 0) {
           setDamageNumbers(prev => [...prev, ...newlyCreatedDamageNumbers]);
         }
@@ -546,38 +605,78 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                 updatedEnemy.isStunned = false;
                 updatedEnemy.stunTimer = 0;
               } else {
-                return updatedEnemy;
+                return updatedEnemy; // Skip movement and attack if stunned
               }
             }
 
-            let newX = enemy.x;
-            let newY = enemy.y;
+            const playerCenterX = player.x + player.width / 2;
+            const playerCenterY = player.y + player.height / 2;
+            const enemyCenterX = updatedEnemy.x + updatedEnemy.width / 2;
+            const enemyCenterY = updatedEnemy.y + updatedEnemy.height / 2;
 
-            const deltaPlayerX = (player.x + player.width / 2) - (updatedEnemy.x + updatedEnemy.width / 2);
-            const deltaPlayerY = (player.y + player.height / 2) - (updatedEnemy.y + updatedEnemy.height / 2);
+            const deltaPlayerX = playerCenterX - enemyCenterX;
+            const deltaPlayerY = playerCenterY - enemyCenterY;
             const distToPlayerSquared = deltaPlayerX * deltaPlayerX + deltaPlayerY * deltaPlayerY;
 
-            if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) {
-              const dist = Math.sqrt(distToPlayerSquared);
-              newX += (deltaPlayerX / dist) * updatedEnemy.speed;
-              newY += (deltaPlayerY / dist) * updatedEnemy.speed;
+            // Movement
+            if (enemy.type === 'PistoleiroVagabundo') {
+                // Pistoleiro tries to maintain distance but will move if player is too close or too far
+                if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.5 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED) {
+                     if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) { // Basic collision avoidance
+                        const dist = Math.sqrt(distToPlayerSquared);
+                        updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                        updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                    }
+                }
+            } else { // Melee enemies
+                 if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) {
+                    const dist = Math.sqrt(distToPlayerSquared);
+                    updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                    updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                }
             }
 
-            if (distToPlayerSquared < updatedEnemy.attackRangeSquared && updatedEnemy.attackCooldownTimer <= 0) {
-               setPlayer(p => {
-                 const newHealth = Math.max(0, p.health - updatedEnemy.damage);
-                 if (newHealth < p.health && !isPlayerTakingDamage) {
-                    setIsPlayerTakingDamage(true);
-                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
-                 }
-                 if (newHealth <= 0 && !isGameOver) {
-                   setIsGameOver(true);
-                 }
-                 return {...p, health: newHealth };
-               });
-               updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
+
+            // Attack
+            if (updatedEnemy.attackCooldownTimer <= 0) {
+                if (enemy.type === 'PistoleiroVagabundo') {
+                    if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
+                        const angleToPlayer = Math.atan2(deltaPlayerY, deltaPlayerX);
+                        setEnemyProjectiles(prev => [...prev, {
+                            id: `eproj_${Date.now()}_${Math.random()}`,
+                            x: enemyCenterX - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
+                            y: enemyCenterY - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
+                            size: ENEMY_PISTOLEIRO_PROJECTILE_SIZE,
+                            dx: Math.cos(angleToPlayer),
+                            dy: Math.sin(angleToPlayer),
+                            damage: updatedEnemy.damage,
+                            traveledDistance: 0,
+                            maxRange: updatedEnemy.attackRangeSquared, // Use attack range as max projectile range
+                            projectileType: 'enemy_bullet',
+                            hitEnemyIds: new Set(), // Not used for enemy projectiles
+                            penetrationLeft: 0,
+                            isEnemyProjectile: true,
+                        }]);
+                        updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
+                    }
+                } else { // Melee attack
+                    if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
+                       setPlayer(p => {
+                         const newHealth = Math.max(0, p.health - updatedEnemy.damage);
+                         if (newHealth < p.health && !isPlayerTakingDamage) {
+                            setIsPlayerTakingDamage(true);
+                            setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                         }
+                         if (newHealth <= 0 && !isGameOver) {
+                           setIsGameOver(true);
+                         }
+                         return {...p, health: newHealth };
+                       });
+                       updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
+                    }
+                }
             }
-            return { ...updatedEnemy, x: newX, y: newY };
+            return updatedEnemy;
           })
         );
 
@@ -627,7 +726,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score, playerXP, toast, generateShopOfferings, isPlayerTakingDamage]);
+  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score, playerXP, toast, generateShopOfferings, isPlayerTakingDamage, playerProjectiles, enemyProjectiles]);
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) {
@@ -670,7 +769,9 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     let newX, newY;
     let attempts = 0;
     const maxAttempts = 10;
-    const spawnOffscreenMargin = ENEMY_ARROCEIRO_SIZE + 50;
+    const enemySizeForMargin = ENEMY_ARROCEIRO_SIZE; // Use a consistent size for margin calculation
+    const spawnOffscreenMargin = enemySizeForMargin + 50;
+
 
     const currentPlayerX = player.x;
     const currentPlayerY = player.y;
@@ -681,24 +782,42 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
         if (side === 0) { // Top
             newX = Math.random() * GAME_WIDTH; newY = -spawnOffscreenMargin;
         } else if (side === 1) { // Bottom
-            newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + spawnOffscreenMargin - ENEMY_ARROCEIRO_SIZE;
+            newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + spawnOffscreenMargin - enemySizeForMargin;
         } else if (side === 2) { // Left
             newX = -spawnOffscreenMargin; newY = Math.random() * GAME_HEIGHT;
         } else { // Right
-            newX = GAME_WIDTH + spawnOffscreenMargin - ENEMY_ARROCEIRO_SIZE; newY = Math.random() * GAME_HEIGHT;
+            newX = GAME_WIDTH + spawnOffscreenMargin - enemySizeForMargin; newY = Math.random() * GAME_HEIGHT;
         }
         attempts++;
     } while (
         (Math.sqrt(
-            ((newX + ENEMY_ARROCEIRO_SIZE/2) - (currentPlayerX + PLAYER_SIZE/2))**2 +
-            ((newY + ENEMY_ARROCEIRO_SIZE/2) - (currentPlayerY + PLAYER_SIZE/2))**2
+            ((newX + enemySizeForMargin/2) - (currentPlayerX + PLAYER_SIZE/2))**2 +
+            ((newY + enemySizeForMargin/2) - (currentPlayerY + PLAYER_SIZE/2))**2
           ) < PLAYER_SIZE * 5) && attempts < maxAttempts
     );
 
     let enemyToSpawn: Enemy;
-    const spawnDogChance = 0.35;
+    const randomFactor = Math.random();
+    const spawnDogChance = 0.35; // Chance for Cão de Fazenda
+    const spawnPistoleiroChance = 0.25; // Chance for Pistoleiro Vagabundo (after Wave 2)
 
-    if (wave >= 2 && Math.random() < spawnDogChance) {
+    if (wave >= 3 && randomFactor < spawnPistoleiroChance) {
+        const pistoleiroHealth = ENEMY_PISTOLEIRO_INITIAL_HEALTH + (wave - 3) * 4;
+        const pistoleiroSpeed = ENEMY_PISTOLEIRO_BASE_SPEED + (wave - 3) * 0.1;
+        enemyToSpawn = {
+            id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY,
+            width: ENEMY_PISTOLEIRO_SIZE,
+            height: ENEMY_PISTOLEIRO_SIZE,
+            health: pistoleiroHealth, maxHealth: pistoleiroHealth,
+            type: 'PistoleiroVagabundo',
+            xpValue: ENEMY_PISTOLEIRO_XP_VALUE + Math.floor((wave-1)/2),
+            attackCooldownTimer: Math.random() * ENEMY_PISTOLEIRO_ATTACK_COOLDOWN,
+            speed: pistoleiroSpeed,
+            damage: ENEMY_PISTOLEIRO_DAMAGE,
+            attackRangeSquared: ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED,
+            attackCooldown: ENEMY_PISTOLEIRO_ATTACK_COOLDOWN,
+        };
+    } else if (wave >= 2 && randomFactor < spawnPistoleiroChance + spawnDogChance) {
         const dogHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH + (wave - 2) * 2;
         const dogSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED + (wave - 2) * 0.15;
         enemyToSpawn = {
@@ -760,8 +879,10 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
     setEnemies([]);
-    setProjectiles([]);
+    setPlayerProjectiles([]);
+    setEnemyProjectiles([]);
     setDamageNumbers([]);
+    // Keep player health as is, or restore to full? Currently restores to full.
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
     lastLogicUpdateTimestampRef.current = 0;
@@ -780,6 +901,14 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
           className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-lg"
         >
           Jogar Novamente
+        </Button>
+         <Button
+          onClick={() => resetGameState(true)}
+          variant="outline"
+          className="mt-4 ml-2 px-6 py-2 text-lg"
+        >
+          <HomeIcon className="mr-2 h-5 w-5" />
+          Menu Principal
         </Button>
       </div>
     );
@@ -850,7 +979,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
           {xpOrbs.map((orb) => (
             <XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} />
           ))}
-          {projectiles.map((proj) => (
+          {playerProjectiles.map((proj) => (
             <Projectile
               key={proj.id}
               x={proj.x} y={proj.y}
@@ -858,6 +987,14 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
               projectileType={proj.projectileType}
               width={proj.width}
               height={proj.height}
+            />
+          ))}
+          {enemyProjectiles.map((proj) => (
+            <Projectile
+              key={proj.id}
+              x={proj.x} y={proj.y}
+              size={proj.size}
+              projectileType={proj.projectileType} // Should be 'enemy_bullet'
             />
           ))}
           {damageNumbers.map((dn) => (

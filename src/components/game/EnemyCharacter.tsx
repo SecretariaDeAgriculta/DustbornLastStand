@@ -3,7 +3,7 @@
 
 import React from 'react';
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo';
 
 interface EnemyCharacterProps {
   x: number;
@@ -25,6 +25,8 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         return '🕴🏻';
       case 'Cão de Fazenda':
         return '🐕';
+      case 'PistoleiroVagabundo':
+        return '🤠';
       default:
         return '?'; 
     }
@@ -46,7 +48,7 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         transition: 'opacity 0.15s linear',
       }}
       role="img"
-      aria-label={`Enemy character: ${type}${isStunned ? ' (stunned)' : ''}`}
+      aria-label={`Inimigo: ${type}${isStunned ? ' (atordoado)' : ''}`}
       title={`HP: ${health}/${maxHealth}`}
     >
       {emoji}
