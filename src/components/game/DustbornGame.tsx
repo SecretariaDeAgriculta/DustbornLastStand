@@ -71,12 +71,19 @@ const ENEMY_VIGIA_BASE_SPEED = 1.6;
 const ENEMY_VIGIA_XP_VALUE = 6;
 const ENEMY_VIGIA_ATTACK_RANGE_SQUARED = (400 * 400);
 const ENEMY_VIGIA_ATTACK_COOLDOWN = 3000;
-// Vigia will use ENEMY_PISTOLEIRO_PROJECTILE_SPEED and ENEMY_PISTOLEIRO_PROJECTILE_SIZE
+
+const ENEMY_BRUTOBOYLE_SIZE = PLAYER_SIZE * 1.2;
+const ENEMY_BRUTOBOYLE_INITIAL_HEALTH = 40;
+const ENEMY_BRUTOBOYLE_DAMAGE = 10;
+const ENEMY_BRUTOBOYLE_BASE_SPEED = 1.0;
+const ENEMY_BRUTOBOYLE_XP_VALUE = 8;
+const ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_BRUTOBOYLE_SIZE / 2 + 10) ** 2;
+const ENEMY_BRUTOBOYLE_ATTACK_COOLDOWN = 1500;
 
 
-const PROJECTILE_SIZE = 8; // Base size for player projectiles
+const PROJECTILE_SIZE = 8;
 const XP_ORB_SIZE = 10;
-const WAVE_DURATION = 90; // seconds
+const WAVE_DURATION = 90;
 
 
 const MAX_ARROCEIROS_WAVE_BASE = 5;
@@ -88,6 +95,8 @@ const MAX_MINERADORES_WAVE_BASE = 1;
 const MINERADOR_SPAWN_BATCH_SIZE = 1;
 const MAX_VIGIAS_WAVE_BASE = 1;
 const VIGIA_SPAWN_BATCH_SIZE = 1;
+const MAX_BRUTOS_WAVE_BASE = 1;
+const BRUTO_SPAWN_BATCH_SIZE = 1;
 
 
 const ENEMY_SPAWN_TICK_INTERVAL = 2000;
@@ -108,7 +117,7 @@ interface Player extends Entity {
   health: number;
 }
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle';
 
 interface Enemy extends Entity {
   width: number;
@@ -532,7 +541,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setPlayerProjectiles(prevPlayerProjectiles => {
           const updatedProjectiles = prevPlayerProjectiles.map(proj => ({
             ...proj,
-            x: proj.x + proj.dx * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED), // Knives are faster
+            x: proj.x + proj.dx * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED), 
             y: proj.y + proj.dy * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
             traveledDistance: proj.traveledDistance + (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
           })).filter(proj =>
@@ -734,7 +743,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
                     }
                 }
-            } else { // For ArruaceiroSaloon, Cão de Fazenda, and MineradorRebelde (melee)
+            } else { 
                  if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
                     const dist = Math.sqrt(distToPlayerSquared);
                     updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
@@ -885,6 +894,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             enemyAtkRangeSq = ENEMY_VIGIA_ATTACK_RANGE_SQUARED;
             enemyAtkCooldown = ENEMY_VIGIA_ATTACK_COOLDOWN;
             break;
+        case 'BrutoBoyle':
+            enemyBaseSize = ENEMY_BRUTOBOYLE_SIZE;
+            enemyInitialHealth = ENEMY_BRUTOBOYLE_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_BRUTOBOYLE_BASE_SPEED;
+            enemyDamageVal = ENEMY_BRUTOBOYLE_DAMAGE;
+            enemyXpVal = ENEMY_BRUTOBOYLE_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_BRUTOBOYLE_ATTACK_COOLDOWN;
+            break;
         default:
             console.error("Tipo de inimigo desconhecido em createEnemyInstance:", type);
             return null;
@@ -895,14 +913,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         type === 'Cão de Fazenda' ? 2 :
         type === 'PistoleiroVagabundo' ? 4 :
         type === 'MineradorRebelde' ? 5 :
-        type === 'VigiaDaFerrovia' ? 5 : 3 // Default scaling
+        type === 'VigiaDaFerrovia' ? 5 :
+        type === 'BrutoBoyle' ? 7 : 3
     );
-    const enemySpeed = enemyBaseSpeed + (currentWave - 1) * 0.05; // Slower scaling for speed
+    const enemySpeed = enemyBaseSpeed + (currentWave - 1) * 0.05; 
     
     let finalXpValue = enemyXpVal;
     if (type === 'ArruaceiroSaloon' || type === 'Cão de Fazenda') finalXpValue += Math.floor(currentWave / 2);
     else if (type === 'PistoleiroVagabundo') finalXpValue += Math.floor((currentWave - 1) / 2);
     else if (type === 'MineradorRebelde' || type === 'VigiaDaFerrovia') finalXpValue += currentWave;
+    else if (type === 'BrutoBoyle') finalXpValue += currentWave * 2;
 
 
     let newX, newY;
@@ -979,12 +999,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const pistoleiroCount = currentEnemiesList.filter(e => e.type === 'PistoleiroVagabundo').length;
     const mineradorCount = currentEnemiesList.filter(e => e.type === 'MineradorRebelde').length;
     const vigiaCount = currentEnemiesList.filter(e => e.type === 'VigiaDaFerrovia').length;
+    const brutoCount = currentEnemiesList.filter(e => e.type === 'BrutoBoyle').length;
 
     const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
     const maxCaesForWave = currentWave >= 2 ? MAX_CAES_WAVE_BASE + (currentWave - 2) * 1 : 0;
     const maxPistoleirosForWave = currentWave >= 3 ? MAX_PISTOLEIROS_WAVE_BASE + Math.floor((currentWave - 3) / 2) * PISTOLEIRO_SPAWN_BATCH_SIZE : 0;
     const maxMineradoresForWave = currentWave >= 4 ? MAX_MINERADORES_WAVE_BASE + Math.floor((currentWave - 4) / 2) * MINERADOR_SPAWN_BATCH_SIZE : 0;
     const maxVigiasForWave = currentWave >= 5 ? MAX_VIGIAS_WAVE_BASE + Math.floor((currentWave - 5) / 2) * VIGIA_SPAWN_BATCH_SIZE : 0;
+    const maxBrutosForWave = currentWave >= 6 ? MAX_BRUTOS_WAVE_BASE + Math.floor((currentWave - 6) / 3) * BRUTO_SPAWN_BATCH_SIZE : 0;
     
     const newEnemiesBatch: Enemy[] = [];
 
@@ -1021,6 +1043,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         const canSpawnCount = Math.min(VIGIA_SPAWN_BATCH_SIZE, maxVigiasForWave - vigiaCount);
         for (let i = 0; i < canSpawnCount; i++) {
             const enemy = createEnemyInstance('VigiaDaFerrovia', currentWave, currentPlayer);
+            if (enemy) newEnemiesBatch.push(enemy);
+        }
+    }
+
+    if (currentWave >= 6 && brutoCount < maxBrutosForWave) {
+        const canSpawnCount = Math.min(BRUTO_SPAWN_BATCH_SIZE, maxBrutosForWave - brutoCount);
+        for (let i = 0; i < canSpawnCount; i++) {
+            const enemy = createEnemyInstance('BrutoBoyle', currentWave, currentPlayer);
             if (enemy) newEnemiesBatch.push(enemy);
         }
     }
@@ -1253,4 +1283,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-

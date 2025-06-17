@@ -3,7 +3,7 @@
 
 import React from 'react';
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle';
 
 interface EnemyCharacterProps {
   x: number;
@@ -31,6 +31,8 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         return '⛏️';
       case 'VigiaDaFerrovia':
         return '💂';
+      case 'BrutoBoyle':
+        return '🪓';
       default:
         return '?'; 
     }
@@ -69,4 +71,3 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
     </div>
   );
 }
-
