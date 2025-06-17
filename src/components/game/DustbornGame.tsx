@@ -48,22 +48,30 @@ const ENEMY_CAODEFAZENDA_XP_VALUE = 1;
 const ENEMY_PISTOLEIRO_SIZE = PLAYER_SIZE;
 const ENEMY_PISTOLEIRO_INITIAL_HEALTH = 15;
 const ENEMY_PISTOLEIRO_DAMAGE = 5;
-const ENEMY_PISTOLEIRO_BASE_SPEED = 1.5; // Média
+const ENEMY_PISTOLEIRO_BASE_SPEED = 1.5;
 const ENEMY_PISTOLEIRO_XP_VALUE = 4;
-const ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED = (350) ** 2; // Ranged attack
-const ENEMY_PISTOLEIRO_ATTACK_COOLDOWN = 2500; // Dispara lentamente
+const ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED = (350) ** 2;
+const ENEMY_PISTOLEIRO_ATTACK_COOLDOWN = 2500;
 const ENEMY_PISTOLEIRO_PROJECTILE_SPEED = 7;
 const ENEMY_PISTOLEIRO_PROJECTILE_SIZE = 8;
 const ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_PISTOLEIRO_SIZE / 2 + 10) ** 2;
 
 
-const PROJECTILE_SIZE = 8; // Base size for player projectiles
-const PROJECTILE_SPEED = 10; // Base speed for player projectiles
+const PROJECTILE_SIZE = 8;
+const PROJECTILE_SPEED = 10;
 
 const XP_ORB_SIZE = 10;
 const WAVE_DURATION = 120; // seconds
-const ENEMY_SPAWN_INTERVAL_INITIAL = 2500;
-const MAX_ENEMIES_BASE = 3;
+
+
+const MAX_ARROCEIROS_WAVE_BASE = 5;
+const MAX_CAES_WAVE_BASE = 6;
+const CAO_SPAWN_BATCH_SIZE = 3;
+const MAX_PISTOLEIROS_WAVE_BASE = 2;
+const PISTOLEIRO_SPAWN_BATCH_SIZE = 2;
+const ENEMY_SPAWN_TICK_INTERVAL = 2000;
+
+
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
 const ENEMY_MOVE_INTERVAL = 50;
 
@@ -118,8 +126,8 @@ interface ProjectileData extends Entity {
   penetrationLeft: number;
   hitEnemyIds: Set<string>;
   projectileType: ProjectileType;
-  originWeaponId?: string; // For player projectiles
-  isEnemyProjectile?: boolean; // To distinguish enemy projectiles
+  originWeaponId?: string;
+  isEnemyProjectile?: boolean;
 }
 
 
@@ -162,12 +170,21 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
   const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
 
   const activeKeys = useRef<Set<string>>(new Set());
-  const enemySpawnTimerId = useRef<NodeJS.Timeout | null>(null);
+  const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
   const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
   const lastLogicUpdateTimestampRef = useRef(0);
   const lastPlayerShotTimestampRef = useRef<Record<string, number>>({});
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+
+  const playerRef = useRef(player);
+  const waveRef = useRef(wave);
+  const enemiesRef = useRef(enemies);
+
+  useEffect(() => { playerRef.current = player; }, [player]);
+  useEffect(() => { waveRef.current = wave; }, [wave]);
+  useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
+
 
   const resetGameState = useCallback((exitToMenu = false) => {
     setPlayer({
@@ -238,7 +255,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     const isUpgrade = existingWeaponIndex !== -1;
 
     const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
-    if (shopOfferingIndex === -1) return; // Should not happen
+    if (shopOfferingIndex === -1) return;
 
     const currentShopOffering = shopOfferings[shopOfferingIndex];
     if (currentShopOffering.upgradedThisRound) {
@@ -257,7 +274,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
           if (index === existingWeaponIndex) {
             return {
               ...weapon,
-              damage: weapon.damage + 1,
+              damage: weapon.damage + 1, 
               cooldown: Math.max(100, weapon.cooldown - 50),
             };
           }
@@ -379,14 +396,14 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
 
       playerWeapons.forEach(weapon => {
         const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
-        if (enemies.length > 0 && now - lastShotTime >= weapon.cooldown) {
+        if (enemiesRef.current.length > 0 && now - lastShotTime >= weapon.cooldown) {
           let closestEnemy: Enemy | null = null;
           let minDistanceSquared = weapon.range ** 2;
 
-          const playerCenterX = player.x + player.width / 2;
-          const playerCenterY = player.y + player.height / 2;
+          const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+          const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
 
-          for (const enemy of enemies) {
+          for (const enemy of enemiesRef.current) {
             const enemyCenterX = enemy.x + enemy.width / 2;
             const enemyCenterY = enemy.y + enemy.height / 2;
             const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
@@ -454,7 +471,6 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
         lastLogicUpdateTimestampRef.current = timestamp;
         const newlyCreatedDamageNumbers: DamageNumberData[] = [];
 
-        // Player Projectile Logic
         setPlayerProjectiles(prevPlayerProjectiles => {
           const updatedProjectiles = prevPlayerProjectiles.map(proj => ({
             ...proj,
@@ -546,7 +562,6 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
           return newProjectilesAfterHits;
         });
 
-        // Enemy Projectile Logic
         setEnemyProjectiles(prevEnemyProjectiles => {
             const updatedEnemyProjectiles = prevEnemyProjectiles.map(proj => ({
                 ...proj,
@@ -563,11 +578,11 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
             for (const proj of updatedEnemyProjectiles) {
                 const projCenterX = proj.x + proj.size / 2;
                 const projCenterY = proj.y + proj.size / 2;
-                const playerCenterX = player.x + player.width / 2;
-                const playerCenterY = player.y + player.height / 2;
+                const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+                const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
 
-                if (Math.abs(projCenterX - playerCenterX) < (proj.size / 2 + player.width / 2) &&
-                    Math.abs(projCenterY - playerCenterY) < (proj.size / 2 + player.height / 2)) {
+                if (Math.abs(projCenterX - playerCenterX) < (proj.size / 2 + playerRef.current.width / 2) &&
+                    Math.abs(projCenterY - playerCenterY) < (proj.size / 2 + playerRef.current.height / 2)) {
                     
                     setPlayer(p => {
                         const newHealth = Math.max(0, p.health - proj.damage);
@@ -580,7 +595,6 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                         }
                         return { ...p, health: newHealth };
                     });
-                    // Projectile is consumed, don't add to remainingEnemyProjectiles
                 } else {
                     remainingEnemyProjectiles.push(proj);
                 }
@@ -605,12 +619,12 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                 updatedEnemy.isStunned = false;
                 updatedEnemy.stunTimer = 0;
               } else {
-                return updatedEnemy; // Skip movement and attack if stunned
+                return updatedEnemy;
               }
             }
 
-            const playerCenterX = player.x + player.width / 2;
-            const playerCenterY = player.y + player.height / 2;
+            const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+            const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
             const enemyCenterX = updatedEnemy.x + updatedEnemy.width / 2;
             const enemyCenterY = updatedEnemy.y + updatedEnemy.height / 2;
 
@@ -618,18 +632,16 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
             const deltaPlayerY = playerCenterY - enemyCenterY;
             const distToPlayerSquared = deltaPlayerX * deltaPlayerX + deltaPlayerY * deltaPlayerY;
 
-            // Movement
             if (enemy.type === 'PistoleiroVagabundo') {
-                // Pistoleiro tries to maintain distance but will move if player is too close or too far
                 if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.5 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED) {
-                     if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) { // Basic collision avoidance
+                     if (distToPlayerSquared > (updatedEnemy.width / 4 + playerRef.current.width / 4) ** 2) {
                         const dist = Math.sqrt(distToPlayerSquared);
                         updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
                         updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
                     }
                 }
-            } else { // Melee enemies
-                 if (distToPlayerSquared > (updatedEnemy.width / 4 + player.width / 4) ** 2) {
+            } else {
+                 if (distToPlayerSquared > (updatedEnemy.width / 4 + playerRef.current.width / 4) ** 2) {
                     const dist = Math.sqrt(distToPlayerSquared);
                     updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
                     updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
@@ -637,7 +649,6 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
             }
 
 
-            // Attack
             if (updatedEnemy.attackCooldownTimer <= 0) {
                 if (enemy.type === 'PistoleiroVagabundo') {
                     if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
@@ -651,15 +662,15 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                             dy: Math.sin(angleToPlayer),
                             damage: updatedEnemy.damage,
                             traveledDistance: 0,
-                            maxRange: updatedEnemy.attackRangeSquared, // Use attack range as max projectile range
+                            maxRange: updatedEnemy.attackRangeSquared,
                             projectileType: 'enemy_bullet',
-                            hitEnemyIds: new Set(), // Not used for enemy projectiles
+                            hitEnemyIds: new Set(),
                             penetrationLeft: 0,
                             isEnemyProjectile: true,
                         }]);
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                } else { // Melee attack
+                } else {
                     if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
                        setPlayer(p => {
                          const newHealth = Math.max(0, p.health - updatedEnemy.damage);
@@ -683,8 +694,8 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
         setXpOrbs((currentOrbs) => {
           const collectedOrbValues: number[] = [];
           const remainingOrbs = currentOrbs.filter((orb) => {
-            const distX = (player.x + player.width / 2) - (orb.x + orb.size / 2);
-            const distY = (player.y + player.height / 2) - (orb.y + orb.size / 2);
+            const distX = (playerRef.current.x + playerRef.current.width / 2) - (orb.x + orb.size / 2);
+            const distY = (playerRef.current.y + playerRef.current.height / 2) - (orb.y + orb.size / 2);
             const distanceSquared = distX * distX + distY * distY;
             if (distanceSquared < XP_COLLECTION_RADIUS_SQUARED) {
               collectedOrbValues.push(orb.value);
@@ -715,7 +726,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
         );
       }
 
-      if (player.health <= 0 && !isGameOver) {
+      if (playerRef.current.health <= 0 && !isGameOver) {
         setIsGameOver(true);
       }
 
@@ -726,7 +737,8 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, player, enemies, playerWeapons, wave, score, playerXP, toast, generateShopOfferings, isPlayerTakingDamage, playerProjectiles, enemyProjectiles]);
+  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, playerProjectiles, enemyProjectiles]); 
+
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) {
@@ -748,7 +760,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
 
           setIsShopPhase(true);
           generateShopOfferings();
-          if(enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
+          if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
           return WAVE_DURATION;
         }
         return prevTimer - 1;
@@ -757,136 +769,178 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     return () => {
       if (waveIntervalId.current) clearInterval(waveIntervalId.current);
     };
-  }, [isGameOver, isShopPhase, isPaused, wave, generateShopOfferings]);
+  }, [isGameOver, isShopPhase, isPaused, generateShopOfferings]);
 
 
-  const spawnEnemy = useCallback(() => {
-    const maxEnemiesForWave = MAX_ENEMIES_BASE + wave * 2;
-    if (isShopPhase || isGameOver || isPaused || enemies.length >= maxEnemiesForWave) {
-        return;
+  const createEnemyInstance = useCallback((
+    type: EnemyType,
+    currentWave: number,
+    currentPlayer: Player
+  ): Enemy | null => {
+    let enemyBaseSize: number,
+        enemyInitialHealth: number,
+        enemyBaseSpeed: number,
+        enemyDamageVal: number,
+        enemyXpVal: number,
+        enemyAtkRangeSq: number,
+        enemyAtkCooldown: number;
+
+    switch (type) {
+        case 'ArruaceiroSaloon':
+            enemyBaseSize = ENEMY_ARROCEIRO_SIZE;
+            enemyInitialHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_ARROCEIRO_BASE_SPEED;
+            enemyDamageVal = ENEMY_ARROCEIRO_DAMAGE;
+            enemyXpVal = ENEMY_ARROCEIRO_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_ARROCEIRO_ATTACK_COOLDOWN;
+            break;
+        case 'Cão de Fazenda':
+            enemyBaseSize = ENEMY_CAODEFAZENDA_SIZE;
+            enemyInitialHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED;
+            enemyDamageVal = ENEMY_CAODEFAZENDA_DAMAGE;
+            enemyXpVal = ENEMY_CAODEFAZENDA_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN;
+            break;
+        case 'PistoleiroVagabundo':
+            enemyBaseSize = ENEMY_PISTOLEIRO_SIZE;
+            enemyInitialHealth = ENEMY_PISTOLEIRO_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_PISTOLEIRO_BASE_SPEED; 
+            enemyDamageVal = ENEMY_PISTOLEIRO_DAMAGE;
+            enemyXpVal = ENEMY_PISTOLEIRO_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_PISTOLEIRO_ATTACK_COOLDOWN;
+            break;
+        default:
+            console.error("Tipo de inimigo desconhecido em createEnemyInstance:", type);
+            return null;
     }
+
+    const enemyHealth = enemyInitialHealth + (currentWave - 1) * (type === 'ArruaceiroSaloon' ? 3 : type === 'Cão de Fazenda' ? 2 : 4);
+    const enemySpeed = enemyBaseSpeed + (currentWave - 1) * 0.1;
+    
+    let finalXpValue = enemyXpVal;
+    if (type === 'ArruaceiroSaloon') finalXpValue += currentWave;
+    else if (type === 'Cão de Fazenda') finalXpValue += currentWave;
+    else if (type === 'PistoleiroVagabundo') finalXpValue += Math.floor((currentWave - 1) / 2);
+
 
     let newX, newY;
     let attempts = 0;
-    const maxAttempts = 10;
-    const enemySizeForMargin = ENEMY_ARROCEIRO_SIZE; // Use a consistent size for margin calculation
-    const spawnOffscreenMargin = enemySizeForMargin + 50;
-
-
-    const currentPlayerX = player.x;
-    const currentPlayerY = player.y;
+    const maxAttempts = 20;
+    const minDistanceFromPlayerSquared = (PLAYER_SIZE * 5) ** 2; 
+    const enemyWidth = enemyBaseSize;
+    const enemyHeight = enemyBaseSize;
 
     do {
-        const side = Math.floor(Math.random() * 4);
-
-        if (side === 0) { // Top
-            newX = Math.random() * GAME_WIDTH; newY = -spawnOffscreenMargin;
-        } else if (side === 1) { // Bottom
-            newX = Math.random() * GAME_WIDTH; newY = GAME_HEIGHT + spawnOffscreenMargin - enemySizeForMargin;
-        } else if (side === 2) { // Left
-            newX = -spawnOffscreenMargin; newY = Math.random() * GAME_HEIGHT;
-        } else { // Right
-            newX = GAME_WIDTH + spawnOffscreenMargin - enemySizeForMargin; newY = Math.random() * GAME_HEIGHT;
-        }
+        newX = Math.random() * (GAME_WIDTH - enemyWidth);
+        newY = Math.random() * (GAME_HEIGHT - enemyHeight);
         attempts++;
-    } while (
-        (Math.sqrt(
-            ((newX + enemySizeForMargin/2) - (currentPlayerX + PLAYER_SIZE/2))**2 +
-            ((newY + enemySizeForMargin/2) - (currentPlayerY + PLAYER_SIZE/2))**2
-          ) < PLAYER_SIZE * 5) && attempts < maxAttempts
-    );
 
-    let enemyToSpawn: Enemy;
-    const randomFactor = Math.random();
-    const spawnDogChance = 0.35; // Chance for Cão de Fazenda
-    const spawnPistoleiroChance = 0.25; // Chance for Pistoleiro Vagabundo (after Wave 2)
+        const playerCenterX = currentPlayer.x + currentPlayer.width / 2;
+        const playerCenterY = currentPlayer.y + currentPlayer.height / 2;
+        const spawnCenterX = newX + enemyWidth / 2;
+        const spawnCenterY = newY + enemyHeight / 2;
+        const distSq = (playerCenterX - spawnCenterX)**2 + (playerCenterY - spawnCenterY)**2;
 
-    if (wave >= 3 && randomFactor < spawnPistoleiroChance) {
-        const pistoleiroHealth = ENEMY_PISTOLEIRO_INITIAL_HEALTH + (wave - 3) * 4;
-        const pistoleiroSpeed = ENEMY_PISTOLEIRO_BASE_SPEED + (wave - 3) * 0.1;
-        enemyToSpawn = {
-            id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY,
-            width: ENEMY_PISTOLEIRO_SIZE,
-            height: ENEMY_PISTOLEIRO_SIZE,
-            health: pistoleiroHealth, maxHealth: pistoleiroHealth,
-            type: 'PistoleiroVagabundo',
-            xpValue: ENEMY_PISTOLEIRO_XP_VALUE + Math.floor((wave-1)/2),
-            attackCooldownTimer: Math.random() * ENEMY_PISTOLEIRO_ATTACK_COOLDOWN,
-            speed: pistoleiroSpeed,
-            damage: ENEMY_PISTOLEIRO_DAMAGE,
-            attackRangeSquared: ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED,
-            attackCooldown: ENEMY_PISTOLEIRO_ATTACK_COOLDOWN,
-        };
-    } else if (wave >= 2 && randomFactor < spawnPistoleiroChance + spawnDogChance) {
-        const dogHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH + (wave - 2) * 2;
-        const dogSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED + (wave - 2) * 0.15;
-        enemyToSpawn = {
-            id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY,
-            width: ENEMY_CAODEFAZENDA_SIZE,
-            height: ENEMY_CAODEFAZENDA_SIZE,
-            health: dogHealth, maxHealth: dogHealth,
-            type: 'Cão de Fazenda',
-            xpValue: ENEMY_CAODEFAZENDA_XP_VALUE + wave,
-            attackCooldownTimer: Math.random() * ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN,
-            speed: dogSpeed,
-            damage: ENEMY_CAODEFAZENDA_DAMAGE,
-            attackRangeSquared: ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED,
-            attackCooldown: ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN,
-        };
-    } else {
-        const arruaceiroHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH + (wave - 1) * 3;
-        const arruaceiroSpeed = ENEMY_ARROCEIRO_BASE_SPEED + (wave - 1) * 0.1;
-        enemyToSpawn = {
-            id: `enemy_${Date.now()}_${Math.random()}`, x: newX, y: newY,
-            width: ENEMY_ARROCEIRO_SIZE,
-            height: ENEMY_ARROCEIRO_SIZE,
-            health: arruaceiroHealth, maxHealth: arruaceiroHealth,
-            type: 'ArruaceiroSaloon',
-            xpValue: ENEMY_ARROCEIRO_XP_VALUE + wave,
-            attackCooldownTimer: Math.random() * ENEMY_ARROCEIRO_ATTACK_COOLDOWN,
-            speed: arruaceiroSpeed,
-            damage: ENEMY_ARROCEIRO_DAMAGE,
-            attackRangeSquared: ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED,
-            attackCooldown: ENEMY_ARROCEIRO_ATTACK_COOLDOWN,
-        };
+        if (distSq >= minDistanceFromPlayerSquared) break;
+        
+    } while (attempts < maxAttempts);
+
+    if (attempts >= maxAttempts) {
+        return null; 
     }
 
-    setEnemies((prevEnemies) => [...prevEnemies, enemyToSpawn]);
+    return {
+        id: `enemy_${Date.now()}_${Math.random()}_${type}`,
+        x: newX, y: newY,
+        width: enemyWidth, height: enemyHeight,
+        health: enemyHealth, maxHealth: enemyHealth,
+        type: type,
+        xpValue: finalXpValue,
+        attackCooldownTimer: Math.random() * enemyAtkCooldown,
+        speed: enemySpeed,
+        damage: enemyDamageVal,
+        attackRangeSquared: enemyAtkRangeSq,
+        attackCooldown: enemyAtkCooldown,
+    };
+  }, []);
 
-  }, [wave, player.x, player.y, enemies.length, isShopPhase, isGameOver, isPaused]);
+
+  const spawnEnemiesOnTick = useCallback(() => {
+    if (isShopPhase || isGameOver || isPaused) return;
+
+    const currentWave = waveRef.current;
+    const currentPlayer = playerRef.current;
+    const currentEnemiesList = enemiesRef.current;
+
+    const arruaceiroCount = currentEnemiesList.filter(e => e.type === 'ArruaceiroSaloon').length;
+    const caoCount = currentEnemiesList.filter(e => e.type === 'Cão de Fazenda').length;
+    const pistoleiroCount = currentEnemiesList.filter(e => e.type === 'PistoleiroVagabundo').length;
+
+    const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
+    const maxCaesForWave = currentWave >= 2 ? MAX_CAES_WAVE_BASE + (currentWave - 2) * 1 : 0;
+    const maxPistoleirosForWave = currentWave >= 3 ? MAX_PISTOLEIROS_WAVE_BASE + Math.floor((currentWave - 3) / 2) * PISTOLEIRO_SPAWN_BATCH_SIZE : 0;
+    
+    const newEnemiesBatch: Enemy[] = [];
+
+    if (currentWave >= 1 && arruaceiroCount < maxArroceirosForWave) {
+        const enemy = createEnemyInstance('ArruaceiroSaloon', currentWave, currentPlayer);
+        if (enemy) newEnemiesBatch.push(enemy);
+    }
+
+    if (currentWave >= 2 && caoCount < maxCaesForWave) {
+        const canSpawnCount = Math.min(CAO_SPAWN_BATCH_SIZE, maxCaesForWave - caoCount);
+        for (let i = 0; i < canSpawnCount; i++) {
+            const enemy = createEnemyInstance('Cão de Fazenda', currentWave, currentPlayer);
+            if (enemy) newEnemiesBatch.push(enemy);
+        }
+    }
+    
+    if (currentWave >= 3 && pistoleiroCount < maxPistoleirosForWave) {
+        const canSpawnCount = Math.min(PISTOLEIRO_SPAWN_BATCH_SIZE, maxPistoleirosForWave - pistoleiroCount);
+        for (let i = 0; i < canSpawnCount; i++) {
+            const enemy = createEnemyInstance('PistoleiroVagabundo', currentWave, currentPlayer);
+            if (enemy) newEnemiesBatch.push(enemy);
+        }
+    }
+
+    if (newEnemiesBatch.length > 0) {
+        setEnemies(prev => [...prev, ...newEnemiesBatch]);
+    }
+  }, [isShopPhase, isGameOver, isPaused, createEnemyInstance]);
+
 
   useEffect(() => {
     if (isShopPhase || isGameOver || isPaused) {
-      if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
+      if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
       return;
     }
-
-    const spawnLoop = () => {
-      spawnEnemy();
-      const nextSpawnTime = Math.max(300, ENEMY_SPAWN_INTERVAL_INITIAL - wave * 100);
-      enemySpawnTimerId.current = setTimeout(spawnLoop, nextSpawnTime);
-    };
-
-    spawnLoop();
+    
+    spawnEnemiesOnTick(); 
+    enemySpawnTimerId.current = setInterval(spawnEnemiesOnTick, ENEMY_SPAWN_TICK_INTERVAL);
 
     return () => {
-      if (enemySpawnTimerId.current) clearTimeout(enemySpawnTimerId.current);
+      if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
     };
-  }, [isShopPhase, isGameOver, isPaused, spawnEnemy, wave]);
+  }, [isShopPhase, isGameOver, isPaused, spawnEnemiesOnTick]);
+
 
   const startNextWave = () => {
     setIsShopPhase(false);
     setWave((prevWave) => prevWave + 1);
     setWaveTimer(WAVE_DURATION);
-    setEnemies([]);
+    setEnemies([]); 
     setPlayerProjectiles([]);
     setEnemyProjectiles([]);
     setDamageNumbers([]);
-    // Keep player health as is, or restore to full? Currently restores to full.
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
-    lastLogicUpdateTimestampRef.current = 0;
+    lastLogicUpdateTimestampRef.current = 0; 
     setIsPaused(false);
+     if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current); 
   };
 
   if (isGameOver) {
@@ -894,7 +948,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
       <div className="text-center p-8">
         <h2 className="text-4xl font-bold text-destructive mb-4">Fim de Jogo!</h2>
         <p className="text-xl mb-2">Pontuação Final: {score}</p>
-        <p className="text-lg mb-2">Wave Alcançada: {wave}</p>
+        <p className="text-lg mb-2">Onda Alcançada: {wave}</p>
         <p className="text-lg mb-4">Total XP Coletado: {playerXP}</p>
         <Button
           onClick={() => resetGameState()}
@@ -994,7 +1048,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
               key={proj.id}
               x={proj.x} y={proj.y}
               size={proj.size}
-              projectileType={proj.projectileType} // Should be 'enemy_bullet'
+              projectileType={proj.projectileType}
             />
           ))}
           {damageNumbers.map((dn) => (
