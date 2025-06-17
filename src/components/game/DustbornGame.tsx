@@ -62,7 +62,7 @@ const PROJECTILE_SIZE = 8;
 const PROJECTILE_SPEED = 10;
 
 const XP_ORB_SIZE = 10;
-const WAVE_DURATION = 120; // seconds
+const WAVE_DURATION = 90; // seconds
 
 
 const MAX_ARROCEIROS_WAVE_BASE = 5;
@@ -1217,3 +1217,4 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
+
