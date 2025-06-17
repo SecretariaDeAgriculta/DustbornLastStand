@@ -1,30 +1,122 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { DustbornGame } from '@/components/game/DustbornGame';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
+import { Settings, Laptop, Smartphone, RefreshCw } from 'lucide-react';
+import { useToast } from "@/hooks/use-toast";
+import { cn } from '@/lib/utils';
 
 export default function Home() {
   const [gameMode, setGameMode] = useState<'menu' | 'freeMode'>('menu');
+  const [deviceSetting, setDeviceSetting] = useState<'auto' | 'computer' | 'mobile'>('auto');
+  const [currentDeviceMode, setCurrentDeviceMode] = useState<'computer' | 'mobile'>('computer');
+  const { toast } = useToast();
+  const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
+
+  useEffect(() => {
+    let modeToUse: 'computer' | 'mobile';
+    let showToast = false;
+
+    if (deviceSetting === 'auto') {
+      const isLikelyMobile = window.matchMedia('(pointer: coarse)').matches || /Mobi|Android/i.test(navigator.userAgent);
+      modeToUse = isLikelyMobile ? 'mobile' : 'computer';
+      showToast = true; // Show toast when auto-detecting
+    } else {
+      modeToUse = deviceSetting;
+    }
+
+    if (currentDeviceMode !== modeToUse && showToast && deviceSetting === 'auto') {
+       toast({
+        title: "Detecção Automática de Controles",
+        description: `Modo ${modeToUse === 'mobile' ? 'Móvel (Toque)' : 'Computador (Teclado)'} ativado. Ajuste nas Configurações se necessário.`,
+      });
+    }
+    setCurrentDeviceMode(modeToUse);
+
+  }, [deviceSetting, toast, currentDeviceMode]);
+
+
+  const handleSetDevice = (mode: 'auto' | 'computer' | 'mobile') => {
+    setDeviceSetting(mode);
+    if (mode !== 'auto') {
+        setCurrentDeviceMode(mode);
+        toast({
+            title: "Configuração Salva",
+            description: `Modo de controle definido para ${mode === 'mobile' ? 'Móvel (Toque)' : 'Computador (Teclado)'}.`,
+        });
+    }
+    setIsSettingsDialogOpen(false);
+  };
 
   if (gameMode === 'freeMode') {
     return (
-      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground">
-        <main className="w-full max-w-screen-lg flex-grow flex flex-col items-center justify-center">
-          <DustbornGame onExitToMenu={() => setGameMode('menu')} />
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-0 sm:p-4 selection:bg-primary selection:text-primary-foreground">
+        <main className="w-full h-full sm:max-w-screen-lg flex-grow flex flex-col items-center justify-center">
+          <DustbornGame
+            onExitToMenu={() => setGameMode('menu')}
+            deviceType={currentDeviceMode}
+          />
         </main>
-        <footer className="w-full max-w-screen-lg text-center py-4 mt-4 text-muted-foreground text-xs">
-          <p>&copy; {new Date().getFullYear()} Dustborn: Last Stand. Construído no Firebase Studio.</p>
-        </footer>
+        {currentDeviceMode === 'computer' && (
+          <footer className="w-full max-w-screen-lg text-center py-2 sm:py-4 mt-2 sm:mt-4 text-muted-foreground text-xs">
+            <p>&copy; {new Date().getFullYear()} Dustborn: Last Stand. Construído no Firebase Studio.</p>
+          </footer>
+        )}
       </div>
     );
   }
 
-  // Menu Mode
   return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground">
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground relative">
+      <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-primary-foreground hover:bg-accent hover:text-accent-foreground">
+            <Settings className="h-6 w-6" />
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[425px] bg-card text-card-foreground">
+          <DialogHeader>
+            <DialogTitle className="text-primary">Configurações de Controle</DialogTitle>
+            <DialogDescription>
+              Escolha seu modo de controle preferido ou deixe o jogo detectar automaticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button
+              variant={deviceSetting === 'auto' ? 'default' : 'secondary'}
+              onClick={() => handleSetDevice('auto')}
+              className="w-full justify-start"
+            >
+              <RefreshCw className="mr-2 h-5 w-5" />
+              Detecção Automática
+            </Button>
+            <Button
+              variant={deviceSetting === 'computer' ? 'default' : 'secondary'}
+              onClick={() => handleSetDevice('computer')}
+              className="w-full justify-start"
+            >
+              <Laptop className="mr-2 h-5 w-5" />
+              Computador (Teclado)
+            </Button>
+            <Button
+              variant={deviceSetting === 'mobile' ? 'default' : 'secondary'}
+              onClick={() => handleSetDevice('mobile')}
+              className="w-full justify-start"
+            >
+              <Smartphone className="mr-2 h-5 w-5" />
+              Móvel (Toque)
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="z-10 flex flex-col items-center justify-center p-8 text-center">
         <h1 className="text-5xl sm:text-6xl md:text-7xl font-bold text-primary mb-4" style={{ fontFamily: "'PT Sans', sans-serif" }}>
           Dustborn: <span className="text-accent">Last Stand</span>

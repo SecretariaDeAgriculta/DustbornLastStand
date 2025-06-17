@@ -12,10 +12,11 @@ import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
 import { DamageNumber } from './DamageNumber';
 import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
-import { PauseIcon, PlayIcon, HomeIcon } from 'lucide-react';
+import { PauseIcon, PlayIcon, HomeIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { Weapon, ProjectileType } from '@/config/weapons';
 import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
 import { useToast } from "@/hooks/use-toast";
+import { cn } from '@/lib/utils';
 
 
 const GAME_WIDTH = 800;
@@ -140,10 +141,11 @@ interface DamageNumberData extends Entity {
 
 interface DustbornGameProps {
   onExitToMenu?: () => void;
+  deviceType: 'computer' | 'mobile';
 }
 
 
-export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
+export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const [player, setPlayer] = useState<Player>({
     id: 'player',
     x: GAME_WIDTH / 2 - PLAYER_SIZE / 2,
@@ -272,10 +274,16 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
       setPlayerWeapons(prevWeapons =>
         prevWeapons.map((weapon, index) => {
           if (index === existingWeaponIndex) {
+            const upgradedWeapon = getWeaponById(weapon.id); // Get base definition
+            if (!upgradedWeapon) return weapon; // Should not happen
+
+            // Example upgrade: increase damage by a percentage of base, reduce cooldown slightly
+            // More complex upgrades could involve specific logic per weapon type
             return {
               ...weapon,
-              damage: weapon.damage + 1, 
-              cooldown: Math.max(100, weapon.cooldown - 50),
+              damage: Math.round(weapon.damage + (upgradedWeapon.damage * 0.2)), // Increase current damage by 20% of base
+              cooldown: Math.max(100, weapon.cooldown - (upgradedWeapon.cooldown * 0.05)), // Reduce current cooldown by 5% of base
+              // Potentially upgrade other stats like range, penetration, critical chance etc.
             };
           }
           return weapon;
@@ -328,6 +336,8 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
 
 
   useEffect(() => {
+    if (deviceType === 'mobile') return; // Keyboard controls only for computer
+
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isGameOver) return;
       if (event.key.toLowerCase() === 'p') {
@@ -348,7 +358,17 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isGameOver, isPaused, isShopPhase]);
+  }, [isGameOver, isPaused, isShopPhase, deviceType]);
+
+  const handleMobileControl = (key: string, isPressed: boolean) => {
+    if (isGameOver || isPaused || isShopPhase) return;
+    if (isPressed) {
+      activeKeys.current.add(key);
+    } else {
+      activeKeys.current.delete(key);
+    }
+  };
+
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) return;
@@ -662,7 +682,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                             dy: Math.sin(angleToPlayer),
                             damage: updatedEnemy.damage,
                             traveledDistance: 0,
-                            maxRange: updatedEnemy.attackRangeSquared,
+                            maxRange: updatedEnemy.attackRangeSquared, // Using attack range as max projectile range
                             projectileType: 'enemy_bullet',
                             hitEnemyIds: new Set(),
                             penetrationLeft: 0,
@@ -670,7 +690,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
                         }]);
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                } else {
+                } else { // ArruaceiroSaloon or Cão de Fazenda (melee)
                     if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
                        setPlayer(p => {
                          const newHealth = Math.max(0, p.health - updatedEnemy.damage);
@@ -823,7 +843,7 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     
     let finalXpValue = enemyXpVal;
     if (type === 'ArruaceiroSaloon') finalXpValue += currentWave;
-    else if (type === 'Cão de Fazenda') finalXpValue += currentWave;
+    else if (type === 'Cão de Fazenda') finalXpValue += currentWave; // Cão de Fazenda now also gets +wave XP
     else if (type === 'PistoleiroVagabundo') finalXpValue += Math.floor((currentWave - 1) / 2);
 
 
@@ -835,8 +855,9 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     const enemyHeight = enemyBaseSize;
 
     do {
-        newX = Math.random() * (GAME_WIDTH - enemyWidth);
-        newY = Math.random() * (GAME_HEIGHT - enemyHeight);
+        const padding = 20; // Min distance from edge
+        newX = padding + Math.random() * (GAME_WIDTH - enemyWidth - 2 * padding);
+        newY = padding + Math.random() * (GAME_HEIGHT - enemyHeight - 2 * padding);
         attempts++;
 
         const playerCenterX = currentPlayer.x + currentPlayer.width / 2;
@@ -850,7 +871,27 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
     } while (attempts < maxAttempts);
 
     if (attempts >= maxAttempts) {
-        return null; 
+        // Fallback if too many attempts: spawn at a random corner, further from player
+        const corners = [
+            { x: 20, y: 20 },
+            { x: GAME_WIDTH - enemyWidth - 20, y: 20 },
+            { x: 20, y: GAME_HEIGHT - enemyHeight - 20 },
+            { x: GAME_WIDTH - enemyWidth - 20, y: GAME_HEIGHT - enemyHeight - 20 },
+        ];
+        let bestCorner = corners[0];
+        let maxDistSq = 0;
+        const playerCenterX = currentPlayer.x + currentPlayer.width / 2;
+        const playerCenterY = currentPlayer.y + currentPlayer.height / 2;
+
+        for (const corner of corners) {
+            const distSq = (playerCenterX - (corner.x + enemyWidth/2))**2 + (playerCenterY - (corner.y + enemyHeight/2))**2;
+            if (distSq > maxDistSq) {
+                maxDistSq = distSq;
+                bestCorner = corner;
+            }
+        }
+        newX = bestCorner.x;
+        newY = bestCorner.y;
     }
 
     return {
@@ -984,14 +1025,14 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
   }
 
   return (
-    <div className="flex flex-col items-center p-4">
-      <div className="w-full max-w-2xl flex justify-between items-start mb-2">
+    <div className="flex flex-col items-center p-1 sm:p-4 w-full h-full">
+      <div className="w-full max-w-2xl flex justify-between items-start mb-1 sm:mb-2">
         <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerXP={playerXP} />
         <Button
             onClick={() => setIsPaused(!isPaused)}
             variant="outline"
             size="icon"
-            className="ml-4 mt-1 text-foreground hover:bg-accent hover:text-accent-foreground"
+            className="ml-2 sm:ml-4 mt-1 text-foreground hover:bg-accent hover:text-accent-foreground"
             aria-label={isPaused ? "Continuar jogo" : "Pausar jogo"}
         >
             {isPaused ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
@@ -1063,10 +1104,76 @@ export function DustbornGame({ onExitToMenu }: DustbornGameProps) {
           ))}
         </div>
       </Card>
-       <div className="mt-4 text-sm text-muted-foreground text-center">
-        Use as Teclas de Seta ou WASD para mover.
-        A arma dispara automaticamente. Pressione 'P' ou clique no botão para pausar. Sobreviva!
+      
+      {deviceType === 'mobile' && !isPaused && !isShopPhase && !isGameOver && (
+        <div className="fixed bottom-8 left-8 z-50 grid grid-cols-3 grid-rows-3 gap-2 w-36 h-36 sm:w-48 sm:h-48">
+          <div />
+          <Button
+            variant="outline"
+            className="col-start-2 row-start-1 bg-card/70 text-card-foreground hover:bg-accent hover:text-accent-foreground aspect-square p-0"
+            onTouchStart={() => handleMobileControl('arrowup', true)}
+            onTouchEnd={() => handleMobileControl('arrowup', false)}
+            onMouseDown={() => handleMobileControl('arrowup', true)}
+            onMouseUp={() => handleMobileControl('arrowup', false)}
+            onMouseLeave={() => handleMobileControl('arrowup', false)}
+            aria-label="Mover para Cima"
+          >
+            <ArrowUp className="w-6 h-6 sm:w-8 sm:h-8" />
+          </Button>
+          <div />
+
+          <Button
+            variant="outline"
+            className="col-start-1 row-start-2 bg-card/70 text-card-foreground hover:bg-accent hover:text-accent-foreground aspect-square p-0"
+            onTouchStart={() => handleMobileControl('arrowleft', true)}
+            onTouchEnd={() => handleMobileControl('arrowleft', false)}
+            onMouseDown={() => handleMobileControl('arrowleft', true)}
+            onMouseUp={() => handleMobileControl('arrowleft', false)}
+            onMouseLeave={() => handleMobileControl('arrowleft', false)}
+            aria-label="Mover para Esquerda"
+          >
+            <ArrowLeft className="w-6 h-6 sm:w-8 sm:h-8" />
+          </Button>
+          <div />
+          <Button
+            variant="outline"
+            className="col-start-3 row-start-2 bg-card/70 text-card-foreground hover:bg-accent hover:text-accent-foreground aspect-square p-0"
+            onTouchStart={() => handleMobileControl('arrowright', true)}
+            onTouchEnd={() => handleMobileControl('arrowright', false)}
+            onMouseDown={() => handleMobileControl('arrowright', true)}
+            onMouseUp={() => handleMobileControl('arrowright', false)}
+            onMouseLeave={() => handleMobileControl('arrowright', false)}
+            aria-label="Mover para Direita"
+          >
+            <ArrowRight className="w-6 h-6 sm:w-8 sm:h-8" />
+          </Button>
+
+          <div />
+          <Button
+            variant="outline"
+            className="col-start-2 row-start-3 bg-card/70 text-card-foreground hover:bg-accent hover:text-accent-foreground aspect-square p-0"
+            onTouchStart={() => handleMobileControl('arrowdown', true)}
+            onTouchEnd={() => handleMobileControl('arrowdown', false)}
+            onMouseDown={() => handleMobileControl('arrowdown', true)}
+            onMouseUp={() => handleMobileControl('arrowdown', false)}
+            onMouseLeave={() => handleMobileControl('arrowdown', false)}
+            aria-label="Mover para Baixo"
+          >
+            <ArrowDown className="w-6 h-6 sm:w-8 sm:h-8" />
+          </Button>
+          <div />
+        </div>
+      )}
+
+      <div className={cn("mt-2 sm:mt-4 text-xs sm:text-sm text-muted-foreground text-center", deviceType === 'mobile' ? 'mb-20 sm:mb-4' : 'mb-4')}>
+        {deviceType === 'computer' ? (
+            "Use as Teclas de Seta ou WASD para mover. "
+        ) : (
+            "Use os botões na tela para mover. "
+        )}
+        A arma dispara automaticamente. Pressione 'P' (computador) ou clique no botão para pausar. Sobreviva!
       </div>
     </div>
   );
 }
+
