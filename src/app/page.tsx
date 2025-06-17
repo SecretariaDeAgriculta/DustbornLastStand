@@ -135,7 +135,7 @@ export default function Home() {
 
         <Card className="w-full max-w-xs sm:max-w-sm bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader className="pb-4">
-            <CardTitle className="text-center text-xl sm:text-2xl text-primary-foreground">
+            <CardTitle className="text-center text-xl sm:text-2xl text-card-foreground">
               {viewMode === 'mainMenu' ? 'Escolha o Modo de Jogo' : 'Capítulos da História'}
             </CardTitle>
           </CardHeader>
