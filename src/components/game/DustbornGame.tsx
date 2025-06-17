@@ -64,10 +64,17 @@ const ENEMY_MINERADOR_XP_VALUE = 5;
 const ENEMY_MINERADOR_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_MINERADOR_SIZE / 2 + 8) ** 2;
 const ENEMY_MINERADOR_ATTACK_COOLDOWN = 1200;
 
+const ENEMY_VIGIA_SIZE = PLAYER_SIZE;
+const ENEMY_VIGIA_INITIAL_HEALTH = 25;
+const ENEMY_VIGIA_DAMAGE = 6;
+const ENEMY_VIGIA_BASE_SPEED = 1.6;
+const ENEMY_VIGIA_XP_VALUE = 6;
+const ENEMY_VIGIA_ATTACK_RANGE_SQUARED = (400 * 400);
+const ENEMY_VIGIA_ATTACK_COOLDOWN = 3000;
+// Vigia will use ENEMY_PISTOLEIRO_PROJECTILE_SPEED and ENEMY_PISTOLEIRO_PROJECTILE_SIZE
 
-const PROJECTILE_SIZE = 8;
-const PROJECTILE_SPEED = 10;
 
+const PROJECTILE_SIZE = 8; // Base size for player projectiles
 const XP_ORB_SIZE = 10;
 const WAVE_DURATION = 90; // seconds
 
@@ -79,6 +86,9 @@ const MAX_PISTOLEIROS_WAVE_BASE = 2;
 const PISTOLEIRO_SPAWN_BATCH_SIZE = 2;
 const MAX_MINERADORES_WAVE_BASE = 1;
 const MINERADOR_SPAWN_BATCH_SIZE = 1;
+const MAX_VIGIAS_WAVE_BASE = 1;
+const VIGIA_SPAWN_BATCH_SIZE = 1;
+
 
 const ENEMY_SPAWN_TICK_INTERVAL = 2000;
 
@@ -98,7 +108,7 @@ interface Player extends Entity {
   health: number;
 }
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia';
 
 interface Enemy extends Entity {
   width: number;
@@ -522,9 +532,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setPlayerProjectiles(prevPlayerProjectiles => {
           const updatedProjectiles = prevPlayerProjectiles.map(proj => ({
             ...proj,
-            x: proj.x + proj.dx * PROJECTILE_SPEED,
-            y: proj.y + proj.dy * PROJECTILE_SPEED,
-            traveledDistance: proj.traveledDistance + PROJECTILE_SPEED,
+            x: proj.x + proj.dx * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED), // Knives are faster
+            y: proj.y + proj.dy * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
+            traveledDistance: proj.traveledDistance + (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
           })).filter(proj =>
               proj.x > -(proj.width || proj.size) && proj.x < GAME_WIDTH &&
               proj.y > -(proj.height || proj.size) && proj.y < GAME_HEIGHT &&
@@ -670,28 +680,38 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             const distToPlayerSquared = deltaPlayerX * deltaPlayerX + deltaPlayerY * deltaPlayerY;
 
             if (enemy.type === 'PistoleiroVagabundo') {
-                if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.5 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED) {
-                     if (distToPlayerSquared > (updatedEnemy.width / 4 + playerRef.current.width / 4) ** 2) {
+                if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.7 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED * 0.8) {
+                     if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
                         const dist = Math.sqrt(distToPlayerSquared);
                         updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
                         updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
                     }
                 }
-            } else {
-                 if (distToPlayerSquared > (updatedEnemy.width / 4 + playerRef.current.width / 4) ** 2) {
-                    const dist = Math.sqrt(distToPlayerSquared);
-                    updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
-                    updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                if (updatedEnemy.attackCooldownTimer <= 0 && distToPlayerSquared < updatedEnemy.attackRangeSquared && distToPlayerSquared > ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED * 0.5 ) {
+                    const angleToPlayer = Math.atan2(deltaPlayerY, deltaPlayerX);
+                    setEnemyProjectiles(prev => [...prev, {
+                        id: `eproj_${Date.now()}_${Math.random()}`,
+                        x: enemyCenterX - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
+                        y: enemyCenterY - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
+                        size: ENEMY_PISTOLEIRO_PROJECTILE_SIZE,
+                        dx: Math.cos(angleToPlayer),
+                        dy: Math.sin(angleToPlayer),
+                        damage: updatedEnemy.damage,
+                        traveledDistance: 0,
+                        maxRange: updatedEnemy.attackRangeSquared, 
+                        projectileType: 'enemy_bullet',
+                        hitEnemyIds: new Set(),
+                        penetrationLeft: 0,
+                        isEnemyProjectile: true,
+                    }]);
+                    updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                 }
-            }
-
-
-            if (updatedEnemy.attackCooldownTimer <= 0) {
-                if (enemy.type === 'PistoleiroVagabundo') {
-                    if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
+            } else if (enemy.type === 'VigiaDaFerrovia') {
+                 if (distToPlayerSquared < updatedEnemy.attackRangeSquared) { 
+                    if (updatedEnemy.attackCooldownTimer <= 0) {
                         const angleToPlayer = Math.atan2(deltaPlayerY, deltaPlayerX);
                         setEnemyProjectiles(prev => [...prev, {
-                            id: `eproj_${Date.now()}_${Math.random()}`,
+                            id: `eproj_vigia_${Date.now()}_${Math.random()}`,
                             x: enemyCenterX - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
                             y: enemyCenterY - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
                             size: ENEMY_PISTOLEIRO_PROJECTILE_SIZE,
@@ -699,7 +719,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                             dy: Math.sin(angleToPlayer),
                             damage: updatedEnemy.damage,
                             traveledDistance: 0,
-                            maxRange: updatedEnemy.attackRangeSquared, 
+                            maxRange: updatedEnemy.attackRangeSquared,
                             projectileType: 'enemy_bullet',
                             hitEnemyIds: new Set(),
                             penetrationLeft: 0,
@@ -707,21 +727,32 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         }]);
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                } else { // For ArruaceiroSaloon, Cão de Fazenda, and MineradorRebelde (melee)
-                    if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
-                       setPlayer(p => {
-                         const newHealth = Math.max(0, p.health - updatedEnemy.damage);
-                         if (newHealth < p.health && !isPlayerTakingDamage) {
-                            setIsPlayerTakingDamage(true);
-                            setTimeout(() => setIsPlayerTakingDamage(false), 200);
-                         }
-                         if (newHealth <= 0 && !isGameOver) {
-                           setIsGameOver(true);
-                         }
-                         return {...p, health: newHealth };
-                       });
-                       updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
+                } else { 
+                    if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
+                        const dist = Math.sqrt(distToPlayerSquared);
+                        updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                        updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
                     }
+                }
+            } else { // For ArruaceiroSaloon, Cão de Fazenda, and MineradorRebelde (melee)
+                 if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
+                    const dist = Math.sqrt(distToPlayerSquared);
+                    updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                    updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                }
+                if (updatedEnemy.attackCooldownTimer <= 0 && distToPlayerSquared < updatedEnemy.attackRangeSquared) {
+                   setPlayer(p => {
+                     const newHealth = Math.max(0, p.health - updatedEnemy.damage);
+                     if (newHealth < p.health && !isPlayerTakingDamage) {
+                        setIsPlayerTakingDamage(true);
+                        setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                     }
+                     if (newHealth <= 0 && !isGameOver) {
+                       setIsGameOver(true);
+                     }
+                     return {...p, health: newHealth };
+                   });
+                   updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                 }
             }
             return updatedEnemy;
@@ -845,19 +876,33 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             enemyAtkRangeSq = ENEMY_MINERADOR_ATTACK_RANGE_SQUARED;
             enemyAtkCooldown = ENEMY_MINERADOR_ATTACK_COOLDOWN;
             break;
+        case 'VigiaDaFerrovia':
+            enemyBaseSize = ENEMY_VIGIA_SIZE;
+            enemyInitialHealth = ENEMY_VIGIA_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_VIGIA_BASE_SPEED;
+            enemyDamageVal = ENEMY_VIGIA_DAMAGE;
+            enemyXpVal = ENEMY_VIGIA_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_VIGIA_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_VIGIA_ATTACK_COOLDOWN;
+            break;
         default:
             console.error("Tipo de inimigo desconhecido em createEnemyInstance:", type);
             return null;
     }
 
-    const enemyHealth = enemyInitialHealth + (currentWave - 1) * (type === 'ArruaceiroSaloon' ? 3 : type === 'Cão de Fazenda' ? 2 : type === 'PistoleiroVagabundo' ? 4 : 5);
-    const enemySpeed = enemyBaseSpeed + (currentWave - 1) * 0.1;
+    const enemyHealth = enemyInitialHealth + (currentWave - 1) * (
+        type === 'ArruaceiroSaloon' ? 3 :
+        type === 'Cão de Fazenda' ? 2 :
+        type === 'PistoleiroVagabundo' ? 4 :
+        type === 'MineradorRebelde' ? 5 :
+        type === 'VigiaDaFerrovia' ? 5 : 3 // Default scaling
+    );
+    const enemySpeed = enemyBaseSpeed + (currentWave - 1) * 0.05; // Slower scaling for speed
     
     let finalXpValue = enemyXpVal;
-    if (type === 'ArruaceiroSaloon') finalXpValue += currentWave;
-    else if (type === 'Cão de Fazenda') finalXpValue += currentWave; 
+    if (type === 'ArruaceiroSaloon' || type === 'Cão de Fazenda') finalXpValue += Math.floor(currentWave / 2);
     else if (type === 'PistoleiroVagabundo') finalXpValue += Math.floor((currentWave - 1) / 2);
-    else if (type === 'MineradorRebelde') finalXpValue += currentWave + 1;
+    else if (type === 'MineradorRebelde' || type === 'VigiaDaFerrovia') finalXpValue += currentWave;
 
 
     let newX, newY;
@@ -866,7 +911,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const minDistanceFromPlayerSquared = (PLAYER_SIZE * 5) ** 2; 
     const enemyWidth = enemyBaseSize;
     const enemyHeight = enemyBaseSize;
-    const padding = 20; // Min distance from edge
+    const padding = 20; 
 
     do {
         newX = padding + Math.random() * (GAME_WIDTH - enemyWidth - 2 * padding);
@@ -933,11 +978,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const caoCount = currentEnemiesList.filter(e => e.type === 'Cão de Fazenda').length;
     const pistoleiroCount = currentEnemiesList.filter(e => e.type === 'PistoleiroVagabundo').length;
     const mineradorCount = currentEnemiesList.filter(e => e.type === 'MineradorRebelde').length;
+    const vigiaCount = currentEnemiesList.filter(e => e.type === 'VigiaDaFerrovia').length;
 
     const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
     const maxCaesForWave = currentWave >= 2 ? MAX_CAES_WAVE_BASE + (currentWave - 2) * 1 : 0;
     const maxPistoleirosForWave = currentWave >= 3 ? MAX_PISTOLEIROS_WAVE_BASE + Math.floor((currentWave - 3) / 2) * PISTOLEIRO_SPAWN_BATCH_SIZE : 0;
     const maxMineradoresForWave = currentWave >= 4 ? MAX_MINERADORES_WAVE_BASE + Math.floor((currentWave - 4) / 2) * MINERADOR_SPAWN_BATCH_SIZE : 0;
+    const maxVigiasForWave = currentWave >= 5 ? MAX_VIGIAS_WAVE_BASE + Math.floor((currentWave - 5) / 2) * VIGIA_SPAWN_BATCH_SIZE : 0;
     
     const newEnemiesBatch: Enemy[] = [];
 
@@ -969,6 +1016,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             if (enemy) newEnemiesBatch.push(enemy);
         }
     }
+
+    if (currentWave >= 5 && vigiaCount < maxVigiasForWave) {
+        const canSpawnCount = Math.min(VIGIA_SPAWN_BATCH_SIZE, maxVigiasForWave - vigiaCount);
+        for (let i = 0; i < canSpawnCount; i++) {
+            const enemy = createEnemyInstance('VigiaDaFerrovia', currentWave, currentPlayer);
+            if (enemy) newEnemiesBatch.push(enemy);
+        }
+    }
+
 
     if (newEnemiesBatch.length > 0) {
         setEnemies(prev => [...prev, ...newEnemiesBatch]);
@@ -1197,3 +1253,4 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
+
