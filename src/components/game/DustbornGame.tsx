@@ -531,8 +531,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
               for (let i = newProjectilesAfterHits.length - 1; i >= 0; i--) {
                 const proj = newProjectilesAfterHits[i];
-                if (proj.hitEnemyIds.has(enemy.id) && proj.penetrationLeft <= 0 && proj.originWeaponId !== 'justica_ferro') continue;
-
+                
                 const projWidth = proj.width || proj.size;
                 const projHeight = proj.height || proj.size;
                 const projCenterX = proj.x + projWidth / 2;
@@ -543,11 +542,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + currentEnemyState.width / 2) &&
                     Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + currentEnemyState.height / 2)) {
 
-                  if (proj.hitEnemyIds.has(enemy.id) && proj.originWeaponId !== 'justica_ferro') continue;
-
+                  // Check if this specific enemy has already been hit by this projectile instance
+                  // (important for piercing projectiles like 'Justica de Ferro' to not multi-hit same enemy from one shot)
+                  if (proj.hitEnemyIds.has(currentEnemyState.id) && proj.originWeaponId !== 'justica_ferro') {
+                    continue; 
+                  }
+                  
                   const damageDealt = proj.damage;
                   currentEnemyState.health -= damageDealt;
-                  proj.hitEnemyIds.add(enemy.id);
+                  proj.hitEnemyIds.add(currentEnemyState.id);
+
 
                   if (proj.originWeaponId === 'voz_trovao') {
                     const vozDoTrovaoWeapon = getWeaponById('voz_trovao');
@@ -747,7 +751,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, playerProjectiles, enemyProjectiles]); 
+  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage]); 
 
 
   useEffect(() => {
@@ -1164,4 +1168,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
