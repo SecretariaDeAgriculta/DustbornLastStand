@@ -56,6 +56,14 @@ const ENEMY_PISTOLEIRO_PROJECTILE_SPEED = 7;
 const ENEMY_PISTOLEIRO_PROJECTILE_SIZE = 8;
 const ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_PISTOLEIRO_SIZE / 2 + 10) ** 2;
 
+const ENEMY_MINERADOR_SIZE = PLAYER_SIZE * 1.1;
+const ENEMY_MINERADOR_INITIAL_HEALTH = 18;
+const ENEMY_MINERADOR_DAMAGE = 7;
+const ENEMY_MINERADOR_BASE_SPEED = 1.2;
+const ENEMY_MINERADOR_XP_VALUE = 5;
+const ENEMY_MINERADOR_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_MINERADOR_SIZE / 2 + 8) ** 2;
+const ENEMY_MINERADOR_ATTACK_COOLDOWN = 1200;
+
 
 const PROJECTILE_SIZE = 8;
 const PROJECTILE_SPEED = 10;
@@ -69,6 +77,9 @@ const MAX_CAES_WAVE_BASE = 6;
 const CAO_SPAWN_BATCH_SIZE = 3;
 const MAX_PISTOLEIROS_WAVE_BASE = 2;
 const PISTOLEIRO_SPAWN_BATCH_SIZE = 2;
+const MAX_MINERADORES_WAVE_BASE = 1;
+const MINERADOR_SPAWN_BATCH_SIZE = 1;
+
 const ENEMY_SPAWN_TICK_INTERVAL = 2000;
 
 
@@ -87,7 +98,7 @@ interface Player extends Entity {
   health: number;
 }
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde';
 
 interface Enemy extends Entity {
   width: number;
@@ -542,8 +553,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + currentEnemyState.width / 2) &&
                     Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + currentEnemyState.height / 2)) {
 
-                  // Check if this specific enemy has already been hit by this projectile instance
-                  // (important for piercing projectiles like 'Justica de Ferro' to not multi-hit same enemy from one shot)
                   if (proj.hitEnemyIds.has(currentEnemyState.id) && proj.originWeaponId !== 'justica_ferro') {
                     continue; 
                   }
@@ -698,7 +707,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         }]);
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                } else { 
+                } else { // For ArruaceiroSaloon, Cão de Fazenda, and MineradorRebelde (melee)
                     if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
                        setPlayer(p => {
                          const newHealth = Math.max(0, p.health - updatedEnemy.damage);
@@ -827,18 +836,28 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             enemyAtkRangeSq = ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED;
             enemyAtkCooldown = ENEMY_PISTOLEIRO_ATTACK_COOLDOWN;
             break;
+        case 'MineradorRebelde':
+            enemyBaseSize = ENEMY_MINERADOR_SIZE;
+            enemyInitialHealth = ENEMY_MINERADOR_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_MINERADOR_BASE_SPEED;
+            enemyDamageVal = ENEMY_MINERADOR_DAMAGE;
+            enemyXpVal = ENEMY_MINERADOR_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_MINERADOR_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_MINERADOR_ATTACK_COOLDOWN;
+            break;
         default:
             console.error("Tipo de inimigo desconhecido em createEnemyInstance:", type);
             return null;
     }
 
-    const enemyHealth = enemyInitialHealth + (currentWave - 1) * (type === 'ArruaceiroSaloon' ? 3 : type === 'Cão de Fazenda' ? 2 : 4);
+    const enemyHealth = enemyInitialHealth + (currentWave - 1) * (type === 'ArruaceiroSaloon' ? 3 : type === 'Cão de Fazenda' ? 2 : type === 'PistoleiroVagabundo' ? 4 : 5);
     const enemySpeed = enemyBaseSpeed + (currentWave - 1) * 0.1;
     
     let finalXpValue = enemyXpVal;
     if (type === 'ArruaceiroSaloon') finalXpValue += currentWave;
     else if (type === 'Cão de Fazenda') finalXpValue += currentWave; 
     else if (type === 'PistoleiroVagabundo') finalXpValue += Math.floor((currentWave - 1) / 2);
+    else if (type === 'MineradorRebelde') finalXpValue += currentWave + 1;
 
 
     let newX, newY;
@@ -913,10 +932,12 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const arruaceiroCount = currentEnemiesList.filter(e => e.type === 'ArruaceiroSaloon').length;
     const caoCount = currentEnemiesList.filter(e => e.type === 'Cão de Fazenda').length;
     const pistoleiroCount = currentEnemiesList.filter(e => e.type === 'PistoleiroVagabundo').length;
+    const mineradorCount = currentEnemiesList.filter(e => e.type === 'MineradorRebelde').length;
 
     const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
     const maxCaesForWave = currentWave >= 2 ? MAX_CAES_WAVE_BASE + (currentWave - 2) * 1 : 0;
     const maxPistoleirosForWave = currentWave >= 3 ? MAX_PISTOLEIROS_WAVE_BASE + Math.floor((currentWave - 3) / 2) * PISTOLEIRO_SPAWN_BATCH_SIZE : 0;
+    const maxMineradoresForWave = currentWave >= 4 ? MAX_MINERADORES_WAVE_BASE + Math.floor((currentWave - 4) / 2) * MINERADOR_SPAWN_BATCH_SIZE : 0;
     
     const newEnemiesBatch: Enemy[] = [];
 
@@ -937,6 +958,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         const canSpawnCount = Math.min(PISTOLEIRO_SPAWN_BATCH_SIZE, maxPistoleirosForWave - pistoleiroCount);
         for (let i = 0; i < canSpawnCount; i++) {
             const enemy = createEnemyInstance('PistoleiroVagabundo', currentWave, currentPlayer);
+            if (enemy) newEnemiesBatch.push(enemy);
+        }
+    }
+
+    if (currentWave >= 4 && mineradorCount < maxMineradoresForWave) {
+        const canSpawnCount = Math.min(MINERADOR_SPAWN_BATCH_SIZE, maxMineradoresForWave - mineradorCount);
+        for (let i = 0; i < canSpawnCount; i++) {
+            const enemy = createEnemyInstance('MineradorRebelde', currentWave, currentPlayer);
             if (enemy) newEnemiesBatch.push(enemy);
         }
     }
