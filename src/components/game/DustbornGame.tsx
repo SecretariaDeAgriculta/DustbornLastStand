@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
 import { PlayerCharacter } from './PlayerCharacter';
 import { EnemyCharacter } from './EnemyCharacter';
 import { GameHUD } from './GameHUD';
@@ -170,6 +170,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([{...initialWeapon, upgradedThisRound: false}]);
   const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
+  
+  const [scale, setScale] = useState(1);
+  const gameWrapperRef = useRef<HTMLDivElement>(null);
 
   const activeKeys = useRef<Set<string>>(new Set());
   const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
@@ -186,6 +189,38 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   useEffect(() => { playerRef.current = player; }, [player]);
   useEffect(() => { waveRef.current = wave; }, [wave]);
   useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
+
+
+  useLayoutEffect(() => {
+    const calculateScale = () => {
+      if (gameWrapperRef.current) {
+        const availableWidth = gameWrapperRef.current.clientWidth;
+        const availableHeight = gameWrapperRef.current.clientHeight;
+        
+        if (availableWidth > 0 && availableHeight > 0) {
+            const scaleX = availableWidth / GAME_WIDTH;
+            const scaleY = availableHeight / GAME_HEIGHT;
+            const newScale = Math.min(scaleX, scaleY); 
+            
+            setScale(Math.max(0.1, newScale)); // Prevent scale from being too small or zero
+        }
+      }
+    };
+
+    calculateScale(); 
+
+    const resizeObserver = new ResizeObserver(calculateScale);
+    if (gameWrapperRef.current) {
+      resizeObserver.observe(gameWrapperRef.current);
+    }
+
+    return () => {
+      if (gameWrapperRef.current) {
+        resizeObserver.unobserve(gameWrapperRef.current);
+      }
+      resizeObserver.disconnect();
+    };
+  }, []);
 
 
   const resetGameState = useCallback((exitToMenu = false) => {
@@ -274,16 +309,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       setPlayerWeapons(prevWeapons =>
         prevWeapons.map((weapon, index) => {
           if (index === existingWeaponIndex) {
-            const upgradedWeapon = getWeaponById(weapon.id); // Get base definition
-            if (!upgradedWeapon) return weapon; // Should not happen
+            const upgradedWeapon = getWeaponById(weapon.id); 
+            if (!upgradedWeapon) return weapon; 
 
-            // Example upgrade: increase damage by a percentage of base, reduce cooldown slightly
-            // More complex upgrades could involve specific logic per weapon type
             return {
               ...weapon,
-              damage: Math.round(weapon.damage + (upgradedWeapon.damage * 0.2)), // Increase current damage by 20% of base
-              cooldown: Math.max(100, weapon.cooldown - (upgradedWeapon.cooldown * 0.05)), // Reduce current cooldown by 5% of base
-              // Potentially upgrade other stats like range, penetration, critical chance etc.
+              damage: Math.round(weapon.damage + (upgradedWeapon.damage * 0.2)), 
+              cooldown: Math.max(100, weapon.cooldown - (upgradedWeapon.cooldown * 0.05)), 
             };
           }
           return weapon;
@@ -336,7 +368,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
 
   useEffect(() => {
-    if (deviceType === 'mobile') return; // Keyboard controls only for computer
+    if (deviceType === 'mobile') return; 
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (isGameOver) return;
@@ -682,7 +714,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                             dy: Math.sin(angleToPlayer),
                             damage: updatedEnemy.damage,
                             traveledDistance: 0,
-                            maxRange: updatedEnemy.attackRangeSquared, // Using attack range as max projectile range
+                            maxRange: updatedEnemy.attackRangeSquared, 
                             projectileType: 'enemy_bullet',
                             hitEnemyIds: new Set(),
                             penetrationLeft: 0,
@@ -690,7 +722,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         }]);
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                } else { // ArruaceiroSaloon or Cão de Fazenda (melee)
+                } else { 
                     if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
                        setPlayer(p => {
                          const newHealth = Math.max(0, p.health - updatedEnemy.damage);
@@ -843,7 +875,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     
     let finalXpValue = enemyXpVal;
     if (type === 'ArruaceiroSaloon') finalXpValue += currentWave;
-    else if (type === 'Cão de Fazenda') finalXpValue += currentWave; // Cão de Fazenda now also gets +wave XP
+    else if (type === 'Cão de Fazenda') finalXpValue += currentWave; 
     else if (type === 'PistoleiroVagabundo') finalXpValue += Math.floor((currentWave - 1) / 2);
 
 
@@ -853,9 +885,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const minDistanceFromPlayerSquared = (PLAYER_SIZE * 5) ** 2; 
     const enemyWidth = enemyBaseSize;
     const enemyHeight = enemyBaseSize;
+    const padding = 20; // Min distance from edge
 
     do {
-        const padding = 20; // Min distance from edge
         newX = padding + Math.random() * (GAME_WIDTH - enemyWidth - 2 * padding);
         newY = padding + Math.random() * (GAME_HEIGHT - enemyHeight - 2 * padding);
         attempts++;
@@ -871,12 +903,11 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     } while (attempts < maxAttempts);
 
     if (attempts >= maxAttempts) {
-        // Fallback if too many attempts: spawn at a random corner, further from player
         const corners = [
-            { x: 20, y: 20 },
-            { x: GAME_WIDTH - enemyWidth - 20, y: 20 },
-            { x: 20, y: GAME_HEIGHT - enemyHeight - 20 },
-            { x: GAME_WIDTH - enemyWidth - 20, y: GAME_HEIGHT - enemyHeight - 20 },
+            { x: padding, y: padding },
+            { x: GAME_WIDTH - enemyWidth - padding, y: padding },
+            { x: padding, y: GAME_HEIGHT - enemyHeight - padding },
+            { x: GAME_WIDTH - enemyWidth - padding, y: GAME_HEIGHT - enemyHeight - padding },
         ];
         let bestCorner = corners[0];
         let maxDistSq = 0;
@@ -1038,72 +1069,82 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             {isPaused ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
         </Button>
       </div>
-      <Card className="mt-0 shadow-2xl overflow-hidden border-2 border-primary">
-        <div
-          ref={gameAreaRef}
-          className="relative bg-muted/30 overflow-hidden"
-          style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
-          role="application"
-          aria-label="Área de jogo Dustborn"
-          tabIndex={-1}
+      
+      <div ref={gameWrapperRef} className="flex items-center justify-center flex-grow w-full overflow-hidden">
+        <div 
+          style={{ 
+            transform: `scale(${scale})`, 
+            transformOrigin: 'center center', 
+          }}
         >
-          {isPaused && (
-            <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
-              <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>
-              <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90 mb-6" />
-              <Button
-                onClick={() => resetGameState(true)}
-                variant="secondary"
-                className="text-lg py-3 px-6"
-              >
-                <HomeIcon className="mr-2 h-5 w-5" />
-                Voltar ao Menu Principal
-              </Button>
+          <Card className="shadow-2xl overflow-hidden border-2 border-primary">
+            <div
+              ref={gameAreaRef}
+              className="relative bg-muted/30 overflow-hidden"
+              style={{ width: GAME_WIDTH, height: GAME_HEIGHT }}
+              role="application"
+              aria-label="Área de jogo Dustborn"
+              tabIndex={-1}
+            >
+              {isPaused && (
+                <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
+                  <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>
+                  <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90 mb-6" />
+                  <Button
+                    onClick={() => resetGameState(true)}
+                    variant="secondary"
+                    className="text-lg py-3 px-6"
+                  >
+                    <HomeIcon className="mr-2 h-5 w-5" />
+                    Voltar ao Menu Principal
+                  </Button>
+                </div>
+              )}
+              <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} isTakingDamage={isPlayerTakingDamage} />
+              {enemies.map((enemy) => (
+                <EnemyCharacter
+                  key={enemy.id} x={enemy.x} y={enemy.y}
+                  width={enemy.width} height={enemy.height}
+                  health={enemy.health} maxHealth={enemy.maxHealth}
+                  type={enemy.type}
+                  isStunned={enemy.isStunned}
+                />
+              ))}
+              {xpOrbs.map((orb) => (
+                <XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} />
+              ))}
+              {playerProjectiles.map((proj) => (
+                <Projectile
+                  key={proj.id}
+                  x={proj.x} y={proj.y}
+                  size={proj.size}
+                  projectileType={proj.projectileType}
+                  width={proj.width}
+                  height={proj.height}
+                />
+              ))}
+              {enemyProjectiles.map((proj) => (
+                <Projectile
+                  key={proj.id}
+                  x={proj.x} y={proj.y}
+                  size={proj.size}
+                  projectileType={proj.projectileType}
+                />
+              ))}
+              {damageNumbers.map((dn) => (
+                <DamageNumber
+                  key={dn.id}
+                  x={dn.x}
+                  y={dn.y}
+                  amount={dn.amount}
+                  opacity={dn.opacity}
+                  isCritical={dn.isCritical}
+                />
+              ))}
             </div>
-          )}
-          <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} isTakingDamage={isPlayerTakingDamage} />
-          {enemies.map((enemy) => (
-            <EnemyCharacter
-              key={enemy.id} x={enemy.x} y={enemy.y}
-              width={enemy.width} height={enemy.height}
-              health={enemy.health} maxHealth={enemy.maxHealth}
-              type={enemy.type}
-              isStunned={enemy.isStunned}
-            />
-          ))}
-          {xpOrbs.map((orb) => (
-            <XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} />
-          ))}
-          {playerProjectiles.map((proj) => (
-            <Projectile
-              key={proj.id}
-              x={proj.x} y={proj.y}
-              size={proj.size}
-              projectileType={proj.projectileType}
-              width={proj.width}
-              height={proj.height}
-            />
-          ))}
-          {enemyProjectiles.map((proj) => (
-            <Projectile
-              key={proj.id}
-              x={proj.x} y={proj.y}
-              size={proj.size}
-              projectileType={proj.projectileType}
-            />
-          ))}
-          {damageNumbers.map((dn) => (
-            <DamageNumber
-              key={dn.id}
-              x={dn.x}
-              y={dn.y}
-              amount={dn.amount}
-              opacity={dn.opacity}
-              isCritical={dn.isCritical}
-            />
-          ))}
+          </Card>
         </div>
-      </Card>
+      </div>
       
       {deviceType === 'mobile' && !isPaused && !isShopPhase && !isGameOver && (
         <div className="fixed bottom-8 left-8 z-50 grid grid-cols-3 grid-rows-3 gap-2 w-36 h-36 sm:w-48 sm:h-48">
@@ -1176,4 +1217,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
