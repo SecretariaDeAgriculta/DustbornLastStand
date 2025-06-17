@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 
 export default function Home() {
-  const [gameMode, setGameMode] = useState<'menu' | 'freeMode'>('menu');
+  const [viewMode, setViewMode] = useState<'mainMenu' | 'storyChapterSelect' | 'freeMode'>('mainMenu');
   const [deviceSetting, setDeviceSetting] = useState<'auto' | 'computer' | 'mobile'>('auto');
   const [currentDeviceMode, setCurrentDeviceMode] = useState<'computer' | 'mobile'>('computer');
   const { toast } = useToast();
@@ -24,7 +24,7 @@ export default function Home() {
     if (deviceSetting === 'auto') {
       const isLikelyMobile = window.matchMedia('(pointer: coarse)').matches || /Mobi|Android/i.test(navigator.userAgent);
       modeToUse = isLikelyMobile ? 'mobile' : 'computer';
-      showToast = true; 
+      showToast = true;
     } else {
       modeToUse = deviceSetting;
     }
@@ -52,12 +52,12 @@ export default function Home() {
     setIsSettingsDialogOpen(false);
   };
 
-  if (gameMode === 'freeMode') {
+  if (viewMode === 'freeMode') {
     return (
       <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-0 sm:p-4 selection:bg-primary selection:text-primary-foreground">
         <main className="w-full h-full sm:max-w-screen-lg flex-grow flex flex-col items-center justify-center">
           <DustbornGame
-            onExitToMenu={() => setGameMode('menu')}
+            onExitToMenu={() => setViewMode('mainMenu')}
             deviceType={currentDeviceMode}
           />
         </main>
@@ -69,6 +69,14 @@ export default function Home() {
       </div>
     );
   }
+
+  const storyChapters = [
+    { title: 'Prólogo' },
+    { title: 'Ato 1: O Silêncio dos Boyle' },
+    { title: 'Ato 2: O Sussurro dos Gaviões' },
+    { title: 'Ato 3: O Eco do Canyon' },
+    { title: 'Ato 4: O Fim da Linha' },
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground relative">
@@ -127,25 +135,52 @@ export default function Home() {
 
         <Card className="w-full max-w-xs sm:max-w-sm bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader className="pb-4">
-            <CardTitle className="text-center text-xl sm:text-2xl text-primary-foreground">Escolha o Modo de Jogo</CardTitle>
+            <CardTitle className="text-center text-xl sm:text-2xl text-primary-foreground">
+              {viewMode === 'mainMenu' ? 'Escolha o Modo de Jogo' : 'Capítulos da História'}
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 sm:space-y-4">
-            <Button
-              variant="secondary"
-              className="w-full py-2 sm:py-3 text-md sm:text-lg relative"
-              disabled
-              aria-disabled="true"
-            >
-              Modo História
-              <span className="absolute top-1 right-1 sm:top-1.5 sm:right-2 text-xs bg-muted text-muted-foreground px-1.5 sm:px-2 py-0.5 rounded-full">Em Breve</span>
-            </Button>
-            <Button
-              variant="default"
-              className="w-full py-2 sm:py-3 text-md sm:text-lg bg-accent hover:bg-accent/90 text-accent-foreground"
-              onClick={() => setGameMode('freeMode')}
-            >
-              Modo Livre
-            </Button>
+            {viewMode === 'mainMenu' && (
+              <>
+                <Button
+                  variant="secondary"
+                  className="w-full py-2 sm:py-3 text-md sm:text-lg relative"
+                  onClick={() => setViewMode('storyChapterSelect')}
+                >
+                  Modo História
+                </Button>
+                <Button
+                  variant="default"
+                  className="w-full py-2 sm:py-3 text-md sm:text-lg bg-accent hover:bg-accent/90 text-accent-foreground"
+                  onClick={() => setViewMode('freeMode')}
+                >
+                  Modo Livre
+                </Button>
+              </>
+            )}
+            {viewMode === 'storyChapterSelect' && (
+              <>
+                {storyChapters.map((chapter, index) => (
+                  <Button
+                    key={index}
+                    variant="secondary"
+                    className="w-full py-2 sm:py-3 text-md sm:text-lg relative"
+                    disabled
+                    aria-disabled="true"
+                  >
+                    {chapter.title}
+                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-2 text-xs bg-muted text-muted-foreground px-1.5 sm:px-2 py-0.5 rounded-full">Em Breve</span>
+                  </Button>
+                ))}
+                <Button
+                  variant="outline"
+                  className="w-full py-2 sm:py-3 text-md sm:text-lg mt-4"
+                  onClick={() => setViewMode('mainMenu')}
+                >
+                  Voltar
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
