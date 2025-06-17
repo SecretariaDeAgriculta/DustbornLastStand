@@ -10,7 +10,6 @@ import { XPOrb } from './XPOrb';
 import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
-import { DamageNumber } from './DamageNumber';
 import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
 import { PauseIcon, PlayIcon, HomeIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { Weapon, ProjectileType } from '@/config/weapons';
@@ -76,9 +75,6 @@ const ENEMY_SPAWN_TICK_INTERVAL = 2000;
 const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
 const ENEMY_MOVE_INTERVAL = 50;
 
-const DAMAGE_NUMBER_LIFESPAN = 700;
-const DAMAGE_NUMBER_FLOAT_SPEED = 0.8;
-
 interface Entity {
   id: string;
   x: number;
@@ -131,14 +127,6 @@ interface ProjectileData extends Entity {
   isEnemyProjectile?: boolean;
 }
 
-
-interface DamageNumberData extends Entity {
-  amount: number;
-  life: number;
-  opacity: number;
-  isCritical?: boolean;
-}
-
 interface DustbornGameProps {
   onExitToMenu?: () => void;
   deviceType: 'computer' | 'mobile';
@@ -158,7 +146,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const [xpOrbs, setXpOrbs] = useState<XPOrbData[]>([]);
   const [playerProjectiles, setPlayerProjectiles] = useState<ProjectileData[]>([]);
   const [enemyProjectiles, setEnemyProjectiles] = useState<ProjectileData[]>([]);
-  const [damageNumbers, setDamageNumbers] = useState<DamageNumberData[]>([]);
   const [score, setScore] = useState(0);
   const [wave, setWave] = useState(1);
   const [waveTimer, setWaveTimer] = useState(WAVE_DURATION);
@@ -202,7 +189,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             const scaleY = availableHeight / GAME_HEIGHT;
             const newScale = Math.min(scaleX, scaleY); 
             
-            setScale(Math.max(0.1, newScale)); // Prevent scale from being too small or zero
+            setScale(Math.max(0.1, newScale)); 
         }
       }
     };
@@ -236,7 +223,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     setXpOrbs([]);
     setPlayerProjectiles([]);
     setEnemyProjectiles([]);
-    setDamageNumbers([]);
     setScore(0);
     setWave(1);
     setWaveTimer(WAVE_DURATION);
@@ -521,7 +507,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
         lastLogicUpdateTimestampRef.current = timestamp;
-        const newlyCreatedDamageNumbers: DamageNumberData[] = [];
 
         setPlayerProjectiles(prevPlayerProjectiles => {
           const updatedProjectiles = prevPlayerProjectiles.map(proj => ({
@@ -572,15 +557,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     }
                   }
 
-                  newlyCreatedDamageNumbers.push({
-                    id: `dmg_${Date.now()}_${Math.random()}`,
-                    x: currentEnemyState.x + currentEnemyState.width / 2,
-                    y: currentEnemyState.y,
-                    amount: damageDealt,
-                    life: DAMAGE_NUMBER_LIFESPAN,
-                    opacity: 1,
-                    isCritical: proj.critical,
-                  });
 
                   if (currentEnemyState.health <= 0) {
                     newHitScore += currentEnemyState.xpValue * 5;
@@ -654,10 +630,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             return remainingEnemyProjectiles;
         });
 
-
-        if (newlyCreatedDamageNumbers.length > 0) {
-          setDamageNumbers(prev => [...prev, ...newlyCreatedDamageNumbers]);
-        }
 
         setEnemies(currentEnemies =>
           currentEnemies.map(enemy => {
@@ -762,20 +734,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
           }
           return remainingOrbs;
         });
-
-        setDamageNumbers(prevDamageNumbers =>
-          prevDamageNumbers
-            .map(dn => {
-              const newLife = dn.life - ENEMY_MOVE_INTERVAL;
-              return {
-                ...dn,
-                y: dn.y - DAMAGE_NUMBER_FLOAT_SPEED,
-                life: newLife,
-                opacity: Math.max(0, Math.min(1, newLife / (DAMAGE_NUMBER_LIFESPAN * 0.75))),
-              };
-            })
-            .filter(dn => dn.life > 0 && dn.opacity > 0)
-        );
       }
 
       if (playerRef.current.health <= 0 && !isGameOver) {
@@ -1007,7 +965,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     setEnemies([]); 
     setPlayerProjectiles([]);
     setEnemyProjectiles([]);
-    setDamageNumbers([]);
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
     lastLogicUpdateTimestampRef.current = 0; 
@@ -1129,16 +1086,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                   x={proj.x} y={proj.y}
                   size={proj.size}
                   projectileType={proj.projectileType}
-                />
-              ))}
-              {damageNumbers.map((dn) => (
-                <DamageNumber
-                  key={dn.id}
-                  x={dn.x}
-                  y={dn.y}
-                  amount={dn.amount}
-                  opacity={dn.opacity}
-                  isCritical={dn.isCritical}
                 />
               ))}
             </div>
