@@ -24,7 +24,7 @@ export default function Home() {
     if (deviceSetting === 'auto') {
       const isLikelyMobile = window.matchMedia('(pointer: coarse)').matches || /Mobi|Android/i.test(navigator.userAgent);
       modeToUse = isLikelyMobile ? 'mobile' : 'computer';
-      showToast = true; // Show toast when auto-detecting
+      showToast = true; 
     } else {
       modeToUse = deviceSetting;
     }
@@ -74,7 +74,7 @@ export default function Home() {
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-4 selection:bg-primary selection:text-primary-foreground relative">
       <Dialog open={isSettingsDialogOpen} onOpenChange={setIsSettingsDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="icon" className="absolute top-4 right-4 text-primary-foreground hover:bg-accent hover:text-accent-foreground">
+          <Button variant="outline" size="icon" className="absolute top-4 right-4 text-primary hover:text-accent-foreground hover:bg-accent">
             <Settings className="h-6 w-6" />
           </Button>
         </DialogTrigger>
