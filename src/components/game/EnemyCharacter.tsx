@@ -2,8 +2,9 @@
 'use client';
 
 import React from 'react';
+import { cn } from '@/lib/utils';
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon';
 
 interface EnemyCharacterProps {
   x: number;
@@ -14,9 +15,10 @@ interface EnemyCharacterProps {
   maxHealth: number;
   type: EnemyType;
   isStunned?: boolean;
+  isDetonating?: boolean;
 }
 
-export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, isStunned }: EnemyCharacterProps) {
+export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, isStunned, isDetonating }: EnemyCharacterProps) {
   const healthPercentage = (health / maxHealth) * 100;
 
   const getEnemyEmoji = () => {
@@ -33,16 +35,29 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         return '💂';
       case 'BrutoBoyle':
         return '🪓';
+      case 'SabotadorDoCanyon':
+        return '💣';
       default:
         return '?'; 
     }
   };
   
   const emoji = getEnemyEmoji();
+  const visualCueClasses: string[] = [];
+  if (isStunned) {
+    visualCueClasses.push('opacity-50');
+  }
+  if (isDetonating && type === 'SabotadorDoCanyon') {
+    visualCueClasses.push('animate-pulse', 'bg-red-600/70', 'rounded-full');
+  }
+
 
   return (
     <div
-      className="absolute shadow-md flex items-center justify-center"
+      className={cn(
+        "absolute shadow-md flex items-center justify-center transition-all duration-100",
+        visualCueClasses.join(' ')
+        )}
       style={{
         left: x,
         top: y,
@@ -50,11 +65,13 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         height: height,
         fontSize: `${Math.min(width, height) * 0.8}px`,
         lineHeight: `${height}px`,
-        opacity: isStunned ? 0.5 : 1,
-        transition: 'opacity 0.15s linear',
+        // opacity: isStunned || (isDetonating && type === 'SabotadorDoCanyon') ? 0.6 : 1,
+        // backgroundColor: isDetonating && type === 'SabotadorDoCanyon' ? 'rgba(255,0,0,0.3)' : undefined,
+        // borderRadius: isDetonating && type === 'SabotadorDoCanyon' ? '50%' : undefined,
+        // transform: isDetonating && type === 'SabotadorDoCanyon' ? 'scale(1.1)' : 'scale(1)',
       }}
       role="img"
-      aria-label={`Inimigo: ${type}${isStunned ? ' (atordoado)' : ''}`}
+      aria-label={`Inimigo: ${type}${isStunned ? ' (atordoado)' : ''}${isDetonating ? ' (detonando)' : ''}`}
       title={`HP: ${health}/${maxHealth}`}
     >
       {emoji}
@@ -71,3 +88,4 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
     </div>
   );
 }
+
