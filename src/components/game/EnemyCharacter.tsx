@@ -14,7 +14,9 @@ type EnemyType =
   | 'SabotadorDoCanyon' 
   | 'AtiradorDeEliteMcGraw' 
   | 'DesertorGavilanes'
-  | 'Boss_BigDoyle';
+  | 'Boss_BigDoyle'
+  | 'Boss_CaptainMcGraw'
+  | 'PatrolDrone';
 
 interface EnemyCharacterProps {
   x: number;
@@ -43,6 +45,8 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       case 'AtiradorDeEliteMcGraw': return '🎯';
       case 'DesertorGavilanes': return '💨';
       case 'Boss_BigDoyle': return '🧨';
+      case 'Boss_CaptainMcGraw': return '🎖️';
+      case 'PatrolDrone': return '⚙️';
       default: return '?';
     }
   };
@@ -59,14 +63,14 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       className={cn(
         "absolute shadow-md flex items-center justify-center transition-all duration-100",
         visualCueClasses.join(' '),
-        isBoss ? 'border-2 border-yellow-400 rounded-lg' : '' // Special styling for boss
+        isBoss ? 'border-2 border-yellow-400 rounded-lg' : '' 
         )}
       style={{
         left: x,
         top: y,
         width: width,
         height: height,
-        fontSize: `${Math.min(width, height) * (isBoss ? 0.7 : 0.8)}px`, // Slightly smaller emoji for boss if needed due to border
+        fontSize: `${Math.min(width, height) * (isBoss ? 0.7 : 0.8)}px`, 
         lineHeight: `${height}px`,
       }}
       role="img"
@@ -77,7 +81,7 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       <div
         className={cn(
             "absolute left-0 w-full bg-muted rounded-sm overflow-hidden border border-background",
-            isBoss ? "top-[-12px] h-[8px]" : "top-[-10px] h-[6px]" // Larger/higher health bar for boss
+            isBoss ? "top-[-12px] h-[8px]" : "top-[-10px] h-[6px]" 
         )}
         style={{ width: `${width}px`}}
       >
