@@ -308,7 +308,7 @@ interface ProjectileData extends Entity {
   isBarrelOrDynamite?: boolean;
   hasLanded?: boolean;
   fuseTimer?: number;
-  targetX_special?: number; 
+  targetX_special?: number;
   targetY_special?: number;
   explosionRadiusSquared?: number;
 }
@@ -473,6 +473,227 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     }
     setShopOfferings(currentOfferings);
   }, []);
+
+  const createEnemyInstance = useCallback((
+    type: EnemyType,
+    currentWave: number,
+    currentPlayer: Player
+  ): Enemy | null => {
+    let enemyBaseSize: number, enemyInitialHealth: number, enemyBaseSpeed: number,
+        enemyDamageVal: number, enemyXpVal: number, enemyAtkRangeSq: number,
+        enemyAtkCooldown: number, enemyIsDetonating = false, enemyDetonationTimer = 0,
+        enemyIsAiming = false, enemyAimingTimer = 0, enemyIsBursting = false,
+        enemyBurstShotsLeft = 0, enemyBurstTimer = 0, enemyBarrelThrowCooldownTimer = 0,
+        enemyDroneSpawnCooldownTimer = 0, enemyAttackMode: 'pistol' | 'knife' | undefined = undefined,
+        enemyDashCooldownTimer = 0, enemyAllySpawnCooldownTimer = 0, enemyModeSwitchCooldownTimer = 0,
+        enemyDynamiteThrowCooldownTimer = 0, enemyFissureCreateCooldownTimer = 0;
+
+    let finalHealth: number = 0, finalSpeed: number =0 , finalXpValue: number = 0;
+
+
+    switch (type) {
+        case 'ArruaceiroSaloon':
+            enemyBaseSize = ENEMY_ARROCEIRO_SIZE; enemyInitialHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_ARROCEIRO_BASE_SPEED; enemyDamageVal = ENEMY_ARROCEIRO_DAMAGE;
+            enemyXpVal = ENEMY_ARROCEIRO_XP_VALUE; enemyAtkRangeSq = ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_ARROCEIRO_ATTACK_COOLDOWN; break;
+        case 'Cão de Fazenda':
+            enemyBaseSize = ENEMY_CAODEFAZENDA_SIZE; enemyInitialHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED; enemyDamageVal = ENEMY_CAODEFAZENDA_DAMAGE;
+            enemyXpVal = ENEMY_CAODEFAZENDA_XP_VALUE; enemyAtkRangeSq = ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN; break;
+        case 'PistoleiroVagabundo':
+            enemyBaseSize = ENEMY_PISTOLEIRO_SIZE; enemyInitialHealth = ENEMY_PISTOLEIRO_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_PISTOLEiro_BASE_SPEED; enemyDamageVal = ENEMY_PISTOLEIRO_DAMAGE;
+            enemyXpVal = ENEMY_PISTOLEIRO_XP_VALUE; enemyAtkRangeSq = ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_PISTOLEIRO_ATTACK_COOLDOWN; break;
+        case 'MineradorRebelde':
+            enemyBaseSize = ENEMY_MINERADOR_SIZE; enemyInitialHealth = ENEMY_MINERADOR_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_MINERADOR_BASE_SPEED; enemyDamageVal = ENEMY_MINERADOR_DAMAGE;
+            enemyXpVal = ENEMY_MINERADOR_XP_VALUE; enemyAtkRangeSq = ENEMY_MINERADOR_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_MINERADOR_ATTACK_COOLDOWN; break;
+        case 'VigiaDaFerrovia':
+            enemyBaseSize = ENEMY_VIGIA_SIZE; enemyInitialHealth = ENEMY_VIGIA_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_VIGIA_BASE_SPEED; enemyDamageVal = ENEMY_VIGIA_DAMAGE;
+            enemyXpVal = ENEMY_VIGIA_XP_VALUE; enemyAtkRangeSq = ENEMY_VIGIA_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_VIGIA_ATTACK_COOLDOWN; break;
+        case 'BrutoBoyle':
+            enemyBaseSize = ENEMY_BRUTOBOYLE_SIZE; enemyInitialHealth = ENEMY_BRUTOBOYLE_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_BRUTOBOYLE_BASE_SPEED; enemyDamageVal = ENEMY_BRUTOBOYLE_DAMAGE;
+            enemyXpVal = ENEMY_BRUTOBOYLE_XP_VALUE; enemyAtkRangeSq = ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_BRUTOBOYLE_ATTACK_COOLDOWN; break;
+        case 'SabotadorDoCanyon':
+            enemyBaseSize = ENEMY_SABOTADOR_SIZE; enemyInitialHealth = ENEMY_SABOTADOR_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_SABOTADOR_BASE_SPEED; enemyDamageVal = ENEMY_SABOTADOR_DAMAGE;
+            enemyXpVal = ENEMY_SABOTADOR_XP_VALUE; enemyAtkRangeSq = ENEMY_SABOTADOR_DETONATION_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_SABOTADOR_DETONATION_TIMER_DURATION; enemyIsDetonating = false; enemyDetonationTimer = 0; break;
+        case 'AtiradorDeEliteMcGraw':
+            enemyBaseSize = ENEMY_MCGRAW_SIZE; enemyInitialHealth = ENEMY_MCGRAW_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_MCGRAW_BASE_SPEED; enemyDamageVal = ENEMY_MCGRAW_DAMAGE;
+            enemyXpVal = ENEMY_MCGRAW_XP_VALUE; enemyAtkRangeSq = ENEMY_MCGRAW_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_MCGRAW_ATTACK_COOLDOWN; enemyIsAiming = false; enemyAimingTimer = 0; break;
+        case 'DesertorGavilanes':
+            enemyBaseSize = ENEMY_DESERTOR_SIZE; enemyInitialHealth = ENEMY_DESERTOR_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_DESERTOR_BASE_SPEED; enemyDamageVal = ENEMY_DESERTOR_DAMAGE;
+            enemyXpVal = ENEMY_DESERTOR_XP_VALUE; enemyAtkRangeSq = ENEMY_DESERTOR_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_DESERTOR_ATTACK_COOLDOWN; enemyIsBursting = false; enemyBurstShotsLeft = 0; enemyBurstTimer = 0; break;
+        case 'Boss_BigDoyle':
+            enemyBaseSize = ENEMY_BIGDOYLE_SIZE; enemyInitialHealth = ENEMY_BIGDOYLE_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_BIGDOYLE_BASE_SPEED; enemyDamageVal = ENEMY_BIGDOYLE_MELEE_DAMAGE;
+            enemyXpVal = ENEMY_BIGDOYLE_XP_VALUE; enemyAtkRangeSq = ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_BIGDOYLE_MELEE_ATTACK_COOLDOWN;
+            enemyBarrelThrowCooldownTimer = ENEMY_BIGDOYLE_BARREL_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
+            break;
+        case 'Boss_CaptainMcGraw':
+            enemyBaseSize = ENEMY_CAPTAINMCGRAW_SIZE; enemyInitialHealth = ENEMY_CAPTAINMCGRAW_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_CAPTAINMCGRAW_BASE_SPEED; enemyDamageVal = ENEMY_CAPTAINMCGRAW_RIFLE_DAMAGE;
+            enemyXpVal = ENEMY_CAPTAINMCGRAW_XP_VALUE; enemyAtkRangeSq = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_COOLDOWN;
+            enemyIsAiming = false; enemyAimingTimer = 0;
+            enemyDroneSpawnCooldownTimer = ENEMY_CAPTAINMCGRAW_DRONE_SPAWN_COOLDOWN * (0.3 + Math.random() * 0.4);
+            break;
+        case 'Boss_DomGael':
+            enemyBaseSize = ENEMY_DOMGAEL_SIZE; enemyInitialHealth = ENEMY_DOMGAEL_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_DOMGAEL_BASE_SPEED; enemyDamageVal = ENEMY_DOMGAEL_PISTOL_DAMAGE;
+            enemyXpVal = ENEMY_DOMGAEL_XP_VALUE; enemyAtkRangeSq = ENEMY_DOMGAEL_PISTOL_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_DOMGAEL_PISTOL_COOLDOWN;
+            enemyAttackMode = 'pistol';
+            enemyDashCooldownTimer = ENEMY_DOMGAEL_DASH_COOLDOWN * (0.2 + Math.random() * 0.8);
+            enemyAllySpawnCooldownTimer = ENEMY_DOMGAEL_ALLY_SPAWN_COOLDOWN * (0.5 + Math.random() * 0.5);
+            enemyModeSwitchCooldownTimer = 0;
+            break;
+        case 'Boss_CalebHodge':
+            enemyBaseSize = ENEMY_CALEBHODGE_SIZE; enemyInitialHealth = ENEMY_CALEBHODGE_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_CALEBHODGE_BASE_SPEED; enemyDamageVal = ENEMY_CALEBHODGE_DYNAMITE_DAMAGE;
+            enemyXpVal = ENEMY_CALEBHODGE_XP_VALUE; enemyAtkRangeSq = ENEMY_CALEBHODGE_DYNAMITE_THROW_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN;
+            enemyDynamiteThrowCooldownTimer = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
+            enemyFissureCreateCooldownTimer = ENEMY_CALEBHODGE_FISSURE_CREATE_COOLDOWN * (0.3 + Math.random() * 0.7);
+            break;
+        case 'PatrolDrone':
+            enemyBaseSize = ENEMY_DRONE_SIZE; enemyInitialHealth = ENEMY_DRONE_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_DRONE_BASE_SPEED; enemyDamageVal = ENEMY_DRONE_DAMAGE;
+            enemyXpVal = ENEMY_DRONE_XP_VALUE; enemyAtkRangeSq = ENEMY_DRONE_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_DRONE_ATTACK_COOLDOWN;
+
+            finalHealth = enemyInitialHealth; finalSpeed = enemyBaseSpeed; finalXpValue = enemyXpVal;
+             let droneX, droneY; const droneSpawnPadding = 50;
+            droneX = Math.random() * (GAME_WIDTH - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
+            droneY = Math.random() * (GAME_HEIGHT - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
+
+            return {
+                id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: droneX, y: droneY,
+                width: enemyBaseSize, height: enemyBaseSize, health: finalHealth, maxHealth: finalHealth,
+                type: type, xpValue: finalXpValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
+                speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
+                attackCooldown: enemyAtkCooldown,
+            };
+        default: console.error("Tipo de inimigo desconhecido:", type); return null;
+    }
+
+    if (type.startsWith('Boss_')) {
+        const bossAppearances = Math.floor(currentWave / 10);
+        let healthMultiplier = 0.25;
+        let xpMultiplier = 0.5;
+        if (type === 'Boss_CaptainMcGraw') { healthMultiplier = 0.20; xpMultiplier = 0.40; }
+        if (type === 'Boss_DomGael') { healthMultiplier = 0.22; xpMultiplier = 0.45; }
+        if (type === 'Boss_CalebHodge') { healthMultiplier = 0.28; xpMultiplier = 0.55; }
+
+        finalHealth = Math.round(enemyInitialHealth * (1 + bossAppearances * healthMultiplier));
+        finalXpValue = Math.round(enemyXpVal * (1 + bossAppearances * xpMultiplier));
+        finalSpeed = enemyBaseSpeed;
+    } else if (type !== 'PatrolDrone') {
+        const waveMultiplier = (currentWave -1) * 0.15;
+        finalHealth = Math.round(enemyInitialHealth * (1 + waveMultiplier * 1.2));
+        finalSpeed = enemyBaseSpeed * (1 + waveMultiplier * 0.5);
+        if (['ArruaceiroSaloon', 'Cão de Fazenda'].includes(type)) finalXpValue += Math.floor(currentWave / 2);
+        else if (['PistoleiroVagabundo', 'MineradorRebelde', 'SabotadorDoCanyon'].includes(type)) finalXpValue += currentWave -1;
+        else if (['VigiaDaFerrovia', 'BrutoBoyle', 'AtiradorDeEliteMcGraw', 'DesertorGavilanes'].includes(type)) finalXpValue += Math.floor((currentWave -1) * 1.5);
+    }
+
+
+    let newX, newY; let attempts = 0; const maxAttempts = 20;
+    const minDistanceFromPlayerSquared = (type.startsWith('Boss_') ? PLAYER_SIZE * 3 : PLAYER_SIZE * 5) ** 2;
+    const enemyWidth = enemyBaseSize, enemyHeight = enemyBaseSize, padding = type.startsWith('Boss_') ? 0 : 20;
+
+    do {
+        newX = padding + Math.random() * (GAME_WIDTH - enemyWidth - 2 * padding);
+        newY = padding + Math.random() * (GAME_HEIGHT - enemyHeight - 2 * padding);
+        attempts++;
+        if (attempts >= maxAttempts ||
+            ( (currentPlayer.x + currentPlayer.width / 2 - (newX + enemyWidth/2))**2 +
+              (currentPlayer.y + currentPlayer.height / 2 - (newY + enemyHeight/2))**2 ) >= minDistanceFromPlayerSquared) break;
+    } while (true);
+
+    if (type.startsWith('Boss_')) {
+        newX = GAME_WIDTH / 2 - enemyWidth / 2;
+        newY = GAME_HEIGHT / 4 - enemyHeight / 2;
+    }
+
+
+    return {
+        id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: newX, y: newY,
+        width: enemyWidth, height: enemyHeight, health: finalHealth, maxHealth: finalHealth,
+        type: type, xpValue: finalXpValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
+        speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
+        attackCooldown: enemyAtkCooldown, isDetonating: enemyIsDetonating, detonationTimer: enemyDetonationTimer,
+        isAiming: enemyIsAiming, aimingTimer: enemyAimingTimer, isBursting: enemyIsBursting,
+        burstShotsLeft: enemyBurstShotsLeft, burstTimer: enemyBurstTimer,
+        barrelThrowCooldownTimer: type === 'Boss_BigDoyle' ? enemyBarrelThrowCooldownTimer : undefined,
+        dynamiteThrowCooldownTimer: type === 'Boss_CalebHodge' ? enemyDynamiteThrowCooldownTimer : undefined,
+        fissureCreateCooldownTimer: type === 'Boss_CalebHodge' ? enemyFissureCreateCooldownTimer : undefined,
+        droneSpawnCooldownTimer: type === 'Boss_CaptainMcGraw' ? enemyDroneSpawnCooldownTimer : undefined,
+        attackMode: type === 'Boss_DomGael' ? enemyAttackMode : undefined,
+        isDashing: type === 'Boss_DomGael' ? false : undefined,
+        dashTimer: type === 'Boss_DomGael' ? 0 : undefined,
+        dashCooldownTimer: type === 'Boss_DomGael' ? enemyDashCooldownTimer : undefined,
+        allySpawnCooldownTimer: type === 'Boss_DomGael' ? enemyAllySpawnCooldownTimer : undefined,
+        modeSwitchCooldownTimer: type === 'Boss_DomGael' ? enemyModeSwitchCooldownTimer : undefined,
+    };
+  }, []);
+
+  const spawnEnemiesOnTick = useCallback(() => {
+    if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) return;
+
+    const currentWave = waveRef.current;
+    const currentPlayer = playerRef.current;
+    const currentEnemiesList = enemiesRef.current;
+
+    const arruaceiroCount = currentEnemiesList.filter(e => e.type === 'ArruaceiroSaloon').length;
+    const caoCount = currentEnemiesList.filter(e => e.type === 'Cão de Fazenda').length;
+    const pistoleiroCount = currentEnemiesList.filter(e => e.type === 'PistoleiroVagabundo').length;
+    const mineradorCount = currentEnemiesList.filter(e => e.type === 'MineradorRebelde').length;
+    const vigiaCount = currentEnemiesList.filter(e => e.type === 'VigiaDaFerrovia').length;
+    const brutoCount = currentEnemiesList.filter(e => e.type === 'BrutoBoyle').length;
+    const sabotadorCount = currentEnemiesList.filter(e => e.type === 'SabotadorDoCanyon').length;
+    const mcgrawCount = currentEnemiesList.filter(e => e.type === 'AtiradorDeEliteMcGraw').length;
+    const desertorCount = currentEnemiesList.filter(e => e.type === 'DesertorGavilanes').length;
+
+    const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
+    const maxCaesForWave = currentWave >= 2 ? MAX_CAES_WAVE_BASE + (currentWave - 2) * 1 : 0;
+    const maxPistoleirosForWave = currentWave >= 3 ? MAX_PISTOLEIROS_WAVE_BASE + Math.floor((currentWave - 3) / 2) * PISTOLEIRO_SPAWN_BATCH_SIZE : 0;
+    const maxMineradoresForWave = currentWave >= 4 ? MAX_MINERADORES_WAVE_BASE + Math.floor((currentWave - 4) / 2) * MINERADOR_SPAWN_BATCH_SIZE : 0;
+    const maxVigiasForWave = currentWave >= 5 ? MAX_VIGIAS_WAVE_BASE + Math.floor((currentWave - 5) / 2) * VIGIA_SPAWN_BATCH_SIZE : 0;
+    const maxBrutosForWave = currentWave >= 6 ? MAX_BRUTOS_WAVE_BASE + Math.floor((currentWave - 6) / 3) * BRUTO_SPAWN_BATCH_SIZE : 0;
+    const maxSabotadoresForWave = currentWave >= 7 ? MAX_SABOTADORES_WAVE_BASE + Math.floor((currentWave - 7) / 2) * SABOTADOR_SPAWN_BATCH_SIZE : 0;
+    const maxMcGrawForWave = currentWave >= 8 ? MAX_MCGRAW_WAVE_BASE + Math.floor((currentWave - 8) / 3) * MCGRAW_SPAWN_BATCH_SIZE : 0;
+    const maxDesertorForWave = currentWave >= 9 ? MAX_DESERTOR_WAVE_BASE + Math.floor((currentWave - 9) / 2) * DESERTOR_SPAWN_BATCH_SIZE : 0;
+
+    const newEnemiesBatch: Enemy[] = [];
+    if (currentWave >= 1 && arruaceiroCount < maxArroceirosForWave) { const e = createEnemyInstance('ArruaceiroSaloon', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); }
+    if (currentWave >= 2 && caoCount < maxCaesForWave) { for (let i=0; i < Math.min(CAO_SPAWN_BATCH_SIZE, maxCaesForWave - caoCount); i++) { const e = createEnemyInstance('Cão de Fazenda', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 3 && pistoleiroCount < maxPistoleirosForWave) { for (let i=0; i < Math.min(PISTOLEIRO_SPAWN_BATCH_SIZE, maxPistoleirosForWave - pistoleiroCount); i++) { const e = createEnemyInstance('PistoleiroVagabundo', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 4 && mineradorCount < maxMineradoresForWave) { for (let i=0; i < Math.min(MINERADOR_SPAWN_BATCH_SIZE, maxMineradoresForWave - mineradorCount); i++) { const e = createEnemyInstance('MineradorRebelde', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 5 && vigiaCount < maxVigiasForWave) { for (let i=0; i < Math.min(VIGIA_SPAWN_BATCH_SIZE, maxVigiasForWave - vigiaCount); i++) { const e = createEnemyInstance('VigiaDaFerrovia', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 6 && brutoCount < maxBrutosForWave) { for (let i=0; i < Math.min(BRUTO_SPAWN_BATCH_SIZE, maxBrutosForWave - brutoCount); i++) { const e = createEnemyInstance('BrutoBoyle', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 7 && sabotadorCount < maxSabotadoresForWave) { for (let i=0; i < Math.min(SABOTADOR_SPAWN_BATCH_SIZE, maxSabotadoresForWave - sabotadorCount); i++) { const e = createEnemyInstance('SabotadorDoCanyon', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 8 && mcgrawCount < maxMcGrawForWave) { for (let i=0; i < Math.min(MCGRAW_SPAWN_BATCH_SIZE, maxMcGrawForWave - mcgrawCount); i++) { const e = createEnemyInstance('AtiradorDeEliteMcGraw', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+    if (currentWave >= 9 && desertorCount < maxDesertorForWave) { for (let i=0; i < Math.min(DESERTOR_SPAWN_BATCH_SIZE, maxDesertorForWave - desertorCount); i++) { const e = createEnemyInstance('DesertorGavilanes', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
+
+    if (newEnemiesBatch.length > 0) {
+      setEnemies(prev => [...prev, ...newEnemiesBatch.filter(e => e !== null) as Enemy[]]);
+    }
+  }, [isShopPhase, isGameOver, isPaused, createEnemyInstance]);
 
 
   const handleBuyWeapon = (weaponToBuyOrUpgrade: Weapon) => {
@@ -822,7 +1043,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         });
                     }
                 }
-                else if (!proj.isBarrelOrDynamite) { // Standard bullet
+                else if (!proj.isBarrelOrDynamite) { 
                     const projCenterX = proj.x + proj.size / 2;
                     const projCenterY = proj.y + proj.size / 2;
                     const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
@@ -857,7 +1078,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             const updatedTraps: FissureTrapData[] = [];
             for (const trap of currentTraps) {
                 const newRemainingDuration = trap.remainingDuration - ENEMY_MOVE_INTERVAL;
-                if (newRemainingDuration <= 0) continue; // Skip if expired
+                if (newRemainingDuration <= 0) continue; 
 
                 let updatedTrap = { ...trap, remainingDuration: newRemainingDuration };
 
@@ -922,9 +1143,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     let fissureX, fissureY, attempts = 0;
                     const maxAttempts = 10;
                     do {
-                        // Spawn fissure somewhat near Caleb, but not on top. Random offset.
+                        
                         const angle = Math.random() * 2 * Math.PI;
-                        const radius = 80 + Math.random() * 100; // 80 to 180px away
+                        const radius = 80 + Math.random() * 100; 
                         fissureX = enemyCenterX + Math.cos(angle) * radius - FISSURE_TRAP_WIDTH / 2;
                         fissureY = enemyCenterY + Math.sin(angle) * radius - FISSURE_TRAP_HEIGHT / 2;
                         attempts++;
@@ -933,7 +1154,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                          fissureY < 0 || fissureY + FISSURE_TRAP_HEIGHT > GAME_HEIGHT) && attempts < maxAttempts
                     );
 
-                    if (attempts < maxAttempts) { // Valid position found
+                    if (attempts < maxAttempts) { 
                          setFissureTraps(prev => [...prev, {
                             id: `fissure_${Date.now()}_${Math.random()}`,
                             x: fissureX, y: fissureY,
@@ -962,14 +1183,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     updatedEnemy.dynamiteThrowCooldownTimer = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN + (Math.random() * 1000 - 500);
                 }
 
-                // Movement: try to keep a medium distance
+                
                 const idealDistSq = updatedEnemy.attackRangeSquared * 0.5;
-                if (distToPlayerSquared < idealDistSq * 0.8) { // Too close, move away
+                if (distToPlayerSquared < idealDistSq * 0.8) { 
                      if (distToPlayer > 0) {
                         updatedEnemy.x -= (deltaPlayerX / distToPlayer) * updatedEnemy.speed * 0.7;
                         updatedEnemy.y -= (deltaPlayerY / distToPlayer) * updatedEnemy.speed * 0.7;
                     }
-                } else if (distToPlayerSquared > idealDistSq * 1.2) { // Too far, move closer
+                } else if (distToPlayerSquared > idealDistSq * 1.2) { 
                     if (distToPlayer > 0) {
                         updatedEnemy.x += (deltaPlayerX / distToPlayer) * updatedEnemy.speed;
                         updatedEnemy.y += (deltaPlayerY / distToPlayer) * updatedEnemy.speed;
@@ -984,6 +1205,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 updatedEnemy.allySpawnCooldownTimer = Math.max(0, (updatedEnemy.allySpawnCooldownTimer || 0) - ENEMY_MOVE_INTERVAL);
                 updatedEnemy.modeSwitchCooldownTimer = Math.max(0, (updatedEnemy.modeSwitchCooldownTimer || 0) - ENEMY_MOVE_INTERVAL);
 
+                let newEnemiesFromAllySpawn: Enemy[] = [];
+
                 if (updatedEnemy.isDashing && updatedEnemy.dashTimer && updatedEnemy.dashTimer > 0) {
                     updatedEnemy.dashTimer -= ENEMY_MOVE_INTERVAL;
                     const currentDashSpeed = updatedEnemy.speed * ENEMY_DOMGAEL_DASH_SPEED_MULTIPLIER;
@@ -996,7 +1219,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     if (updatedEnemy.dashTimer <= 0) {
                         updatedEnemy.isDashing = false;
                     }
-                } else { 
+                } else {
                     const activeAllies = enemiesRef.current.filter(e => e.type === 'DesertorGavilanes' || e.type === 'PistoleiroVagabundo').length;
                     if ((updatedEnemy.allySpawnCooldownTimer || 0) <= 0 && activeAllies < ENEMY_DOMGAEL_MAX_ACTIVE_ALLIES) {
                         const allyTypeToSpawn = Math.random() < 0.6 ? 'DesertorGavilanes' : 'PistoleiroVagabundo';
@@ -1004,7 +1227,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         if (ally) {
                             ally.x = updatedEnemy.x + (Math.random() * 60 - 30);
                             ally.y = updatedEnemy.y + (Math.random() * 60 - 30);
-                            setEnemies(prev => [...prev, ally]);
+                            newEnemiesFromAllySpawn.push(ally);
                         }
                         updatedEnemy.allySpawnCooldownTimer = ENEMY_DOMGAEL_ALLY_SPAWN_COOLDOWN;
                     }
@@ -1047,7 +1270,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                                 traveledDistance: 0, maxRange: updatedEnemy.attackRangeSquared, projectileType: 'enemy_bullet',
                                 hitEnemyIds: new Set(), penetrationLeft: 0, isEnemyProjectile: true,
                             }]);
-                        } else { 
+                        } else {
                             setPlayer(p => {
                                 const newHealth = Math.max(0, p.health - updatedEnemy.damage);
                                 if (newHealth < p.health && !isPlayerTakingDamage) { setIsPlayerTakingDamage(true); setTimeout(() => setIsPlayerTakingDamage(false), 200); }
@@ -1057,16 +1280,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         }
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                    else if (!updatedEnemy.isDashing) { 
+                    else if (!updatedEnemy.isDashing) {
                         let targetX = playerCenterX;
                         let targetY = playerCenterY;
                         let currentSpeed = updatedEnemy.speed;
 
                         if (updatedEnemy.attackMode === 'pistol') {
                             const idealDist = Math.sqrt(updatedEnemy.attackRangeSquared) * 0.7;
-                            if (distToPlayer < idealDist * 0.8) { 
+                            if (distToPlayer < idealDist * 0.8) {
                                 targetX = enemyCenterX - deltaPlayerX; targetY = enemyCenterY - deltaPlayerY;
-                            } else if (distToPlayer < idealDist * 0.5) { 
+                            } else if (distToPlayer < idealDist * 0.5) {
                                 currentSpeed *= 1.5;
                                 targetX = enemyCenterX - deltaPlayerX; targetY = enemyCenterY - deltaPlayerY;
                             }
@@ -1074,13 +1297,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         const moveDx = targetX - enemyCenterX;
                         const moveDy = targetY - enemyCenterY;
                         const moveDist = Math.sqrt(moveDx*moveDx + moveDy*moveDy);
-                        if (moveDist > (updatedEnemy.attackMode === 'knife' ? 5 : Math.sqrt(updatedEnemy.attackRangeSquared) * 0.1) ) { 
+                        if (moveDist > (updatedEnemy.attackMode === 'knife' ? 5 : Math.sqrt(updatedEnemy.attackRangeSquared) * 0.1) ) {
                              if (moveDist > 0) {
                                 updatedEnemy.x += (moveDx / moveDist) * currentSpeed;
                                 updatedEnemy.y += (moveDy / moveDist) * currentSpeed;
                             }
                         }
                     }
+                }
+                if (newEnemiesFromAllySpawn.length > 0) {
+                    setEnemies(prevEnemies => [...prevEnemies, ...newEnemiesFromAllySpawn]);
                 }
                 updatedEnemy.x = Math.max(0, Math.min(updatedEnemy.x, GAME_WIDTH - updatedEnemy.width));
                 updatedEnemy.y = Math.max(0, Math.min(updatedEnemy.y, GAME_HEIGHT - updatedEnemy.height));
@@ -1138,6 +1364,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             } else if (updatedEnemy.type === 'Boss_CaptainMcGraw') {
                 updatedEnemy.attackCooldownTimer = Math.max(0, (updatedEnemy.attackCooldownTimer || 0) - ENEMY_MOVE_INTERVAL);
                 updatedEnemy.droneSpawnCooldownTimer = Math.max(0, (updatedEnemy.droneSpawnCooldownTimer || 0) - ENEMY_MOVE_INTERVAL);
+                let newDrones: Enemy[] = [];
 
                 if (updatedEnemy.isAiming) {
                     updatedEnemy.aimingTimer! -= ENEMY_MOVE_INTERVAL;
@@ -1161,7 +1388,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         if (drone) {
                             drone.x = updatedEnemy.x + (Math.random() * updatedEnemy.width - updatedEnemy.width / 2);
                             drone.y = updatedEnemy.y + (Math.random() * updatedEnemy.height - updatedEnemy.height / 2);
-                            setEnemies(prev => [...prev, drone]);
+                            newDrones.push(drone);
                         }
                         updatedEnemy.droneSpawnCooldownTimer = ENEMY_CAPTAINMCGRAW_DRONE_SPAWN_COOLDOWN;
                     }
@@ -1170,6 +1397,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         updatedEnemy.aimingTimer = ENEMY_CAPTAINMCGRAW_RIFLE_TELEGRAPH_DURATION;
                         setLaserSightLines(prev => [...prev.filter(l => l.id !== updatedEnemy.id), { id: updatedEnemy.id, x1: enemyCenterX, y1: enemyCenterY, x2: playerCenterX, y2: playerCenterY }]);
                     }
+                }
+                if (newDrones.length > 0) {
+                  setEnemies(prevEnemies => [...prevEnemies, ...newDrones]);
                 }
                 const idealDistSq = updatedEnemy.attackRangeSquared * 0.8;
                 if (distToPlayerSquared < idealDistSq * 0.7) {
@@ -1351,7 +1581,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
           generateShopOfferings();
           if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
           enemySpawnTimerId.current = null;
-          setFissureTraps([]); // Clear fissures at end of wave
+          setFissureTraps([]); 
           return WAVE_DURATION;
         }
         return prevTimer - 1;
@@ -1361,243 +1591,11 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   }, [isGameOver, isShopPhase, isPaused, generateShopOfferings]);
 
 
-  const createEnemyInstance = useCallback((
-    type: EnemyType,
-    currentWave: number,
-    currentPlayer: Player
-  ): Enemy | null => {
-    let enemyBaseSize: number, enemyInitialHealth: number, enemyBaseSpeed: number,
-        enemyDamageVal: number, enemyXpVal: number, enemyAtkRangeSq: number,
-        enemyAtkCooldown: number, enemyIsDetonating = false, enemyDetonationTimer = 0,
-        enemyIsAiming = false, enemyAimingTimer = 0, enemyIsBursting = false,
-        enemyBurstShotsLeft = 0, enemyBurstTimer = 0, enemyBarrelThrowCooldownTimer = 0,
-        enemyDroneSpawnCooldownTimer = 0, enemyAttackMode: 'pistol' | 'knife' | undefined = undefined,
-        enemyDashCooldownTimer = 0, enemyAllySpawnCooldownTimer = 0, enemyModeSwitchCooldownTimer = 0,
-        enemyDynamiteThrowCooldownTimer = 0, enemyFissureCreateCooldownTimer = 0;
-
-    let finalHealth: number, finalSpeed: number, finalXpValue: number;
-
-
-    switch (type) {
-        case 'ArruaceiroSaloon':
-            enemyBaseSize = ENEMY_ARROCEIRO_SIZE; enemyInitialHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_ARROCEIRO_BASE_SPEED; enemyDamageVal = ENEMY_ARROCEIRO_DAMAGE;
-            enemyXpVal = ENEMY_ARROCEIRO_XP_VALUE; enemyAtkRangeSq = ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_ARROCEIRO_ATTACK_COOLDOWN; break;
-        case 'Cão de Fazenda':
-            enemyBaseSize = ENEMY_CAODEFAZENDA_SIZE; enemyInitialHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED; enemyDamageVal = ENEMY_CAODEFAZENDA_DAMAGE;
-            enemyXpVal = ENEMY_CAODEFAZENDA_XP_VALUE; enemyAtkRangeSq = ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN; break;
-        case 'PistoleiroVagabundo':
-            enemyBaseSize = ENEMY_PISTOLEIRO_SIZE; enemyInitialHealth = ENEMY_PISTOLEIRO_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_PISTOLEiro_BASE_SPEED; enemyDamageVal = ENEMY_PISTOLEIRO_DAMAGE;
-            enemyXpVal = ENEMY_PISTOLEIRO_XP_VALUE; enemyAtkRangeSq = ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_PISTOLEIRO_ATTACK_COOLDOWN; break;
-        case 'MineradorRebelde':
-            enemyBaseSize = ENEMY_MINERADOR_SIZE; enemyInitialHealth = ENEMY_MINERADOR_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_MINERADOR_BASE_SPEED; enemyDamageVal = ENEMY_MINERADOR_DAMAGE;
-            enemyXpVal = ENEMY_MINERADOR_XP_VALUE; enemyAtkRangeSq = ENEMY_MINERADOR_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_MINERADOR_ATTACK_COOLDOWN; break;
-        case 'VigiaDaFerrovia':
-            enemyBaseSize = ENEMY_VIGIA_SIZE; enemyInitialHealth = ENEMY_VIGIA_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_VIGIA_BASE_SPEED; enemyDamageVal = ENEMY_VIGIA_DAMAGE;
-            enemyXpVal = ENEMY_VIGIA_XP_VALUE; enemyAtkRangeSq = ENEMY_VIGIA_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_VIGIA_ATTACK_COOLDOWN; break;
-        case 'BrutoBoyle':
-            enemyBaseSize = ENEMY_BRUTOBOYLE_SIZE; enemyInitialHealth = ENEMY_BRUTOBOYLE_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_BRUTOBOYLE_BASE_SPEED; enemyDamageVal = ENEMY_BRUTOBOYLE_DAMAGE;
-            enemyXpVal = ENEMY_BRUTOBOYLE_XP_VALUE; enemyAtkRangeSq = ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_BRUTOBOYLE_ATTACK_COOLDOWN; break;
-        case 'SabotadorDoCanyon':
-            enemyBaseSize = ENEMY_SABOTADOR_SIZE; enemyInitialHealth = ENEMY_SABOTADOR_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_SABOTADOR_BASE_SPEED; enemyDamageVal = ENEMY_SABOTADOR_DAMAGE;
-            enemyXpVal = ENEMY_SABOTADOR_XP_VALUE; enemyAtkRangeSq = ENEMY_SABOTADOR_DETONATION_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_SABOTADOR_DETONATION_TIMER_DURATION; enemyIsDetonating = false; enemyDetonationTimer = 0; break;
-        case 'AtiradorDeEliteMcGraw':
-            enemyBaseSize = ENEMY_MCGRAW_SIZE; enemyInitialHealth = ENEMY_MCGRAW_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_MCGRAW_BASE_SPEED; enemyDamageVal = ENEMY_MCGRAW_DAMAGE;
-            enemyXpVal = ENEMY_MCGRAW_XP_VALUE; enemyAtkRangeSq = ENEMY_MCGRAW_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_MCGRAW_ATTACK_COOLDOWN; enemyIsAiming = false; enemyAimingTimer = 0; break;
-        case 'DesertorGavilanes':
-            enemyBaseSize = ENEMY_DESERTOR_SIZE; enemyInitialHealth = ENEMY_DESERTOR_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_DESERTOR_BASE_SPEED; enemyDamageVal = ENEMY_DESERTOR_DAMAGE;
-            enemyXpVal = ENEMY_DESERTOR_XP_VALUE; enemyAtkRangeSq = ENEMY_DESERTOR_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_DESERTOR_ATTACK_COOLDOWN; enemyIsBursting = false; enemyBurstShotsLeft = 0; enemyBurstTimer = 0; break;
-        case 'Boss_BigDoyle':
-            enemyBaseSize = ENEMY_BIGDOYLE_SIZE; enemyInitialHealth = ENEMY_BIGDOYLE_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_BIGDOYLE_BASE_SPEED; enemyDamageVal = ENEMY_BIGDOYLE_MELEE_DAMAGE;
-            enemyXpVal = ENEMY_BIGDOYLE_XP_VALUE; enemyAtkRangeSq = ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_BIGDOYLE_MELEE_ATTACK_COOLDOWN;
-            enemyBarrelThrowCooldownTimer = ENEMY_BIGDOYLE_BARREL_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
-            break;
-        case 'Boss_CaptainMcGraw':
-            enemyBaseSize = ENEMY_CAPTAINMCGRAW_SIZE; enemyInitialHealth = ENEMY_CAPTAINMCGRAW_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_CAPTAINMCGRAW_BASE_SPEED; enemyDamageVal = ENEMY_CAPTAINMCGRAW_RIFLE_DAMAGE;
-            enemyXpVal = ENEMY_CAPTAINMCGRAW_XP_VALUE; enemyAtkRangeSq = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_COOLDOWN;
-            enemyIsAiming = false; enemyAimingTimer = 0;
-            enemyDroneSpawnCooldownTimer = ENEMY_CAPTAINMCGRAW_DRONE_SPAWN_COOLDOWN * (0.3 + Math.random() * 0.4);
-            break;
-        case 'Boss_DomGael':
-            enemyBaseSize = ENEMY_DOMGAEL_SIZE; enemyInitialHealth = ENEMY_DOMGAEL_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_DOMGAEL_BASE_SPEED; enemyDamageVal = ENEMY_DOMGAEL_PISTOL_DAMAGE; 
-            enemyXpVal = ENEMY_DOMGAEL_XP_VALUE; enemyAtkRangeSq = ENEMY_DOMGAEL_PISTOL_ATTACK_RANGE_SQUARED; 
-            enemyAtkCooldown = ENEMY_DOMGAEL_PISTOL_COOLDOWN; 
-            enemyAttackMode = 'pistol';
-            enemyDashCooldownTimer = ENEMY_DOMGAEL_DASH_COOLDOWN * (0.2 + Math.random() * 0.8);
-            enemyAllySpawnCooldownTimer = ENEMY_DOMGAEL_ALLY_SPAWN_COOLDOWN * (0.5 + Math.random() * 0.5);
-            enemyModeSwitchCooldownTimer = 0;
-            break;
-        case 'Boss_CalebHodge':
-            enemyBaseSize = ENEMY_CALEBHODGE_SIZE; enemyInitialHealth = ENEMY_CALEBHODGE_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_CALEBHODGE_BASE_SPEED; enemyDamageVal = ENEMY_CALEBHODGE_DYNAMITE_DAMAGE; // Dynamite damage, fissure separate
-            enemyXpVal = ENEMY_CALEBHODGE_XP_VALUE; enemyAtkRangeSq = ENEMY_CALEBHODGE_DYNAMITE_THROW_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN; // This is for dynamite. Fissure has its own.
-            enemyDynamiteThrowCooldownTimer = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
-            enemyFissureCreateCooldownTimer = ENEMY_CALEBHODGE_FISSURE_CREATE_COOLDOWN * (0.3 + Math.random() * 0.7);
-            break;
-        case 'PatrolDrone':
-            enemyBaseSize = ENEMY_DRONE_SIZE; enemyInitialHealth = ENEMY_DRONE_INITIAL_HEALTH;
-            enemyBaseSpeed = ENEMY_DRONE_BASE_SPEED; enemyDamageVal = ENEMY_DRONE_DAMAGE;
-            enemyXpVal = ENEMY_DRONE_XP_VALUE; enemyAtkRangeSq = ENEMY_DRONE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = ENEMY_DRONE_ATTACK_COOLDOWN;
-
-            finalHealth = enemyInitialHealth; finalSpeed = enemyBaseSpeed; finalXpValue = enemyXpVal;
-             let droneX, droneY; const droneSpawnPadding = 50;
-            droneX = Math.random() * (GAME_WIDTH - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
-            droneY = Math.random() * (GAME_HEIGHT - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
-
-            return {
-                id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: droneX, y: droneY,
-                width: enemyBaseSize, height: enemyBaseSize, health: finalHealth, maxHealth: finalHealth,
-                type: type, xpValue: finalXpValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
-                speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
-                attackCooldown: enemyAtkCooldown,
-            };
-        default: console.error("Tipo de inimigo desconhecido:", type); return null;
-    }
-
-    if (type.startsWith('Boss_')) {
-        const bossAppearances = Math.floor(currentWave / 10); 
-        let healthMultiplier = 0.25; 
-        let xpMultiplier = 0.5;
-        if (type === 'Boss_CaptainMcGraw') { healthMultiplier = 0.20; xpMultiplier = 0.40; }
-        if (type === 'Boss_DomGael') { healthMultiplier = 0.22; xpMultiplier = 0.45; }
-        if (type === 'Boss_CalebHodge') { healthMultiplier = 0.28; xpMultiplier = 0.55; }
-
-        finalHealth = Math.round(enemyInitialHealth * (1 + bossAppearances * healthMultiplier));
-        finalXpValue = Math.round(enemyXpVal * (1 + bossAppearances * xpMultiplier));
-        finalSpeed = enemyBaseSpeed; 
-    } else if (type !== 'PatrolDrone') {
-        const waveMultiplier = (currentWave -1) * 0.15;
-        finalHealth = Math.round(enemyInitialHealth * (1 + waveMultiplier * 1.2));
-        finalSpeed = enemyBaseSpeed * (1 + waveMultiplier * 0.5);
-        if (['ArruaceiroSaloon', 'Cão de Fazenda'].includes(type)) finalXpValue += Math.floor(currentWave / 2);
-        else if (['PistoleiroVagabundo', 'MineradorRebelde', 'SabotadorDoCanyon'].includes(type)) finalXpValue += currentWave -1;
-        else if (['VigiaDaFerrovia', 'BrutoBoyle', 'AtiradorDeEliteMcGraw', 'DesertorGavilanes'].includes(type)) finalXpValue += Math.floor((currentWave -1) * 1.5);
-    }
-
-
-    let newX, newY; let attempts = 0; const maxAttempts = 20;
-    const minDistanceFromPlayerSquared = (type.startsWith('Boss_') ? PLAYER_SIZE * 3 : PLAYER_SIZE * 5) ** 2;
-    const enemyWidth = enemyBaseSize, enemyHeight = enemyBaseSize, padding = type.startsWith('Boss_') ? 0 : 20;
-
-    do {
-        newX = padding + Math.random() * (GAME_WIDTH - enemyWidth - 2 * padding);
-        newY = padding + Math.random() * (GAME_HEIGHT - enemyHeight - 2 * padding);
-        attempts++;
-        if (attempts >= maxAttempts ||
-            ( (currentPlayer.x + currentPlayer.width / 2 - (newX + enemyWidth/2))**2 +
-              (currentPlayer.y + currentPlayer.height / 2 - (newY + enemyHeight/2))**2 ) >= minDistanceFromPlayerSquared) break;
-    } while (true);
-
-    if (type.startsWith('Boss_')) {
-        newX = GAME_WIDTH / 2 - enemyWidth / 2;
-        newY = GAME_HEIGHT / 4 - enemyHeight / 2;
-    }
-
-
-    return {
-        id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: newX, y: newY,
-        width: enemyWidth, height: enemyHeight, health: finalHealth, maxHealth: finalHealth,
-        type: type, xpValue: finalXpValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
-        speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
-        attackCooldown: enemyAtkCooldown, isDetonating: enemyIsDetonating, detonationTimer: enemyDetonationTimer,
-        isAiming: enemyIsAiming, aimingTimer: enemyAimingTimer, isBursting: enemyIsBursting,
-        burstShotsLeft: enemyBurstShotsLeft, burstTimer: enemyBurstTimer,
-        barrelThrowCooldownTimer: type === 'Boss_BigDoyle' ? enemyBarrelThrowCooldownTimer : undefined,
-        dynamiteThrowCooldownTimer: type === 'Boss_CalebHodge' ? enemyDynamiteThrowCooldownTimer : undefined,
-        fissureCreateCooldownTimer: type === 'Boss_CalebHodge' ? enemyFissureCreateCooldownTimer : undefined,
-        droneSpawnCooldownTimer: type === 'Boss_CaptainMcGraw' ? enemyDroneSpawnCooldownTimer : undefined,
-        attackMode: type === 'Boss_DomGael' ? enemyAttackMode : undefined,
-        isDashing: type === 'Boss_DomGael' ? false : undefined,
-        dashTimer: type === 'Boss_DomGael' ? 0 : undefined,
-        dashCooldownTimer: type === 'Boss_DomGael' ? enemyDashCooldownTimer : undefined,
-        allySpawnCooldownTimer: type === 'Boss_DomGael' ? enemyAllySpawnCooldownTimer : undefined,
-        modeSwitchCooldownTimer: type === 'Boss_DomGael' ? enemyModeSwitchCooldownTimer : undefined,
-    };
-  }, []);
-
-
-  const spawnEnemiesOnTick = useCallback(() => {
-    if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) return;
-
-    const currentWave = waveRef.current;
-    const currentPlayer = playerRef.current;
-    const currentEnemiesList = enemiesRef.current;
-
-    const arruaceiroCount = currentEnemiesList.filter(e => e.type === 'ArruaceiroSaloon').length;
-    const caoCount = currentEnemiesList.filter(e => e.type === 'Cão de Fazenda').length;
-    const pistoleiroCount = currentEnemiesList.filter(e => e.type === 'PistoleiroVagabundo').length;
-    const mineradorCount = currentEnemiesList.filter(e => e.type === 'MineradorRebelde').length;
-    const vigiaCount = currentEnemiesList.filter(e => e.type === 'VigiaDaFerrovia').length;
-    const brutoCount = currentEnemiesList.filter(e => e.type === 'BrutoBoyle').length;
-    const sabotadorCount = currentEnemiesList.filter(e => e.type === 'SabotadorDoCanyon').length;
-    const mcgrawCount = currentEnemiesList.filter(e => e.type === 'AtiradorDeEliteMcGraw').length;
-    const desertorCount = currentEnemiesList.filter(e => e.type === 'DesertorGavilanes').length;
-
-    const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
-    const maxCaesForWave = currentWave >= 2 ? MAX_CAES_WAVE_BASE + (currentWave - 2) * 1 : 0;
-    const maxPistoleirosForWave = currentWave >= 3 ? MAX_PISTOLEIROS_WAVE_BASE + Math.floor((currentWave - 3) / 2) * PISTOLEIRO_SPAWN_BATCH_SIZE : 0;
-    const maxMineradoresForWave = currentWave >= 4 ? MAX_MINERADORES_WAVE_BASE + Math.floor((currentWave - 4) / 2) * MINERADOR_SPAWN_BATCH_SIZE : 0;
-    const maxVigiasForWave = currentWave >= 5 ? MAX_VIGIAS_WAVE_BASE + Math.floor((currentWave - 5) / 2) * VIGIA_SPAWN_BATCH_SIZE : 0;
-    const maxBrutosForWave = currentWave >= 6 ? MAX_BRUTOS_WAVE_BASE + Math.floor((currentWave - 6) / 3) * BRUTO_SPAWN_BATCH_SIZE : 0;
-    const maxSabotadoresForWave = currentWave >= 7 ? MAX_SABOTADORES_WAVE_BASE + Math.floor((currentWave - 7) / 2) * SABOTADOR_SPAWN_BATCH_SIZE : 0;
-    const maxMcGrawForWave = currentWave >= 8 ? MAX_MCGRAW_WAVE_BASE + Math.floor((currentWave - 8) / 3) * MCGRAW_SPAWN_BATCH_SIZE : 0;
-    const maxDesertorForWave = currentWave >= 9 ? MAX_DESERTOR_WAVE_BASE + Math.floor((currentWave - 9) / 2) * DESERTOR_SPAWN_BATCH_SIZE : 0;
-
-    const newEnemiesBatch: Enemy[] = [];
-    if (currentWave >= 1 && arruaceiroCount < maxArroceirosForWave) { const e = createEnemyInstance('ArruaceiroSaloon', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); }
-    if (currentWave >= 2 && caoCount < maxCaesForWave) { for (let i=0; i < Math.min(CAO_SPAWN_BATCH_SIZE, maxCaesForWave - caoCount); i++) { const e = createEnemyInstance('Cão de Fazenda', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 3 && pistoleiroCount < maxPistoleirosForWave) { for (let i=0; i < Math.min(PISTOLEIRO_SPAWN_BATCH_SIZE, maxPistoleirosForWave - pistoleiroCount); i++) { const e = createEnemyInstance('PistoleiroVagabundo', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 4 && mineradorCount < maxMineradoresForWave) { for (let i=0; i < Math.min(MINERADOR_SPAWN_BATCH_SIZE, maxMineradoresForWave - mineradorCount); i++) { const e = createEnemyInstance('MineradorRebelde', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 5 && vigiaCount < maxVigiasForWave) { for (let i=0; i < Math.min(VIGIA_SPAWN_BATCH_SIZE, maxVigiasForWave - vigiaCount); i++) { const e = createEnemyInstance('VigiaDaFerrovia', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 6 && brutoCount < maxBrutosForWave) { for (let i=0; i < Math.min(BRUTO_SPAWN_BATCH_SIZE, maxBrutosForWave - brutoCount); i++) { const e = createEnemyInstance('BrutoBoyle', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 7 && sabotadorCount < maxSabotadoresForWave) { for (let i=0; i < Math.min(SABOTADOR_SPAWN_BATCH_SIZE, maxSabotadoresForWave - sabotadorCount); i++) { const e = createEnemyInstance('SabotadorDoCanyon', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 8 && mcgrawCount < maxMcGrawForWave) { for (let i=0; i < Math.min(MCGRAW_SPAWN_BATCH_SIZE, maxMcGrawForWave - mcgrawCount); i++) { const e = createEnemyInstance('AtiradorDeEliteMcGraw', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (currentWave >= 9 && desertorCount < maxDesertorForWave) { for (let i=0; i < Math.min(DESERTOR_SPAWN_BATCH_SIZE, maxDesertorForWave - desertorCount); i++) { const e = createEnemyInstance('DesertorGavilanes', currentWave, currentPlayer); if (e) newEnemiesBatch.push(e); } }
-    if (newEnemiesBatch.length > 0) setEnemies(prev => [...prev, ...newEnemiesBatch]);
-  }, [isShopPhase, isGameOver, isPaused, createEnemyInstance]);
-
-
-  useEffect(() => {
-    if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) {
-      if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
-      enemySpawnTimerId.current = null;
-      return;
-    }
-    if (!enemySpawnTimerId.current) {
-        spawnEnemiesOnTick();
-        enemySpawnTimerId.current = setInterval(spawnEnemiesOnTick, ENEMY_SPAWN_TICK_INTERVAL);
-    }
-    return () => {  };
-  }, [isShopPhase, isGameOver, isPaused, spawnEnemiesOnTick, isBossWaveActive.current]);
 
 
   const handleStartWaveLogic = (currentWaveNumber: number) => {
     const newWave = currentWaveNumber + 1;
-    setFissureTraps([]); // Clear fissures at the start of any wave logic
+    setFissureTraps([]); 
     if ((newWave % 10 === 0)) {
         isBossWaveActive.current = true;
         currentBossId.current = null;
@@ -1620,13 +1618,26 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     } else {
         isBossWaveActive.current = false;
         currentBossId.current = null;
-        setEnemies([]);
+        
         if (!enemySpawnTimerId.current && !isPaused && !isShopPhase && !isGameOver) {
-            spawnEnemiesOnTick();
+            spawnEnemiesOnTick(); 
             enemySpawnTimerId.current = setInterval(spawnEnemiesOnTick, ENEMY_SPAWN_TICK_INTERVAL);
         }
     }
   };
+
+  useEffect(() => {
+    if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) {
+      if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
+      enemySpawnTimerId.current = null;
+      return;
+    }
+    if (!enemySpawnTimerId.current) {
+        spawnEnemiesOnTick();
+        enemySpawnTimerId.current = setInterval(spawnEnemiesOnTick, ENEMY_SPAWN_TICK_INTERVAL);
+    }
+    
+  }, [isShopPhase, isGameOver, isPaused, spawnEnemiesOnTick, isBossWaveActive.current]);
 
   const startNextWave = () => {
     setIsShopPhase(false);
@@ -1639,7 +1650,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     lastLogicUpdateTimestampRef.current = 0;
     setIsPaused(false);
 
-    handleStartWaveLogic(wave);
+    handleStartWaveLogic(wave); 
   };
 
 
@@ -1693,12 +1704,12 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
               )}
               <PlayerCharacter x={player.x} y={player.y} width={player.width} height={player.height} isTakingDamage={isPlayerTakingDamage} />
               {fissureTraps.map((trap) => (
-                <FissureTrapCharacter 
-                    key={trap.id} 
-                    x={trap.x} y={trap.y} 
-                    width={trap.width} height={trap.height} 
-                    remainingDuration={trap.remainingDuration} 
-                    maxDuration={FISSURE_TRAP_DURATION} 
+                <FissureTrapCharacter
+                    key={trap.id}
+                    x={trap.x} y={trap.y}
+                    width={trap.width} height={trap.height}
+                    remainingDuration={trap.remainingDuration}
+                    maxDuration={FISSURE_TRAP_DURATION}
                 />
               ))}
               {enemies.map((enemy) => (
@@ -1740,4 +1751,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
