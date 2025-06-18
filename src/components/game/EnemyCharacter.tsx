@@ -4,18 +4,19 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-type EnemyType = 
-  | 'ArruaceiroSaloon' 
-  | 'Cão de Fazenda' 
-  | 'PistoleiroVagabundo' 
-  | 'MineradorRebelde' 
-  | 'VigiaDaFerrovia' 
-  | 'BrutoBoyle' 
-  | 'SabotadorDoCanyon' 
-  | 'AtiradorDeEliteMcGraw' 
+type EnemyType =
+  | 'ArruaceiroSaloon'
+  | 'Cão de Fazenda'
+  | 'PistoleiroVagabundo'
+  | 'MineradorRebelde'
+  | 'VigiaDaFerrovia'
+  | 'BrutoBoyle'
+  | 'SabotadorDoCanyon'
+  | 'AtiradorDeEliteMcGraw'
   | 'DesertorGavilanes'
   | 'Boss_BigDoyle'
   | 'Boss_CaptainMcGraw'
+  | 'Boss_DomGael'
   | 'PatrolDrone';
 
 interface EnemyCharacterProps {
@@ -46,6 +47,7 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       case 'DesertorGavilanes': return '💨';
       case 'Boss_BigDoyle': return '🧨';
       case 'Boss_CaptainMcGraw': return '🎖️';
+      case 'Boss_DomGael': return '🐺';
       case 'PatrolDrone': return '⚙️';
       default: return '?';
     }
@@ -55,7 +57,7 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
   const visualCueClasses: string[] = [];
   if (isStunned) visualCueClasses.push('opacity-50');
   if (isDetonating && type === 'SabotadorDoCanyon') visualCueClasses.push('animate-pulse', 'bg-red-600/70', 'rounded-full');
-  
+
   const isBoss = type.startsWith('Boss_');
 
   return (
@@ -63,14 +65,14 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       className={cn(
         "absolute shadow-md flex items-center justify-center transition-all duration-100",
         visualCueClasses.join(' '),
-        isBoss ? 'border-2 border-yellow-400 rounded-lg' : '' 
+        isBoss ? 'border-2 border-yellow-400 rounded-lg' : ''
         )}
       style={{
         left: x,
         top: y,
         width: width,
         height: height,
-        fontSize: `${Math.min(width, height) * (isBoss ? 0.7 : 0.8)}px`, 
+        fontSize: `${Math.min(width, height) * (isBoss ? 0.7 : 0.8)}px`,
         lineHeight: `${height}px`,
       }}
       role="img"
@@ -81,7 +83,7 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       <div
         className={cn(
             "absolute left-0 w-full bg-muted rounded-sm overflow-hidden border border-background",
-            isBoss ? "top-[-12px] h-[8px]" : "top-[-10px] h-[6px]" 
+            isBoss ? "top-[-12px] h-[8px]" : "top-[-10px] h-[6px]"
         )}
         style={{ width: `${width}px`}}
       >
