@@ -132,7 +132,7 @@ const ENEMY_BIGDOYLE_SIZE = PLAYER_SIZE * 1.6;
 const ENEMY_BIGDOYLE_INITIAL_HEALTH = 200;
 const ENEMY_BIGDOYLE_MELEE_DAMAGE = 15;
 const ENEMY_BIGDOYLE_BARREL_DAMAGE = 25;
-const ENEMY_BIGDOYLE_BASE_SPEED = 0.8; // Adjusted from 0.7
+const ENEMY_BIGDOYLE_BASE_SPEED = 0.8;
 const ENEMY_BIGDOYLE_XP_VALUE = 75;
 const ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_BIGDOYLE_SIZE / 2 + 15) ** 2;
 const ENEMY_BIGDOYLE_MELEE_ATTACK_COOLDOWN = 2500;
@@ -376,6 +376,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const playerRef = useRef(player);
   const waveRef = useRef(wave);
   const enemiesRef = useRef(enemies);
+  const playerProjectilesRef = useRef(playerProjectiles);
   const isBossWaveActive = useRef(false);
   const currentBossId = useRef<string | null>(null);
 
@@ -383,6 +384,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   useEffect(() => { playerRef.current = player; }, [player]);
   useEffect(() => { waveRef.current = wave; }, [wave]);
   useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
+  useEffect(() => { playerProjectilesRef.current = playerProjectiles; }, [playerProjectiles]);
 
 
   useLayoutEffect(() => {
@@ -651,7 +653,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         allySpawnCooldownTimer: type === 'Boss_DomGael' ? enemyAllySpawnCooldownTimer : undefined,
         modeSwitchCooldownTimer: type === 'Boss_DomGael' ? enemyModeSwitchCooldownTimer : undefined,
     };
-  }, []);
+  }, [fissureTraps]);
 
   const spawnEnemiesOnTick = useCallback(() => {
     if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) return;
@@ -891,75 +893,73 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
         lastLogicUpdateTimestampRef.current = timestamp;
 
-        const enemiesHitThisFrame = new Map<string, { damage: number, originWeaponId?: string }>();
-        const xpOrbsFromKills: XPOrbData[] = [];
-        let scoreFromKills = 0;
+        const newPlayerProjectilesList: ProjectileData[] = [];
+        const damageToApplyToEnemies = new Map<string, { damage: number, originWeaponId?: string }>();
 
-        setPlayerProjectiles(prevPlayerProjectiles => {
-            const movedProjectiles = prevPlayerProjectiles.map(proj => ({
-                ...proj,
-                x: proj.x + proj.dx * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED),
-                y: proj.y + proj.dy * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED),
-                traveledDistance: proj.traveledDistance + (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED),
-            }));
+        for (const proj of playerProjectilesRef.current) {
+            let currentProj = { ...proj }; // Work with a mutable copy
 
-            const projectilesToKeep: ProjectileData[] = [];
+            currentProj.x += currentProj.dx * (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
+            currentProj.y += currentProj.dy * (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
+            currentProj.traveledDistance += (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
 
-            for (const proj of movedProjectiles) {
-                let currentProj = {...proj}; // Work with a mutable copy for this frame's logic
-                let shouldKeepProjectile = true;
+            let projectileShouldBeRemoved = false;
 
-                if (currentProj.x < -(currentProj.width || currentProj.size) || currentProj.x > GAME_WIDTH ||
-                    currentProj.y < -(currentProj.height || currentProj.size) || currentProj.y > GAME_HEIGHT ||
-                    currentProj.traveledDistance >= currentProj.maxRange) {
-                    shouldKeepProjectile = false;
-                }
+            if (currentProj.x < -(currentProj.width || currentProj.size) || currentProj.x > GAME_WIDTH ||
+                currentProj.y < -(currentProj.height || currentProj.size) || currentProj.y > GAME_HEIGHT ||
+                currentProj.traveledDistance >= currentProj.maxRange) {
+                projectileShouldBeRemoved = true;
+            }
 
-                if (shouldKeepProjectile) {
-                    for (const enemy of enemiesRef.current) {
-                        if (enemy.health <= 0 || (currentProj.hitEnemyIds.has(enemy.id) && currentProj.originWeaponId !== 'justica_ferro')) {
-                            continue;
-                        }
+            if (!projectileShouldBeRemoved) {
+                for (const enemy of enemiesRef.current) {
+                    if (enemy.health <= 0) continue;
+                    if (currentProj.hitEnemyIds.has(enemy.id) && currentProj.originWeaponId !== 'justica_ferro') {
+                        continue;
+                    }
 
-                        const projWidth = currentProj.width || currentProj.size;
-                        const projHeight = currentProj.height || currentProj.size;
-                        const projCenterX = currentProj.x + projWidth / 2;
-                        const projCenterY = currentProj.y + projHeight / 2;
-                        const enemyCenterX = enemy.x + enemy.width / 2;
-                        const enemyCenterY = enemy.y + enemy.height / 2;
+                    const projWidth = currentProj.width || currentProj.size;
+                    const projHeight = currentProj.height || currentProj.size;
+                    const projCenterX = currentProj.x + projWidth / 2;
+                    const projCenterY = currentProj.y + projHeight / 2;
+                    const enemyCenterX = enemy.x + enemy.width / 2;
+                    const enemyCenterY = enemy.y + enemy.height / 2;
 
-                        if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + enemy.width / 2) &&
-                            Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + enemy.height / 2)) {
-                            
-                            const existingHit = enemiesHitThisFrame.get(enemy.id) || { damage: 0, originWeaponId: currentProj.originWeaponId };
-                            enemiesHitThisFrame.set(enemy.id, {
-                                damage: existingHit.damage + currentProj.damage,
-                                originWeaponId: currentProj.originWeaponId 
-                            });
-                            currentProj.hitEnemyIds.add(enemy.id);
+                    if (Math.abs(projCenterX - enemyCenterX) < (projWidth / 2 + enemy.width / 2) &&
+                        Math.abs(projCenterY - enemyCenterY) < (projHeight / 2 + enemy.height / 2)) {
 
-                            if (currentProj.penetrationLeft > 0) {
-                                currentProj.penetrationLeft--;
-                            } else {
-                               shouldKeepProjectile = false; 
-                               break; 
-                            }
+                        const existingDamageEntry = damageToApplyToEnemies.get(enemy.id) || { damage: 0, originWeaponId: currentProj.originWeaponId };
+                        damageToApplyToEnemies.set(enemy.id, {
+                            damage: existingDamageEntry.damage + currentProj.damage,
+                            originWeaponId: currentProj.originWeaponId
+                        });
+
+                        currentProj.hitEnemyIds.add(enemy.id);
+
+                        if (currentProj.penetrationLeft > 0) {
+                            currentProj.penetrationLeft--;
+                        } else {
+                            projectileShouldBeRemoved = true;
+                            break; 
                         }
                     }
                 }
-                
-                if (shouldKeepProjectile) {
-                    projectilesToKeep.push(currentProj);
-                }
             }
-            return projectilesToKeep;
-        });
+            
+            if (!projectileShouldBeRemoved) {
+                newPlayerProjectilesList.push(currentProj);
+            }
+        }
+        setPlayerProjectiles(newPlayerProjectilesList);
 
-        if (enemiesHitThisFrame.size > 0) {
+        if (damageToApplyToEnemies.size > 0) {
+            const xpOrbsFromKills: XPOrbData[] = [];
+            let scoreFromKills = 0;
+
             setEnemies(currentEnemies =>
                 currentEnemies.map(enemy => {
-                    if (enemiesHitThisFrame.has(enemy.id)) {
-                        const hitData = enemiesHitThisFrame.get(enemy.id)!;
+                    if (damageToApplyToEnemies.has(enemy.id)) {
+                        const hitData = damageToApplyToEnemies.get(enemy.id)!;
                         const damageTaken = hitData.damage;
                         const newHealth = enemy.health - damageTaken;
 
@@ -984,18 +984,17 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                             }
                         }
                         const vozDoTrovaoWeapon = playerWeapons.find(w => w.id === 'voz_trovao');
-                        if (hitData.originWeaponId === 'voz_trovao' && vozDoTrovaoWeapon?.stunDuration) {
-                           enemy.isStunned = true;
-                           enemy.stunTimer = vozDoTrovaoWeapon.stunDuration;
+                        if (hitData.originWeaponId === 'voz_trovao' && vozDoTrovaoWeapon?.stunDuration && newHealth > 0) {
+                           return { ...enemy, health: newHealth, isStunned: true, stunTimer: vozDoTrovaoWeapon.stunDuration };
                         }
                         return { ...enemy, health: newHealth };
                     }
                     return enemy;
                 }).filter(enemy => enemy.health > 0)
             );
+             if (xpOrbsFromKills.length > 0) setXpOrbs(prevOrbs => [...prevOrbs, ...xpOrbsFromKills]);
+             if (scoreFromKills > 0) setScore(prevScore => prevScore + scoreFromKills);
         }
-        if (xpOrbsFromKills.length > 0) setXpOrbs(prevOrbs => [...prevOrbs, ...xpOrbsFromKills]);
-        if (scoreFromKills > 0) setScore(prevScore => prevScore + scoreFromKills);
 
         setEnemyProjectiles(prevEnemyProjectiles => {
             const updatedProjectiles = prevEnemyProjectiles.map(proj => {
@@ -1554,6 +1553,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 } else if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
                     const dist = Math.sqrt(distToPlayerSquared); if (dist > 0) { updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed; updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed; } }
                 }
+             updatedEnemy.x = Math.max(0, Math.min(updatedEnemy.x, GAME_WIDTH - updatedEnemy.width));
+             updatedEnemy.y = Math.max(0, Math.min(updatedEnemy.y, GAME_HEIGHT - updatedEnemy.height));
             return updatedEnemy;
           }).filter(enemy => enemy.health > 0)
         );
@@ -1610,7 +1611,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
 
   const handleStartWaveLogic = (currentWaveNumber: number) => {
-    const newWave = currentWaveNumber + 1; // This is actually the wave we are starting
+    const newWave = currentWaveNumber + 1; 
     setFissureTraps([]); 
     if ((newWave % 10 === 0)) {
         isBossWaveActive.current = true;
@@ -1767,4 +1768,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
