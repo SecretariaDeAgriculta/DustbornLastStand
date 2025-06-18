@@ -98,6 +98,16 @@ const ENEMY_MCGRAW_ATTACK_RANGE_SQUARED = (550 * 550);
 const ENEMY_MCGRAW_ATTACK_COOLDOWN = 4000;
 const ENEMY_MCGRAW_TELEGRAPH_DURATION = 1500;
 
+const ENEMY_DESERTOR_SIZE = PLAYER_SIZE;
+const ENEMY_DESERTOR_INITIAL_HEALTH = 35;
+const ENEMY_DESERTOR_DAMAGE = 8;
+const ENEMY_DESERTOR_BASE_SPEED = 2.2;
+const ENEMY_DESERTOR_XP_VALUE = 9;
+const ENEMY_DESERTOR_ATTACK_RANGE_SQUARED = (300 * 300);
+const ENEMY_DESERTOR_ATTACK_COOLDOWN = 1800;
+const ENEMY_DESERTOR_SHOTS_IN_BURST = 2;
+const ENEMY_DESERTOR_BURST_DELAY = 150;
+
 
 const PROJECTILE_SIZE = 8;
 const XP_ORB_SIZE = 10;
@@ -119,6 +129,8 @@ const MAX_SABOTADORES_WAVE_BASE = 1;
 const SABOTADOR_SPAWN_BATCH_SIZE = 1;
 const MAX_MCGRAW_WAVE_BASE = 1;
 const MCGRAW_SPAWN_BATCH_SIZE = 1;
+const MAX_DESERTOR_WAVE_BASE = 1;
+const DESERTOR_SPAWN_BATCH_SIZE = 1;
 
 
 const ENEMY_SPAWN_TICK_INTERVAL = 2000;
@@ -139,7 +151,7 @@ interface Player extends Entity {
   health: number;
 }
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon' | 'AtiradorDeEliteMcGraw';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon' | 'AtiradorDeEliteMcGraw' | 'DesertorGavilanes';
 
 interface Enemy extends Entity {
   width: number;
@@ -159,6 +171,9 @@ interface Enemy extends Entity {
   detonationTimer?: number;
   isAiming?: boolean;
   aimingTimer?: number;
+  isBursting?: boolean;
+  burstShotsLeft?: number;
+  burstTimer?: number;
 }
 
 interface XPOrbData extends Entity {
@@ -575,26 +590,35 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
         lastLogicUpdateTimestampRef.current = timestamp;
 
-        let newPlayerProjectiles: ProjectileData[] = [];
+        let newPlayerProjectilesAfterHits: ProjectileData[] = [];
         const enemiesHitThisFrame = new Map<string, { damage: number, originWeaponId?: string }>();
         const xpOrbsFromProjectileKills: XPOrbData[] = [];
         let scoreFromProjectileKills = 0;
 
         setPlayerProjectiles(prevPlayerProjectiles => {
-            newPlayerProjectiles = prevPlayerProjectiles.map(proj => ({
+            newPlayerProjectilesAfterHits = prevPlayerProjectiles.map(proj => ({
                 ...proj,
                 x: proj.x + proj.dx * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
                 y: proj.y + proj.dy * (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
                 traveledDistance: proj.traveledDistance + (proj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PROJECTILE_SPEED),
-            })).filter((proj, projIndex, arr) => {
+            }));
+
+            const finalProjectiles = [];
+
+            for (let i = newPlayerProjectilesAfterHits.length - 1; i >= 0; i--) {
+                const proj = newPlayerProjectilesAfterHits[i];
+                let projectileRemoved = false;
+
                 if (proj.x < -(proj.width || proj.size) || proj.x > GAME_WIDTH ||
                     proj.y < -(proj.height || proj.size) || proj.y > GAME_HEIGHT ||
                     proj.traveledDistance >= proj.maxRange) {
-                    return false;
+                    newPlayerProjectilesAfterHits.splice(i, 1);
+                    projectileRemoved = true;
+                    continue;
                 }
 
-                for (let i = 0; i < enemiesRef.current.length; i++) {
-                    const enemy = enemiesRef.current[i];
+                for (let j = 0; j < enemiesRef.current.length; j++) {
+                    const enemy = enemiesRef.current[j];
                     if (enemy.health <= 0 || (proj.hitEnemyIds.has(enemy.id) && proj.originWeaponId !== 'justica_ferro')) continue;
 
                     const projWidth = proj.width || proj.size;
@@ -617,13 +641,17 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         if (proj.penetrationLeft > 0) {
                             proj.penetrationLeft--;
                         } else {
-                           return false; // Projectile is used up
+                           newPlayerProjectilesAfterHits.splice(i, 1);
+                           projectileRemoved = true;
+                           break; 
                         }
                     }
                 }
-                return true; // Projectile continues
-            });
-            return newPlayerProjectiles;
+                if (!projectileRemoved) {
+                   // finalProjectiles.unshift(proj); // Keep if not removed
+                }
+            }
+            return newPlayerProjectilesAfterHits; // Return the modified array
         });
 
 
@@ -635,7 +663,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         const damageTaken = hitData.damage;
                         const newHealth = enemy.health - damageTaken;
 
-                        if (newHealth <= 0 && enemy.health > 0) {
+                        if (newHealth <= 0 && enemy.health > 0) { // Ensure XP and score only on actual kill
                             scoreFromProjectileKills += enemy.xpValue * 5;
                             xpOrbsFromProjectileKills.push({
                                 id: `xp_${Date.now()}_${Math.random()}_${enemy.id}`,
@@ -781,19 +809,65 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         // Movement logic when not aiming and attack not ready
                         if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.9) { // Too far
                             const dist = Math.sqrt(distToPlayerSquared);
-                            updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
-                            updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                            if (dist > 0) {
+                                updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                                updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                            }
                         } else if (distToPlayerSquared < updatedEnemy.attackRangeSquared * 0.3) { // Too close
                             const dist = Math.sqrt(distToPlayerSquared);
-                            // Retreat slower or only if player is very close to range edge
-                            if (dist > 0) { // avoid division by zero if player is exactly on enemy
+                            if (dist > 0) { 
                                 updatedEnemy.x -= (deltaPlayerX / dist) * updatedEnemy.speed * 0.5;
                                 updatedEnemy.y -= (deltaPlayerY / dist) * updatedEnemy.speed * 0.5;
                             }
                         }
-                        // Otherwise, stay put if in a good range band
                     }
                 }
+            } else if (updatedEnemy.type === 'DesertorGavilanes') {
+                if (updatedEnemy.isBursting) {
+                    updatedEnemy.burstTimer! -= ENEMY_MOVE_INTERVAL;
+                    if (updatedEnemy.burstTimer! <= 0 && updatedEnemy.burstShotsLeft! > 0) {
+                        const angleToPlayer = Math.atan2(deltaPlayerY, deltaPlayerX);
+                        setEnemyProjectiles(prev => [...prev, {
+                            id: `eproj_desertor_${Date.now()}_${Math.random()}`,
+                            x: enemyCenterX - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
+                            y: enemyCenterY - ENEMY_PISTOLEIRO_PROJECTILE_SIZE / 2,
+                            size: ENEMY_PISTOLEIRO_PROJECTILE_SIZE,
+                            dx: Math.cos(angleToPlayer),
+                            dy: Math.sin(angleToPlayer),
+                            damage: updatedEnemy.damage,
+                            traveledDistance: 0,
+                            maxRange: updatedEnemy.attackRangeSquared,
+                            projectileType: 'enemy_bullet',
+                            hitEnemyIds: new Set(),
+                            penetrationLeft: 0,
+                            isEnemyProjectile: true,
+                        }]);
+                        updatedEnemy.burstShotsLeft!--;
+                        updatedEnemy.burstTimer = ENEMY_DESERTOR_BURST_DELAY;
+                    }
+                    if (updatedEnemy.burstShotsLeft === 0) {
+                        updatedEnemy.isBursting = false;
+                        updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
+                    }
+                } else { // Not bursting
+                    updatedEnemy.attackCooldownTimer = Math.max(0, updatedEnemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL);
+                     if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.7 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED * 0.8) {
+                         if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
+                            const dist = Math.sqrt(distToPlayerSquared);
+                             if (dist > 0) {
+                                updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                                updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                            }
+                        }
+                    }
+
+                    if (distToPlayerSquared < updatedEnemy.attackRangeSquared && updatedEnemy.attackCooldownTimer <= 0) {
+                        updatedEnemy.isBursting = true;
+                        updatedEnemy.burstShotsLeft = ENEMY_DESERTOR_SHOTS_IN_BURST;
+                        updatedEnemy.burstTimer = 0; // Fire first shot of burst soon
+                    }
+                }
+
             } else if (updatedEnemy.type === 'SabotadorDoCanyon') {
                 if (updatedEnemy.isDetonating) {
                     updatedEnemy.detonationTimer! -= ENEMY_MOVE_INTERVAL;
@@ -811,27 +885,31 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                                 return { ...p, health: newHealth };
                             });
                         }
-                        updatedEnemy.health = 0;
+                        updatedEnemy.health = 0; // Enemy is removed after explosion
                     }
-                } else {
+                } else { // Not detonating
                     if (distToPlayerSquared < ENEMY_SABOTADOR_DETONATION_RANGE_SQUARED) {
                         updatedEnemy.isDetonating = true;
                         updatedEnemy.detonationTimer = ENEMY_SABOTADOR_DETONATION_TIMER_DURATION;
                     }
                 }
-                if (!updatedEnemy.isDetonating && updatedEnemy.health > 0) {
-                    const dist = Math.sqrt(distToPlayerSquared);
-                    if (dist > (updatedEnemy.width / 2 + playerRef.current.width / 2) / 2) {
+                // Movement logic for Sabotador (moves even when about to detonate, until detonation)
+                if (!updatedEnemy.isDetonating && updatedEnemy.health > 0) { // Also move if detonating but timer > 0? No, let's make it stop once arming.
+                     const dist = Math.sqrt(distToPlayerSquared);
+                     if (dist > (updatedEnemy.width / 2 + playerRef.current.width / 2) / 2 && dist > 0) { // Check dist > 0
                         updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
                         updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
                     }
                 }
             } else if (updatedEnemy.type === 'PistoleiroVagabundo') {
-                if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.7 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED * 0.8) {
-                     if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
+                 updatedEnemy.attackCooldownTimer = Math.max(0, updatedEnemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL);
+                 if (distToPlayerSquared > updatedEnemy.attackRangeSquared * 0.7 || distToPlayerSquared < ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED * 0.8) {
+                     if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) { // Ensure not right on top
                         const dist = Math.sqrt(distToPlayerSquared);
-                        updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
-                        updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                        if (dist > 0) {
+                            updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                            updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                        }
                     }
                 }
                 if (updatedEnemy.attackCooldownTimer <= 0 && distToPlayerSquared < updatedEnemy.attackRangeSquared && distToPlayerSquared > ENEMY_PISTOLEIRO_MELEE_RANGE_SQUARED * 0.5 ) {
@@ -854,6 +932,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                 }
             } else if (updatedEnemy.type === 'VigiaDaFerrovia') {
+                updatedEnemy.attackCooldownTimer = Math.max(0, updatedEnemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL);
                  if (distToPlayerSquared < updatedEnemy.attackRangeSquared) {
                     if (updatedEnemy.attackCooldownTimer <= 0) {
                         const angleToPlayer = Math.atan2(deltaPlayerY, deltaPlayerX);
@@ -874,14 +953,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         }]);
                         updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
                     }
-                } else {
+                } else { // Too far, move closer
                     if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
                         const dist = Math.sqrt(distToPlayerSquared);
-                        updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
-                        updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                         if (dist > 0) {
+                            updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                            updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                        }
                     }
                 }
-            } else { // Melee enemies
+            } else { // Melee enemies (Arruaceiro, Cão, Minerador, Bruto)
                  updatedEnemy.attackCooldownTimer = Math.max(0, updatedEnemy.attackCooldownTimer - ENEMY_MOVE_INTERVAL);
                  if (updatedEnemy.attackCooldownTimer <= 0 && distToPlayerSquared < updatedEnemy.attackRangeSquared) {
                    setPlayer(p => {
@@ -896,10 +977,12 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                      return {...p, health: newHealth };
                    });
                    updatedEnemy.attackCooldownTimer = updatedEnemy.attackCooldown;
-                } else if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) { // Only move if not in attack process or cooldown
+                } else if (distToPlayerSquared > (updatedEnemy.width / 2 + playerRef.current.width / 2) ** 2) {
                     const dist = Math.sqrt(distToPlayerSquared);
-                    updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
-                    updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                     if (dist > 0) {
+                        updatedEnemy.x += (deltaPlayerX / dist) * updatedEnemy.speed;
+                        updatedEnemy.y += (deltaPlayerY / dist) * updatedEnemy.speed;
+                    }
                 }
             }
             return updatedEnemy;
@@ -988,7 +1071,10 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         enemyIsDetonating: boolean = false,
         enemyDetonationTimer: number = 0,
         enemyIsAiming: boolean = false,
-        enemyAimingTimer: number = 0;
+        enemyAimingTimer: number = 0,
+        enemyIsBursting: boolean = false,
+        enemyBurstShotsLeft: number = 0,
+        enemyBurstTimer: number = 0;
 
 
     switch (type) {
@@ -1068,6 +1154,18 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             enemyIsAiming = false;
             enemyAimingTimer = 0;
             break;
+        case 'DesertorGavilanes':
+            enemyBaseSize = ENEMY_DESERTOR_SIZE;
+            enemyInitialHealth = ENEMY_DESERTOR_INITIAL_HEALTH;
+            enemyBaseSpeed = ENEMY_DESERTOR_BASE_SPEED;
+            enemyDamageVal = ENEMY_DESERTOR_DAMAGE;
+            enemyXpVal = ENEMY_DESERTOR_XP_VALUE;
+            enemyAtkRangeSq = ENEMY_DESERTOR_ATTACK_RANGE_SQUARED;
+            enemyAtkCooldown = ENEMY_DESERTOR_ATTACK_COOLDOWN;
+            enemyIsBursting = false;
+            enemyBurstShotsLeft = 0;
+            enemyBurstTimer = 0;
+            break;
         default:
             console.error("Tipo de inimigo desconhecido em createEnemyInstance:", type);
             return null;
@@ -1077,16 +1175,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     let enemySpeed = enemyBaseSpeed;
     let finalXpValue = enemyXpVal;
 
-    const waveMultiplier = (currentWave -1) * 0.15; // Generic multiplier
-    enemyHealth = Math.round(enemyInitialHealth * (1 + waveMultiplier * 1.2)); // Health scales a bit more
-    enemySpeed = enemyBaseSpeed * (1 + waveMultiplier * 0.5); // Speed scales less
+    const waveMultiplier = (currentWave -1) * 0.15; 
+    enemyHealth = Math.round(enemyInitialHealth * (1 + waveMultiplier * 1.2)); 
+    enemySpeed = enemyBaseSpeed * (1 + waveMultiplier * 0.5); 
 
-    // XP scaling per type category might be better
     if (['ArruaceiroSaloon', 'Cão de Fazenda'].includes(type)) {
         finalXpValue += Math.floor(currentWave / 2);
     } else if (['PistoleiroVagabundo', 'MineradorRebelde', 'SabotadorDoCanyon'].includes(type)) {
         finalXpValue += currentWave -1;
-    } else if (['VigiaDaFerrovia', 'BrutoBoyle', 'AtiradorDeEliteMcGraw'].includes(type)) {
+    } else if (['VigiaDaFerrovia', 'BrutoBoyle', 'AtiradorDeEliteMcGraw', 'DesertorGavilanes'].includes(type)) {
         finalXpValue += Math.floor((currentWave -1) * 1.5);
     }
 
@@ -1144,7 +1241,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         health: enemyHealth, maxHealth: enemyHealth,
         type: type,
         xpValue: finalXpValue,
-        attackCooldownTimer: Math.random() * enemyAtkCooldown, // Start with varied cooldown
+        attackCooldownTimer: Math.random() * enemyAtkCooldown, 
         speed: enemySpeed,
         damage: enemyDamageVal,
         attackRangeSquared: enemyAtkRangeSq,
@@ -1153,6 +1250,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         detonationTimer: enemyDetonationTimer,
         isAiming: enemyIsAiming,
         aimingTimer: enemyAimingTimer,
+        isBursting: enemyIsBursting,
+        burstShotsLeft: enemyBurstShotsLeft,
+        burstTimer: enemyBurstTimer,
     };
   }, []);
 
@@ -1172,6 +1272,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const brutoCount = currentEnemiesList.filter(e => e.type === 'BrutoBoyle').length;
     const sabotadorCount = currentEnemiesList.filter(e => e.type === 'SabotadorDoCanyon').length;
     const mcgrawCount = currentEnemiesList.filter(e => e.type === 'AtiradorDeEliteMcGraw').length;
+    const desertorCount = currentEnemiesList.filter(e => e.type === 'DesertorGavilanes').length;
 
 
     const maxArroceirosForWave = MAX_ARROCEIROS_WAVE_BASE + currentWave;
@@ -1182,6 +1283,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const maxBrutosForWave = currentWave >= 6 ? MAX_BRUTOS_WAVE_BASE + Math.floor((currentWave - 6) / 3) * BRUTO_SPAWN_BATCH_SIZE : 0;
     const maxSabotadoresForWave = currentWave >= 7 ? MAX_SABOTADORES_WAVE_BASE + Math.floor((currentWave - 7) / 2) * SABOTADOR_SPAWN_BATCH_SIZE : 0;
     const maxMcGrawForWave = currentWave >= 8 ? MAX_MCGRAW_WAVE_BASE + Math.floor((currentWave - 8) / 3) * MCGRAW_SPAWN_BATCH_SIZE : 0;
+    const maxDesertorForWave = currentWave >= 9 ? MAX_DESERTOR_WAVE_BASE + Math.floor((currentWave - 9) / 2) * DESERTOR_SPAWN_BATCH_SIZE : 0;
+
 
     const newEnemiesBatch: Enemy[] = [];
 
@@ -1242,6 +1345,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         const canSpawnCount = Math.min(MCGRAW_SPAWN_BATCH_SIZE, maxMcGrawForWave - mcgrawCount);
         for (let i = 0; i < canSpawnCount; i++) {
             const enemy = createEnemyInstance('AtiradorDeEliteMcGraw', currentWave, currentPlayer);
+            if (enemy) newEnemiesBatch.push(enemy);
+        }
+    }
+    
+    if (currentWave >= 9 && desertorCount < maxDesertorForWave) {
+        const canSpawnCount = Math.min(DESERTOR_SPAWN_BATCH_SIZE, maxDesertorForWave - desertorCount);
+        for (let i = 0; i < canSpawnCount; i++) {
+            const enemy = createEnemyInstance('DesertorGavilanes', currentWave, currentPlayer);
             if (enemy) newEnemiesBatch.push(enemy);
         }
     }
@@ -1412,7 +1523,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                               top: line.y1,
                               width: length,
                               transform: `rotate(${angle}deg)`,
-                              zIndex: 5 // Above enemies/player, below HUD/pause
+                              zIndex: 5 
                           }}
                           role="presentation"
                           aria-label="Mira laser de atirador"

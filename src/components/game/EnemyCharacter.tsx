@@ -4,7 +4,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon' | 'AtiradorDeEliteMcGraw';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon' | 'AtiradorDeEliteMcGraw' | 'DesertorGavilanes';
 
 interface EnemyCharacterProps {
   x: number;
@@ -39,6 +39,8 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         return '💣';
       case 'AtiradorDeEliteMcGraw':
         return '🎯';
+      case 'DesertorGavilanes':
+        return '💨';
       default:
         return '?';
     }
