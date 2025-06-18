@@ -2,23 +2,29 @@
 'use client';
 
 import React from 'react';
-import type { ProjectileType } from '@/config/weapons';
+import type { ProjectileType as PlayerProjectileType } from '@/config/weapons';
+
+type GameProjectileType = PlayerProjectileType | 'enemy_bullet' | 'barrel_explosive';
+
 
 interface ProjectileProps {
   x: number;
   y: number;
-  size: number; // Base size, can be overridden by specific types
-  projectileType: ProjectileType;
-  width?: number; // For non-square projectiles
-  height?: number; // For non-square projectiles
+  size: number; 
+  projectileType: GameProjectileType;
+  width?: number; 
+  height?: number; 
+  isBarrel?: boolean; // Specifically for barrel type
+  hasLanded?: boolean; // For barrel state
 }
 
-export function Projectile({ x, y, size, projectileType, width: propWidth, height: propHeight }: ProjectileProps) {
+export function Projectile({ x, y, size, projectileType, width: propWidth, height: propHeight, isBarrel, hasLanded }: ProjectileProps) {
   let style: React.CSSProperties = {
     left: x,
     top: y,
     position: 'absolute',
     boxShadow: '0px 1px 2px rgba(0,0,0,0.3)',
+    transition: 'background-color 0.1s linear, opacity 0.1s linear', // Added opacity transition
   };
 
   let currentWidth = propWidth || size;
@@ -26,44 +32,54 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
 
   switch (projectileType) {
     case 'bullet':
-      style.backgroundColor = '#E5E7EB'; // Light gray
+      style.backgroundColor = '#E5E7EB'; 
       style.width = size * 0.8;
       style.height = size * 0.8;
       style.borderRadius = '50%';
-      style.border = '1px solid #9CA3AF'; // Medium gray border
+      style.border = '1px solid #9CA3AF'; 
       break;
     case 'shotgun_pellet':
-      style.backgroundColor = '#FDBA74'; // Orange
+      style.backgroundColor = '#FDBA74'; 
       style.width = size * 0.7;
       style.height = size * 0.7;
       style.borderRadius = '50%';
-      style.border = '1px solid #F97316'; // Darker orange border
+      style.border = '1px solid #F97316'; 
       break;
     case 'knife':
-      currentWidth = size * 0.5; // Thinner
-      currentHeight = size * 1.5; // Longer
-      style.backgroundColor = '#D1D5DB'; // Silver/gray
+      currentWidth = size * 0.5; 
+      currentHeight = size * 1.5; 
+      style.backgroundColor = '#D1D5DB'; 
       style.width = currentWidth;
       style.height = currentHeight;
-      style.borderRadius = '2px'; // Slightly rounded edges for a blade appearance
-      style.border = '1px solid #6B7280'; // Darker gray
+      style.borderRadius = '2px'; 
+      style.border = '1px solid #6B7280'; 
       style.left = x - currentWidth / 2 + size / 2; 
       style.top = y - currentHeight / 2 + size / 2;
       break;
     case 'molotov_flask':
-      style.backgroundColor = '#FCA5A5'; // Light red
+      style.backgroundColor = '#FCA5A5'; 
       style.width = size * 1.2;
       style.height = size * 1.2;
       style.borderRadius = '30% 30% 40% 40% / 40% 40% 30% 30%'; 
-      style.border = '1px solid #EF4444'; // Red border
+      style.border = '1px solid #EF4444'; 
       style.transform = 'rotate(45deg)'; 
       break;
     case 'enemy_bullet':
-      style.backgroundColor = '#DC2626'; // Dark Red
+      style.backgroundColor = '#DC2626'; 
       style.width = size * 0.7;
       style.height = size * 0.7;
       style.borderRadius = '50%';
-      style.border = '1px solid #7F1D1D'; // Darker Red border
+      style.border = '1px solid #7F1D1D'; 
+      break;
+    case 'barrel_explosive':
+      style.backgroundColor = hasLanded ? '#A16207' : '#D97706'; // Darker when landed (fused)
+      style.width = size;
+      style.height = size;
+      style.borderRadius = '15%'; // Crate/barrel like
+      style.border = '2px solid #78350F'; // Dark brown border
+      if (hasLanded) {
+        style.animation = 'fusePulse 0.5s infinite alternate';
+      }
       break;
     default: 
       style.backgroundColor = '#FDE047'; 
@@ -73,17 +89,33 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
       style.border = '1px solid #A0522D';
   }
   
-  if (projectileType !== 'knife') {
-    style.left = x + (size - Number(style.width || size)) / 2;
-    style.top = y + (size - Number(style.height || size)) / 2;
+  if (projectileType !== 'knife') { // Adjust centering for non-knife projectiles
+    style.left = x + (propWidth || size - Number(style.width || size)) / 2;
+    style.top = y + (propHeight || size - Number(style.height || size)) / 2;
+  }
+  
+  // Specific adjustment for barrel to ensure x,y is top-left
+  if (isBarrel) {
+    style.left = x;
+    style.top = y;
   }
 
 
   return (
-    <div
-      style={style}
-      role="img"
-      aria-label={`Projétil tipo ${projectileType}`}
-    />
+    <>
+      {projectileType === 'barrel_explosive' && hasLanded && (
+        <style>{`
+          @keyframes fusePulse {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0.7; transform: scale(1.05); }
+          }
+        `}</style>
+      )}
+      <div
+        style={style}
+        role="img"
+        aria-label={`Projétil tipo ${projectileType}${hasLanded ? ' (no chão, ativado)' : ''}`}
+      />
+    </>
   );
 }
