@@ -17,6 +17,7 @@ type EnemyType =
   | 'Boss_BigDoyle'
   | 'Boss_CaptainMcGraw'
   | 'Boss_DomGael'
+  | 'Boss_CalebHodge'
   | 'PatrolDrone';
 
 interface EnemyCharacterProps {
@@ -48,6 +49,7 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       case 'Boss_BigDoyle': return '🧨';
       case 'Boss_CaptainMcGraw': return '🎖️';
       case 'Boss_DomGael': return '🐺';
+      case 'Boss_CalebHodge': return '💥';
       case 'PatrolDrone': return '⚙️';
       default: return '?';
     }
@@ -98,3 +100,4 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
     </div>
   );
 }
+

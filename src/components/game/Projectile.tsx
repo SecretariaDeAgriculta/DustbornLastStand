@@ -4,7 +4,7 @@
 import React from 'react';
 import type { ProjectileType as PlayerProjectileType } from '@/config/weapons';
 
-type GameProjectileType = PlayerProjectileType | 'enemy_bullet' | 'barrel_explosive';
+type GameProjectileType = PlayerProjectileType | 'enemy_bullet' | 'barrel_explosive' | 'dynamite_explosive';
 
 
 interface ProjectileProps {
@@ -14,17 +14,17 @@ interface ProjectileProps {
   projectileType: GameProjectileType;
   width?: number; 
   height?: number; 
-  isBarrel?: boolean; // Specifically for barrel type
-  hasLanded?: boolean; // For barrel state
+  isBarrelOrDynamite?: boolean;
+  hasLanded?: boolean; 
 }
 
-export function Projectile({ x, y, size, projectileType, width: propWidth, height: propHeight, isBarrel, hasLanded }: ProjectileProps) {
+export function Projectile({ x, y, size, projectileType, width: propWidth, height: propHeight, isBarrelOrDynamite, hasLanded }: ProjectileProps) {
   let style: React.CSSProperties = {
     left: x,
     top: y,
     position: 'absolute',
     boxShadow: '0px 1px 2px rgba(0,0,0,0.3)',
-    transition: 'background-color 0.1s linear, opacity 0.1s linear', // Added opacity transition
+    transition: 'background-color 0.1s linear, opacity 0.1s linear', 
   };
 
   let currentWidth = propWidth || size;
@@ -72,11 +72,21 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
       style.border = '1px solid #7F1D1D'; 
       break;
     case 'barrel_explosive':
-      style.backgroundColor = hasLanded ? '#A16207' : '#D97706'; // Darker when landed (fused)
+      style.backgroundColor = hasLanded ? '#A16207' : '#D97706'; 
       style.width = size;
       style.height = size;
-      style.borderRadius = '15%'; // Crate/barrel like
-      style.border = '2px solid #78350F'; // Dark brown border
+      style.borderRadius = '15%'; 
+      style.border = '2px solid #78350F'; 
+      if (hasLanded) {
+        style.animation = 'fusePulse 0.5s infinite alternate';
+      }
+      break;
+    case 'dynamite_explosive':
+      style.backgroundColor = hasLanded ? '#B91C1C' : '#F87171'; // Darker red when landed
+      style.width = size * 0.6; // Stick-like
+      style.height = size * 1.2;
+      style.borderRadius = '3px';
+      style.border = '1px solid #7F1D1D';
       if (hasLanded) {
         style.animation = 'fusePulse 0.5s infinite alternate';
       }
@@ -89,13 +99,12 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
       style.border = '1px solid #A0522D';
   }
   
-  if (projectileType !== 'knife') { // Adjust centering for non-knife projectiles
+  if (projectileType !== 'knife') { 
     style.left = x + (propWidth || size - Number(style.width || size)) / 2;
     style.top = y + (propHeight || size - Number(style.height || size)) / 2;
   }
   
-  // Specific adjustment for barrel to ensure x,y is top-left
-  if (isBarrel) {
+  if (isBarrelOrDynamite) {
     style.left = x;
     style.top = y;
   }
@@ -103,7 +112,7 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
 
   return (
     <>
-      {projectileType === 'barrel_explosive' && hasLanded && (
+      {(projectileType === 'barrel_explosive' || projectileType === 'dynamite_explosive') && hasLanded && (
         <style>{`
           @keyframes fusePulse {
             0% { opacity: 1; transform: scale(1); }
@@ -119,3 +128,4 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
     </>
   );
 }
+
