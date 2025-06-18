@@ -4,7 +4,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 
-type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon';
+type EnemyType = 'ArruaceiroSaloon' | 'Cão de Fazenda' | 'PistoleiroVagabundo' | 'MineradorRebelde' | 'VigiaDaFerrovia' | 'BrutoBoyle' | 'SabotadorDoCanyon' | 'AtiradorDeEliteMcGraw';
 
 interface EnemyCharacterProps {
   x: number;
@@ -37,11 +37,13 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         return '🪓';
       case 'SabotadorDoCanyon':
         return '💣';
+      case 'AtiradorDeEliteMcGraw':
+        return '🎯';
       default:
-        return '?'; 
+        return '?';
     }
   };
-  
+
   const emoji = getEnemyEmoji();
   const visualCueClasses: string[] = [];
   if (isStunned) {
@@ -65,10 +67,6 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
         height: height,
         fontSize: `${Math.min(width, height) * 0.8}px`,
         lineHeight: `${height}px`,
-        // opacity: isStunned || (isDetonating && type === 'SabotadorDoCanyon') ? 0.6 : 1,
-        // backgroundColor: isDetonating && type === 'SabotadorDoCanyon' ? 'rgba(255,0,0,0.3)' : undefined,
-        // borderRadius: isDetonating && type === 'SabotadorDoCanyon' ? '50%' : undefined,
-        // transform: isDetonating && type === 'SabotadorDoCanyon' ? 'scale(1.1)' : 'scale(1)',
       }}
       role="img"
       aria-label={`Inimigo: ${type}${isStunned ? ' (atordoado)' : ''}${isDetonating ? ' (detonando)' : ''}`}
@@ -88,4 +86,3 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
     </div>
   );
 }
-
