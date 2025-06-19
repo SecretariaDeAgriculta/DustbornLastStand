@@ -2,6 +2,7 @@
 'use client';
 
 import React from 'react';
+import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 interface PlayerCharacterProps {
@@ -16,18 +17,27 @@ export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerC
   return (
     <div
       className={cn(
-        "absolute rounded-sm shadow-md",
-        isTakingDamage ? 'bg-red-600' : 'bg-primary'
+        "absolute rounded-sm shadow-md overflow-hidden", // Added overflow-hidden
+        isTakingDamage ? 'ring-2 ring-inset ring-red-500 animate-pulse' : ''
       )}
       style={{
         left: x,
         top: y,
         width: width,
         height: height,
-        transition: 'background-color 0.1s linear',
       }}
       role="img"
       aria-label="Player character"
-    />
+    >
+      <Image
+        src={`https://placehold.co/${width}x${height}.png`}
+        alt="Player Character Sprite"
+        width={width}
+        height={height}
+        className="object-cover"
+        data-ai-hint="cowboy hero"
+        priority
+      />
+    </div>
   );
 }
