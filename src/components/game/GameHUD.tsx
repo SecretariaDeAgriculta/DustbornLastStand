@@ -3,17 +3,17 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Zap, Shield, TrendingUp, Coins, Clock, Star } from 'lucide-react';
+import { Zap, Shield, TrendingUp, Coins, Clock } from 'lucide-react'; // Changed Star to Coins
 
 interface GameHUDProps {
   score: number;
   wave: number;
   playerHealth: number;
   waveTimer: number;
-  playerXP: number;
+  playerMoney: number; // Changed from playerXP
 }
 
-export function GameHUD({ score, wave, playerHealth, waveTimer, playerXP }: GameHUDProps) {
+export function GameHUD({ score, wave, playerHealth, waveTimer, playerMoney }: GameHUDProps) {
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -53,10 +53,10 @@ export function GameHUD({ score, wave, playerHealth, waveTimer, playerXP }: Game
         </div>
         <div className="flex flex-col items-center">
            <div className="flex items-center text-md font-semibold text-yellow-400">
-            <Star className="w-4 h-4 mr-1" />
-            <span>XP</span>
+            <Coins className="w-4 h-4 mr-1" /> 
+            <span>Dinheiro</span>
           </div>
-          <p className="text-xl font-bold">{playerXP}</p>
+          <p className="text-xl font-bold">${playerMoney}</p>
         </div>
       </CardContent>
     </Card>

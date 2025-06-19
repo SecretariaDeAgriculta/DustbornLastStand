@@ -6,7 +6,7 @@ import { PlayerCharacter } from './PlayerCharacter';
 import { EnemyCharacter } from './EnemyCharacter';
 import { GameHUD } from './GameHUD';
 import { Card } from '@/components/ui/card';
-import { XPOrb } from './XPOrb';
+import { XPOrb } from './XPOrb'; // Name remains, but it's a "money orb" now
 import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
@@ -26,8 +26,8 @@ const PLAYER_SIZE = 30;
 const PLAYER_SPEED = 3.5;
 const PLAYER_INITIAL_HEALTH = 100;
 const MAX_PLAYER_WEAPONS = 5;
-const RECYCLE_XP_PERCENTAGE = 0.3;
-const INITIAL_WEAPON_RECYCLE_XP = 5;
+const RECYCLE_MONEY_PERCENTAGE = 0.3; // Changed from RECYCLE_XP_PERCENTAGE
+const INITIAL_WEAPON_RECYCLE_MONEY = 5; // Changed from INITIAL_WEAPON_RECYCLE_XP
 
 
 const ENEMY_ARROCEIRO_SIZE = PLAYER_SIZE;
@@ -36,7 +36,7 @@ const ENEMY_ARROCEIRO_DAMAGE = 2;
 const ENEMY_ARROCEIRO_BASE_SPEED = 1.8;
 const ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_ARROCEIRO_SIZE / 2 + 5) ** 2;
 const ENEMY_ARROCEIRO_ATTACK_COOLDOWN = 800;
-const ENEMY_ARROCEIRO_XP_VALUE = 2;
+const ENEMY_ARROCEIRO_MONEY_VALUE = 2; // Changed from XP_VALUE
 
 const ENEMY_CAODEFAZENDA_SIZE = PLAYER_SIZE * 0.8;
 const ENEMY_CAODEFAZENDA_INITIAL_HEALTH = 12;
@@ -44,13 +44,13 @@ const ENEMY_CAODEFAZENDA_DAMAGE = 4;
 const ENEMY_CAODEFAZENDA_BASE_SPEED = 2.5;
 const ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_CAODEFAZENDA_SIZE / 2 + 5) ** 2;
 const ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN = 700;
-const ENEMY_CAODEFAZENDA_XP_VALUE = 1;
+const ENEMY_CAODEFAZENDA_MONEY_VALUE = 1; // Changed from XP_VALUE
 
 const ENEMY_PISTOLEIRO_SIZE = PLAYER_SIZE;
 const ENEMY_PISTOLEIRO_INITIAL_HEALTH = 15;
 const ENEMY_PISTOLEIRO_DAMAGE = 5;
 const ENEMY_PISTOLEiro_BASE_SPEED = 1.5;
-const ENEMY_PISTOLEIRO_XP_VALUE = 4;
+const ENEMY_PISTOLEIRO_MONEY_VALUE = 4; // Changed from XP_VALUE
 const ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED = (350) ** 2;
 const ENEMY_PISTOLEIRO_ATTACK_COOLDOWN = 2500;
 const ENEMY_PROJECTILE_SPEED = 7;
@@ -61,7 +61,7 @@ const ENEMY_MINERADOR_SIZE = PLAYER_SIZE * 1.1;
 const ENEMY_MINERADOR_INITIAL_HEALTH = 18;
 const ENEMY_MINERADOR_DAMAGE = 7;
 const ENEMY_MINERADOR_BASE_SPEED = 1.2;
-const ENEMY_MINERADOR_XP_VALUE = 5;
+const ENEMY_MINERADOR_MONEY_VALUE = 5; // Changed from XP_VALUE
 const ENEMY_MINERADOR_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_MINERADOR_SIZE / 2 + 8) ** 2;
 const ENEMY_MINERADOR_ATTACK_COOLDOWN = 1200;
 
@@ -69,7 +69,7 @@ const ENEMY_VIGIA_SIZE = PLAYER_SIZE;
 const ENEMY_VIGIA_INITIAL_HEALTH = 25;
 const ENEMY_VIGIA_DAMAGE = 6;
 const ENEMY_VIGIA_BASE_SPEED = 1.6;
-const ENEMY_VIGIA_XP_VALUE = 6;
+const ENEMY_VIGIA_MONEY_VALUE = 6; // Changed from XP_VALUE
 const ENEMY_VIGIA_ATTACK_RANGE_SQUARED = (400 * 400);
 const ENEMY_VIGIA_ATTACK_COOLDOWN = 3000;
 
@@ -77,7 +77,7 @@ const ENEMY_BRUTOBOYLE_SIZE = PLAYER_SIZE * 1.2;
 const ENEMY_BRUTOBOYLE_INITIAL_HEALTH = 40;
 const ENEMY_BRUTOBOYLE_DAMAGE = 10;
 const ENEMY_BRUTOBOYLE_BASE_SPEED = 1.0;
-const ENEMY_BRUTOBOYLE_XP_VALUE = 8;
+const ENEMY_BRUTOBOYLE_MONEY_VALUE = 8; // Changed from XP_VALUE
 const ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_BRUTOBOYLE_SIZE / 2 + 10) ** 2;
 const ENEMY_BRUTOBOYLE_ATTACK_COOLDOWN = 1500;
 
@@ -85,7 +85,7 @@ const ENEMY_SABOTADOR_SIZE = PLAYER_SIZE * 0.9;
 const ENEMY_SABOTADOR_INITIAL_HEALTH = 20;
 const ENEMY_SABOTADOR_DAMAGE = 15;
 const ENEMY_SABOTADOR_BASE_SPEED = 2.8;
-const ENEMY_SABOTADOR_XP_VALUE = 7;
+const ENEMY_SABOTADOR_MONEY_VALUE = 7; // Changed from XP_VALUE
 const ENEMY_SABOTADOR_DETONATION_RANGE_SQUARED = (PLAYER_SIZE * 1.2) ** 2;
 const ENEMY_SABOTADOR_EXPLOSION_RADIUS_SQUARED = (PLAYER_SIZE * 2.5) ** 2;
 const ENEMY_SABOTADOR_DETONATION_TIMER_DURATION = 700;
@@ -94,7 +94,7 @@ const ENEMY_MCGRAW_SIZE = PLAYER_SIZE;
 const ENEMY_MCGRAW_INITIAL_HEALTH = 30;
 const ENEMY_MCGRAW_DAMAGE = 12;
 const ENEMY_MCGRAW_BASE_SPEED = 1.1;
-const ENEMY_MCGRAW_XP_VALUE = 10;
+const ENEMY_MCGRAW_MONEY_VALUE = 10; // Changed from XP_VALUE
 const ENEMY_MCGRAW_ATTACK_RANGE_SQUARED = (550 * 550);
 const ENEMY_MCGRAW_ATTACK_COOLDOWN = 4000;
 const ENEMY_MCGRAW_TELEGRAPH_DURATION = 1500;
@@ -103,7 +103,7 @@ const ENEMY_DESERTOR_SIZE = PLAYER_SIZE;
 const ENEMY_DESERTOR_INITIAL_HEALTH = 35;
 const ENEMY_DESERTOR_DAMAGE = 8;
 const ENEMY_DESERTOR_BASE_SPEED = 2.2;
-const ENEMY_DESERTOR_XP_VALUE = 9;
+const ENEMY_DESERTOR_MONEY_VALUE = 9; // Changed from XP_VALUE
 const ENEMY_DESERTOR_ATTACK_RANGE_SQUARED = (300 * 300);
 const ENEMY_DESERTOR_ATTACK_COOLDOWN = 1800;
 const ENEMY_DESERTOR_SHOTS_IN_BURST = 2;
@@ -113,7 +113,7 @@ const ENEMY_DRONE_SIZE = PLAYER_SIZE * 0.6;
 const ENEMY_DRONE_INITIAL_HEALTH = 15;
 const ENEMY_DRONE_DAMAGE = 3;
 const ENEMY_DRONE_BASE_SPEED = 2.8;
-const ENEMY_DRONE_XP_VALUE = 0;
+const ENEMY_DRONE_MONEY_VALUE = 0; // Drones don't give money (was XP_VALUE)
 const ENEMY_DRONE_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_DRONE_SIZE / 2 + 3) ** 2;
 const ENEMY_DRONE_ATTACK_COOLDOWN = 1000;
 
@@ -121,7 +121,7 @@ const ENEMY_CAPTAINMCGRAW_SIZE = PLAYER_SIZE * 1.1;
 const ENEMY_CAPTAINMCGRAW_INITIAL_HEALTH = 180;
 const ENEMY_CAPTAINMCGRAW_RIFLE_DAMAGE = 20;
 const ENEMY_CAPTAINMCGRAW_BASE_SPEED = 0.9;
-const ENEMY_CAPTAINMCGRAW_XP_VALUE = 100;
+const ENEMY_CAPTAINMCGRAW_MONEY_VALUE = 100; // Changed from XP_VALUE
 const ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_RANGE_SQUARED = (650 * 650);
 const ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_COOLDOWN = 5000;
 const ENEMY_CAPTAINMCGRAW_RIFLE_TELEGRAPH_DURATION = 2000;
@@ -133,7 +133,7 @@ const ENEMY_BIGDOYLE_INITIAL_HEALTH = 200;
 const ENEMY_BIGDOYLE_MELEE_DAMAGE = 15;
 const ENEMY_BIGDOYLE_BARREL_DAMAGE = 25;
 const ENEMY_BIGDOYLE_BASE_SPEED = 0.8;
-const ENEMY_BIGDOYLE_XP_VALUE = 75;
+const ENEMY_BIGDOYLE_MONEY_VALUE = 75; // Changed from XP_VALUE
 const ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED = (PLAYER_SIZE / 2 + ENEMY_BIGDOYLE_SIZE / 2 + 15) ** 2;
 const ENEMY_BIGDOYLE_MELEE_ATTACK_COOLDOWN = 2500;
 const ENEMY_BIGDOYLE_BARREL_THROW_COOLDOWN = 6000;
@@ -149,7 +149,7 @@ const ENEMY_DOMGAEL_INITIAL_HEALTH = 160;
 const ENEMY_DOMGAEL_PISTOL_DAMAGE = 12;
 const ENEMY_DOMGAEL_KNIFE_DAMAGE = 18;
 const ENEMY_DOMGAEL_BASE_SPEED = 2.5;
-const ENEMY_DOMGAEL_XP_VALUE = 120;
+const ENEMY_DOMGAEL_MONEY_VALUE = 120; // Changed from XP_VALUE
 const ENEMY_DOMGAEL_PISTOL_ATTACK_RANGE_SQUARED = (400 * 400);
 const ENEMY_DOMGAEL_KNIFE_ATTACK_RANGE_SQUARED = (PLAYER_SIZE * 1.8) ** 2;
 const ENEMY_DOMGAEL_PISTOL_COOLDOWN = 1500;
@@ -165,7 +165,7 @@ const ENEMY_CALEBHODGE_SIZE = PLAYER_SIZE * 1.1;
 const ENEMY_CALEBHODGE_INITIAL_HEALTH = 220;
 const ENEMY_CALEBHODGE_DYNAMITE_DAMAGE = 18;
 const ENEMY_CALEBHODGE_BASE_SPEED = 0.9;
-const ENEMY_CALEBHODGE_XP_VALUE = 150;
+const ENEMY_CALEBHODGE_MONEY_VALUE = 150; // Changed from XP_VALUE
 const ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN = 5000;
 const ENEMY_CALEBHODGE_DYNAMITE_THROW_RANGE_SQUARED = (400 * 400);
 const ENEMY_CALEBHODGE_FISSURE_CREATE_COOLDOWN = 8000;
@@ -184,7 +184,7 @@ const FISSURE_PLAYER_DAMAGE_COOLDOWN = 1000;
 
 const PLAYER_PROJECTILE_BASE_SIZE = 8;
 const PLAYER_REGULAR_PROJECTILE_SPEED = 7;
-const XP_ORB_SIZE = 10;
+const MONEY_ORB_SIZE = 10; // Was XP_ORB_SIZE
 const WAVE_DURATION = 90;
 
 
@@ -210,7 +210,7 @@ const DESERTOR_SPAWN_BATCH_SIZE = 1;
 const ENEMY_SPAWN_TICK_INTERVAL = 2000;
 
 
-const XP_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + XP_ORB_SIZE / 2 + 30) ** 2;
+const MONEY_COLLECTION_RADIUS_SQUARED = (PLAYER_SIZE / 2 + MONEY_ORB_SIZE / 2 + 30) ** 2; // Was XP_COLLECTION_RADIUS_SQUARED
 const ENEMY_MOVE_INTERVAL = 50;
 
 interface Entity {
@@ -249,7 +249,7 @@ interface Enemy extends Entity {
   health: number;
   maxHealth: number;
   type: EnemyType;
-  xpValue: number;
+  moneyValue: number; // Changed from xpValue
   attackCooldownTimer: number;
   speed: number;
   damage: number;
@@ -283,9 +283,9 @@ interface Enemy extends Entity {
   modeSwitchCooldownTimer?: number;
 }
 
-interface XPOrbData extends Entity {
+interface MoneyOrbData extends Entity { // Was XPOrbData
   size: number;
-  value: number;
+  value: number; // This value is now money
 }
 
 type GameProjectileType = PlayerProjectileType | 'enemy_bullet' | 'barrel_explosive' | 'dynamite_explosive';
@@ -345,7 +345,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     health: PLAYER_INITIAL_HEALTH,
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
-  const [xpOrbs, setXpOrbs] = useState<XPOrbData[]>([]);
+  const [moneyOrbs, setMoneyOrbs] = useState<MoneyOrbData[]>([]); // Was xpOrbs
   const [playerProjectiles, setPlayerProjectiles] = useState<ProjectileData[]>([]);
   const [enemyProjectiles, setEnemyProjectiles] = useState<ProjectileData[]>([]);
   const [laserSightLines, setLaserSightLines] = useState<LaserSightLine[]>([]);
@@ -356,7 +356,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const [isShopPhase, setIsShopPhase] = useState(false);
   const [isGameOver, setIsGameOver] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [playerXP, setPlayerXP] = useState(0);
+  const [playerDollars, setPlayerDollars] = useState(0); // Was playerXP
   const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
 
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([{...initialWeapon, upgradedThisRound: false}]);
@@ -421,7 +421,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       health: PLAYER_INITIAL_HEALTH,
     });
     setEnemies([]);
-    setXpOrbs([]);
+    setMoneyOrbs([]); // Was setXpOrbs
     setPlayerProjectiles([]);
     setEnemyProjectiles([]);
     setLaserSightLines([]);
@@ -432,7 +432,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     setIsShopPhase(false);
     setIsGameOver(false);
     setIsPaused(false);
-    setPlayerXP(0);
+    setPlayerDollars(0); // Was setPlayerXP
     setIsPlayerTakingDamage(false);
     setPlayerWeapons([{...initialWeapon, upgradedThisRound: false}]);
     setShopOfferings([]);
@@ -483,7 +483,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     currentPlayer: Player
   ): Enemy | null => {
     let enemyBaseSize: number, enemyInitialHealth: number, enemyBaseSpeed: number,
-        enemyDamageVal: number, enemyXpVal: number, enemyAtkRangeSq: number,
+        enemyDamageVal: number, enemyMoneyVal: number, enemyAtkRangeSq: number, // Changed enemyXpVal to enemyMoneyVal
         enemyAtkCooldown: number, enemyIsDetonating = false, enemyDetonationTimer = 0,
         enemyIsAiming = false, enemyAimingTimer = 0, enemyIsBursting = false,
         enemyBurstShotsLeft = 0, enemyBurstTimer = 0, enemyBarrelThrowCooldownTimer = 0,
@@ -491,66 +491,66 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         enemyDashCooldownTimer = 0, enemyAllySpawnCooldownTimer = 0, enemyModeSwitchCooldownTimer = 0,
         enemyDynamiteThrowCooldownTimer = 0, enemyFissureCreateCooldownTimer = 0;
 
-    let finalHealth: number = 0, finalSpeed: number =0 , finalXpValue: number = 0;
+    let finalHealth: number = 0, finalSpeed: number =0 , finalMoneyValue: number = 0; // Changed finalXpValue to finalMoneyValue
 
 
     switch (type) {
         case 'ArruaceiroSaloon':
             enemyBaseSize = ENEMY_ARROCEIRO_SIZE; enemyInitialHealth = ENEMY_ARROCEIRO_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_ARROCEIRO_BASE_SPEED; enemyDamageVal = ENEMY_ARROCEIRO_DAMAGE;
-            enemyXpVal = ENEMY_ARROCEIRO_XP_VALUE; enemyAtkRangeSq = ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_ARROCEIRO_MONEY_VALUE; enemyAtkRangeSq = ENEMY_ARROCEIRO_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_ARROCEIRO_ATTACK_COOLDOWN; break;
         case 'Cão de Fazenda':
             enemyBaseSize = ENEMY_CAODEFAZENDA_SIZE; enemyInitialHealth = ENEMY_CAODEFAZENDA_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_CAODEFAZENDA_BASE_SPEED; enemyDamageVal = ENEMY_CAODEFAZENDA_DAMAGE;
-            enemyXpVal = ENEMY_CAODEFAZENDA_XP_VALUE; enemyAtkRangeSq = ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_CAODEFAZENDA_MONEY_VALUE; enemyAtkRangeSq = ENEMY_CAODEFAZENDA_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_CAODEFAZENDA_ATTACK_COOLDOWN; break;
         case 'PistoleiroVagabundo':
             enemyBaseSize = ENEMY_PISTOLEIRO_SIZE; enemyInitialHealth = ENEMY_PISTOLEIRO_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_PISTOLEiro_BASE_SPEED; enemyDamageVal = ENEMY_PISTOLEIRO_DAMAGE;
-            enemyXpVal = ENEMY_PISTOLEIRO_XP_VALUE; enemyAtkRangeSq = ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_PISTOLEIRO_MONEY_VALUE; enemyAtkRangeSq = ENEMY_PISTOLEIRO_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_PISTOLEIRO_ATTACK_COOLDOWN; break;
         case 'MineradorRebelde':
             enemyBaseSize = ENEMY_MINERADOR_SIZE; enemyInitialHealth = ENEMY_MINERADOR_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_MINERADOR_BASE_SPEED; enemyDamageVal = ENEMY_MINERADOR_DAMAGE;
-            enemyXpVal = ENEMY_MINERADOR_XP_VALUE; enemyAtkRangeSq = ENEMY_MINERADOR_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_MINERADOR_MONEY_VALUE; enemyAtkRangeSq = ENEMY_MINERADOR_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_MINERADOR_ATTACK_COOLDOWN; break;
         case 'VigiaDaFerrovia':
             enemyBaseSize = ENEMY_VIGIA_SIZE; enemyInitialHealth = ENEMY_VIGIA_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_VIGIA_BASE_SPEED; enemyDamageVal = ENEMY_VIGIA_DAMAGE;
-            enemyXpVal = ENEMY_VIGIA_XP_VALUE; enemyAtkRangeSq = ENEMY_VIGIA_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_VIGIA_MONEY_VALUE; enemyAtkRangeSq = ENEMY_VIGIA_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_VIGIA_ATTACK_COOLDOWN; break;
         case 'BrutoBoyle':
             enemyBaseSize = ENEMY_BRUTOBOYLE_SIZE; enemyInitialHealth = ENEMY_BRUTOBOYLE_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_BRUTOBOYLE_BASE_SPEED; enemyDamageVal = ENEMY_BRUTOBOYLE_DAMAGE;
-            enemyXpVal = ENEMY_BRUTOBOYLE_XP_VALUE; enemyAtkRangeSq = ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_BRUTOBOYLE_MONEY_VALUE; enemyAtkRangeSq = ENEMY_BRUTOBOYLE_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_BRUTOBOYLE_ATTACK_COOLDOWN; break;
         case 'SabotadorDoCanyon':
             enemyBaseSize = ENEMY_SABOTADOR_SIZE; enemyInitialHealth = ENEMY_SABOTADOR_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_SABOTADOR_BASE_SPEED; enemyDamageVal = ENEMY_SABOTADOR_DAMAGE;
-            enemyXpVal = ENEMY_SABOTADOR_XP_VALUE; enemyAtkRangeSq = ENEMY_SABOTADOR_DETONATION_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_SABOTADOR_MONEY_VALUE; enemyAtkRangeSq = ENEMY_SABOTADOR_DETONATION_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_SABOTADOR_DETONATION_TIMER_DURATION; enemyIsDetonating = false; enemyDetonationTimer = 0; break;
         case 'AtiradorDeEliteMcGraw':
             enemyBaseSize = ENEMY_MCGRAW_SIZE; enemyInitialHealth = ENEMY_MCGRAW_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_MCGRAW_BASE_SPEED; enemyDamageVal = ENEMY_MCGRAW_DAMAGE;
-            enemyXpVal = ENEMY_MCGRAW_XP_VALUE; enemyAtkRangeSq = ENEMY_MCGRAW_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_MCGRAW_MONEY_VALUE; enemyAtkRangeSq = ENEMY_MCGRAW_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_MCGRAW_ATTACK_COOLDOWN; enemyIsAiming = false; enemyAimingTimer = 0; break;
         case 'DesertorGavilanes':
             enemyBaseSize = ENEMY_DESERTOR_SIZE; enemyInitialHealth = ENEMY_DESERTOR_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_DESERTOR_BASE_SPEED; enemyDamageVal = ENEMY_DESERTOR_DAMAGE;
-            enemyXpVal = ENEMY_DESERTOR_XP_VALUE; enemyAtkRangeSq = ENEMY_DESERTOR_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_DESERTOR_MONEY_VALUE; enemyAtkRangeSq = ENEMY_DESERTOR_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_DESERTOR_ATTACK_COOLDOWN; enemyIsBursting = false; enemyBurstShotsLeft = 0; enemyBurstTimer = 0; break;
         case 'Boss_BigDoyle':
             enemyBaseSize = ENEMY_BIGDOYLE_SIZE; enemyInitialHealth = ENEMY_BIGDOYLE_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_BIGDOYLE_BASE_SPEED; enemyDamageVal = ENEMY_BIGDOYLE_MELEE_DAMAGE;
-            enemyXpVal = ENEMY_BIGDOYLE_XP_VALUE; enemyAtkRangeSq = ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_BIGDOYLE_MONEY_VALUE; enemyAtkRangeSq = ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_BIGDOYLE_MELEE_ATTACK_COOLDOWN;
             enemyBarrelThrowCooldownTimer = ENEMY_BIGDOYLE_BARREL_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
             break;
         case 'Boss_CaptainMcGraw':
             enemyBaseSize = ENEMY_CAPTAINMCGRAW_SIZE; enemyInitialHealth = ENEMY_CAPTAINMCGRAW_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_CAPTAINMCGRAW_BASE_SPEED; enemyDamageVal = ENEMY_CAPTAINMCGRAW_RIFLE_DAMAGE;
-            enemyXpVal = ENEMY_CAPTAINMCGRAW_XP_VALUE; enemyAtkRangeSq = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_CAPTAINMCGRAW_MONEY_VALUE; enemyAtkRangeSq = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_COOLDOWN;
             enemyIsAiming = false; enemyAimingTimer = 0;
             enemyDroneSpawnCooldownTimer = ENEMY_CAPTAINMCGRAW_DRONE_SPAWN_COOLDOWN * (0.3 + Math.random() * 0.4);
@@ -558,7 +558,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         case 'Boss_DomGael':
             enemyBaseSize = ENEMY_DOMGAEL_SIZE; enemyInitialHealth = ENEMY_DOMGAEL_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_DOMGAEL_BASE_SPEED; enemyDamageVal = ENEMY_DOMGAEL_PISTOL_DAMAGE;
-            enemyXpVal = ENEMY_DOMGAEL_XP_VALUE; enemyAtkRangeSq = ENEMY_DOMGAEL_PISTOL_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_DOMGAEL_MONEY_VALUE; enemyAtkRangeSq = ENEMY_DOMGAEL_PISTOL_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_DOMGAEL_PISTOL_COOLDOWN;
             enemyAttackMode = 'pistol';
             enemyDashCooldownTimer = ENEMY_DOMGAEL_DASH_COOLDOWN * (0.2 + Math.random() * 0.8);
@@ -568,7 +568,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         case 'Boss_CalebHodge':
             enemyBaseSize = ENEMY_CALEBHODGE_SIZE; enemyInitialHealth = ENEMY_CALEBHODGE_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_CALEBHODGE_BASE_SPEED; enemyDamageVal = ENEMY_CALEBHODGE_DYNAMITE_DAMAGE;
-            enemyXpVal = ENEMY_CALEBHODGE_XP_VALUE; enemyAtkRangeSq = ENEMY_CALEBHODGE_DYNAMITE_THROW_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_CALEBHODGE_MONEY_VALUE; enemyAtkRangeSq = ENEMY_CALEBHODGE_DYNAMITE_THROW_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN;
             enemyDynamiteThrowCooldownTimer = ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
             enemyFissureCreateCooldownTimer = ENEMY_CALEBHODGE_FISSURE_CREATE_COOLDOWN * (0.3 + Math.random() * 0.7);
@@ -576,10 +576,10 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         case 'PatrolDrone':
             enemyBaseSize = ENEMY_DRONE_SIZE; enemyInitialHealth = ENEMY_DRONE_INITIAL_HEALTH;
             enemyBaseSpeed = ENEMY_DRONE_BASE_SPEED; enemyDamageVal = ENEMY_DRONE_DAMAGE;
-            enemyXpVal = ENEMY_DRONE_XP_VALUE; enemyAtkRangeSq = ENEMY_DRONE_ATTACK_RANGE_SQUARED;
+            enemyMoneyVal = ENEMY_DRONE_MONEY_VALUE; enemyAtkRangeSq = ENEMY_DRONE_ATTACK_RANGE_SQUARED; // Changed from XP_VALUE
             enemyAtkCooldown = ENEMY_DRONE_ATTACK_COOLDOWN;
 
-            finalHealth = enemyInitialHealth; finalSpeed = enemyBaseSpeed; finalXpValue = enemyXpVal;
+            finalHealth = enemyInitialHealth; finalSpeed = enemyBaseSpeed; finalMoneyValue = enemyMoneyVal; // Changed from finalXpValue
              let droneX, droneY; const droneSpawnPadding = 50;
             droneX = Math.random() * (GAME_WIDTH - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
             droneY = Math.random() * (GAME_HEIGHT - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
@@ -587,7 +587,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             return {
                 id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: droneX, y: droneY,
                 width: enemyBaseSize, height: enemyBaseSize, health: finalHealth, maxHealth: finalHealth,
-                type: type, xpValue: finalXpValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
+                type: type, moneyValue: finalMoneyValue, attackCooldownTimer: Math.random() * enemyAtkCooldown, // Changed from xpValue
                 speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
                 attackCooldown: enemyAtkCooldown,
             };
@@ -597,21 +597,22 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     if (type.startsWith('Boss_')) {
         const bossAppearances = Math.floor(currentWave / 10);
         let healthMultiplier = 0.25;
-        let xpMultiplier = 0.5;
-        if (type === 'Boss_CaptainMcGraw') { healthMultiplier = 0.20; xpMultiplier = 0.40; }
-        if (type === 'Boss_DomGael') { healthMultiplier = 0.22; xpMultiplier = 0.45; }
-        if (type === 'Boss_CalebHodge') { healthMultiplier = 0.28; xpMultiplier = 0.55; }
+        let moneyMultiplier = 0.5; // Changed from xpMultiplier
+        if (type === 'Boss_CaptainMcGraw') { healthMultiplier = 0.20; moneyMultiplier = 0.40; } // Changed from xpMultiplier
+        if (type === 'Boss_DomGael') { healthMultiplier = 0.22; moneyMultiplier = 0.45; } // Changed from xpMultiplier
+        if (type === 'Boss_CalebHodge') { healthMultiplier = 0.28; moneyMultiplier = 0.55; } // Changed from xpMultiplier
 
         finalHealth = Math.round(enemyInitialHealth * (1 + bossAppearances * healthMultiplier));
-        finalXpValue = Math.round(enemyXpVal * (1 + bossAppearances * xpMultiplier));
+        finalMoneyValue = Math.round(enemyMoneyVal * (1 + bossAppearances * moneyMultiplier)); // Changed from finalXpValue and xpMultiplier
         finalSpeed = enemyBaseSpeed;
     } else if (type !== 'PatrolDrone') {
         const waveMultiplier = (currentWave -1) * 0.15;
         finalHealth = Math.round(enemyInitialHealth * (1 + waveMultiplier * 1.2));
         finalSpeed = enemyBaseSpeed * (1 + waveMultiplier * 0.5);
-        if (['ArruaceiroSaloon', 'Cão de Fazenda'].includes(type)) finalXpValue += Math.floor(currentWave / 2);
-        else if (['PistoleiroVagabundo', 'MineradorRebelde', 'SabotadorDoCanyon'].includes(type)) finalXpValue += currentWave -1;
-        else if (['VigiaDaFerrovia', 'BrutoBoyle', 'AtiradorDeEliteMcGraw', 'DesertorGavilanes'].includes(type)) finalXpValue += Math.floor((currentWave -1) * 1.5);
+        if (['ArruaceiroSaloon', 'Cão de Fazenda'].includes(type)) finalMoneyValue = enemyMoneyVal + Math.floor(currentWave / 2); // Changed from finalXpValue
+        else if (['PistoleiroVagabundo', 'MineradorRebelde', 'SabotadorDoCanyon'].includes(type)) finalMoneyValue = enemyMoneyVal + currentWave -1; // Changed from finalXpValue
+        else if (['VigiaDaFerrovia', 'BrutoBoyle', 'AtiradorDeEliteMcGraw', 'DesertorGavilanes'].includes(type)) finalMoneyValue = enemyMoneyVal + Math.floor((currentWave -1) * 1.5); // Changed from finalXpValue
+        else finalMoneyValue = enemyMoneyVal; // Fallback for other types not explicitly scaled for money
     }
 
 
@@ -637,7 +638,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     return {
         id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: newX, y: newY,
         width: enemyWidth, height: enemyHeight, health: finalHealth, maxHealth: finalHealth,
-        type: type, xpValue: finalXpValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
+        type: type, moneyValue: finalMoneyValue, attackCooldownTimer: Math.random() * enemyAtkCooldown, // Changed from xpValue to moneyValue
         speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
         attackCooldown: enemyAtkCooldown, isDetonating: enemyIsDetonating, detonationTimer: enemyDetonationTimer,
         isAiming: enemyIsAiming, aimingTimer: enemyAimingTimer, isBursting: enemyIsBursting,
@@ -653,7 +654,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         allySpawnCooldownTimer: type === 'Boss_DomGael' ? enemyAllySpawnCooldownTimer : undefined,
         modeSwitchCooldownTimer: type === 'Boss_DomGael' ? enemyModeSwitchCooldownTimer : undefined,
     };
-  }, [fissureTraps]);
+  }, [fissureTraps]); // fissureTraps might be okay if createEnemyInstance doesn't directly depend on its value changing to re-memoize
 
   const spawnEnemiesOnTick = useCallback(() => {
     if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) return;
@@ -709,8 +710,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       toast({ title: "Já Interagido", description: "Você já comprou ou aprimorou esta oferta nesta rodada.", variant: "destructive" });
       return;
     }
-    if (playerXP < weaponToBuyOrUpgrade.xpCost) {
-      toast({ title: "XP Insuficiente", description: `Você precisa de ${weaponToBuyOrUpgrade.xpCost} XP.`, variant: "destructive" });
+    if (playerDollars < weaponToBuyOrUpgrade.moneyCost) { // Changed from playerXP and moneyCost
+      toast({ title: "Dinheiro Insuficiente", description: `Você precisa de $${weaponToBuyOrUpgrade.moneyCost}.`, variant: "destructive" }); // Changed from XP
       return;
     }
     if (isUpgrade) {
@@ -728,14 +729,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
           return weapon;
         })
       );
-      setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
+      setPlayerDollars(prevMoney => prevMoney - weaponToBuyOrUpgrade.moneyCost); // Changed from playerXP and moneyCost
       toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
     } else {
       if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
         toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
         return;
       }
-      setPlayerXP(prevXP => prevXP - weaponToBuyOrUpgrade.xpCost);
+      setPlayerDollars(prevMoney => prevMoney - weaponToBuyOrUpgrade.moneyCost); // Changed from playerXP and moneyCost
       const freshWeaponDefinition = getWeaponById(weaponToBuyOrUpgrade.id);
       if (freshWeaponDefinition) {
         setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition, upgradedThisRound: false}]);
@@ -758,16 +759,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     }
     const weaponToRecycle = playerWeapons.find(w => w.id === weaponIdToRecycle);
     if (weaponToRecycle) {
-      let xpGained = 0;
+      let moneyGained = 0; // Changed from xpGained
       if (weaponToRecycle.id === initialWeapon.id) {
-        xpGained = INITIAL_WEAPON_RECYCLE_XP;
+        moneyGained = INITIAL_WEAPON_RECYCLE_MONEY; // Changed from INITIAL_WEAPON_RECYCLE_XP
       } else {
         const baseWeapon = getWeaponById(weaponIdToRecycle);
-        xpGained = Math.floor((baseWeapon?.xpCost || 0) * RECYCLE_XP_PERCENTAGE);
+        moneyGained = Math.floor((baseWeapon?.moneyCost || 0) * RECYCLE_MONEY_PERCENTAGE); // Changed from moneyCost and RECYCLE_MONEY_PERCENTAGE
       }
-      setPlayerXP(prevXP => prevXP + xpGained);
+      setPlayerDollars(prevMoney => prevMoney + moneyGained); // Changed from playerXP
       setPlayerWeapons(prevWeapons => prevWeapons.filter(w => w.id !== weaponIdToRecycle));
-      toast({ title: "Arma Reciclada!", description: `${weaponToRecycle.name} removida. +${xpGained} XP.` });
+      toast({ title: "Arma Reciclada!", description: `${weaponToRecycle.name} removida. +$${moneyGained}.` }); // Changed from XP
     }
   };
 
@@ -897,7 +898,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         const damageToApplyToEnemies = new Map<string, { damage: number, originWeaponId?: string }>();
 
         for (const proj of playerProjectilesRef.current) {
-            let currentProj = { ...proj }; // Work with a mutable copy
+            let currentProj = { ...proj }; 
 
             currentProj.x += currentProj.dx * (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
             currentProj.y += currentProj.dy * (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
@@ -953,7 +954,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setPlayerProjectiles(newPlayerProjectilesList);
 
         if (damageToApplyToEnemies.size > 0) {
-            const xpOrbsFromKills: XPOrbData[] = [];
+            const moneyOrbsFromKills: MoneyOrbData[] = []; // Changed from xpOrbsFromKills
             let scoreFromKills = 0;
 
             setEnemies(currentEnemies =>
@@ -963,16 +964,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         const damageTaken = hitData.damage;
                         const newHealth = enemy.health - damageTaken;
 
-                        if (newHealth <= 0 && enemy.health > 0) {
-                            if (enemy.xpValue > 0) {
-                                xpOrbsFromKills.push({
-                                    id: `xp_${Date.now()}_${Math.random()}_${enemy.id}`,
-                                    x: enemy.x + enemy.width / 2 - XP_ORB_SIZE / 2,
-                                    y: enemy.y + enemy.height / 2 - XP_ORB_SIZE / 2,
-                                    size: XP_ORB_SIZE, value: enemy.xpValue
+                        if (newHealth <= 0 && enemy.health > 0) { // Check enemy.health > 0 to ensure it's the first time it's marked for death this frame
+                            if (enemy.moneyValue > 0) { // Changed from xpValue
+                                moneyOrbsFromKills.push({ // Changed from xpOrbsFromKills
+                                    id: `money_${Date.now()}_${Math.random()}_${enemy.id}`, // Changed prefix
+                                    x: enemy.x + enemy.width / 2 - MONEY_ORB_SIZE / 2, // Changed from XP_ORB_SIZE
+                                    y: enemy.y + enemy.height / 2 - MONEY_ORB_SIZE / 2, // Changed from XP_ORB_SIZE
+                                    size: MONEY_ORB_SIZE, value: enemy.moneyValue // Changed from XP_ORB_SIZE and moneyValue
                                 });
                             }
-                            scoreFromKills += enemy.xpValue * (enemy.type.startsWith('Boss_') ? 20 : 5);
+                            scoreFromKills += enemy.moneyValue * (enemy.type.startsWith('Boss_') ? 20 : 5); // Changed from xpValue
 
                             if (['AtiradorDeEliteMcGraw', 'Boss_CaptainMcGraw', 'Boss_DomGael', 'Boss_CalebHodge'].includes(enemy.type)) {
                                 setLaserSightLines(prev => prev.filter(l => l.id !== enemy.id));
@@ -992,7 +993,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     return enemy;
                 }).filter(enemy => enemy.health > 0)
             );
-             if (xpOrbsFromKills.length > 0) setXpOrbs(prevOrbs => [...prevOrbs, ...xpOrbsFromKills]);
+             if (moneyOrbsFromKills.length > 0) setMoneyOrbs(prevOrbs => [...prevOrbs, ...moneyOrbsFromKills]); // Changed from setXpOrbs
              if (scoreFromKills > 0) setScore(prevScore => prevScore + scoreFromKills);
         }
 
@@ -1559,16 +1560,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
           }).filter(enemy => enemy.health > 0)
         );
 
-        setXpOrbs((currentOrbs) => {
+        setMoneyOrbs((currentOrbs) => { // Changed from setXpOrbs
           const collectedOrbValues: number[] = [];
           const remainingOrbs = currentOrbs.filter((orb) => {
             const distX = (playerRef.current.x + playerRef.current.width / 2) - (orb.x + orb.size / 2);
             const distY = (playerRef.current.y + playerRef.current.height / 2) - (orb.y + orb.size / 2);
-            if (distX * distX + distY * distY < XP_COLLECTION_RADIUS_SQUARED) {
+            if (distX * distX + distY * distY < MONEY_COLLECTION_RADIUS_SQUARED) { // Changed from XP_COLLECTION_RADIUS_SQUARED
               collectedOrbValues.push(orb.value); return false;
             } return true;
           });
-          if (collectedOrbValues.length > 0) setPlayerXP((prevXP) => prevXP + collectedOrbValues.reduce((s, v) => s + v, 0));
+          if (collectedOrbValues.length > 0) setPlayerDollars((prevMoney) => prevMoney + collectedOrbValues.reduce((s, v) => s + v, 0)); // Changed from setPlayerXP
           return remainingOrbs;
         });
       }
@@ -1578,7 +1579,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     };
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, createEnemyInstance, spawnEnemiesOnTick, fissureTraps]);
+  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, createEnemyInstance, spawnEnemiesOnTick, fissureTraps]); // Added fissureTraps to dep array. Might need careful checking.
 
 
   useEffect(() => {
@@ -1590,8 +1591,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       setWaveTimer((prevTimer) => {
         if (prevTimer <= 1) {
           clearInterval(waveIntervalId.current!);
-          setXpOrbs(currentXpOrbs => {
-            if (currentXpOrbs.length > 0) setPlayerXP(pXP => pXP + currentXpOrbs.reduce((s, o) => s + o.value, 0));
+          setMoneyOrbs(currentMoneyOrbs => { // Changed from setXpOrbs
+            if (currentMoneyOrbs.length > 0) setPlayerDollars(pMoney => pMoney + currentMoneyOrbs.reduce((s, o) => s + o.value, 0)); // Changed from setPlayerXP
             return [];
           });
           setIsShopPhase(true);
@@ -1611,7 +1612,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
 
   const handleStartWaveLogic = (currentWaveNumber: number) => {
-    const newWave = currentWaveNumber + 1; 
+    const newWave = currentWaveNumber; // currentWaveNumber is already the *next* wave number here
     setFissureTraps([]); 
     if ((newWave % 10 === 0)) {
         isBossWaveActive.current = true;
@@ -1620,7 +1621,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setPlayerProjectiles([]);
         setEnemyProjectiles([]);
         setLaserSightLines([]);
-        setXpOrbs([]);
+        setMoneyOrbs([]); // Was setXpOrbs
         if (enemySpawnTimerId.current) {
             clearInterval(enemySpawnTimerId.current);
             enemySpawnTimerId.current = null;
@@ -1649,12 +1650,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       enemySpawnTimerId.current = null;
       return;
     }
+    // Ensure spawnEnemiesOnTick is only called if the timer isn't already set.
     if (!enemySpawnTimerId.current) {
-        spawnEnemiesOnTick();
+        spawnEnemiesOnTick(); // Call once immediately
         enemySpawnTimerId.current = setInterval(spawnEnemiesOnTick, ENEMY_SPAWN_TICK_INTERVAL);
     }
     
-  }, [isShopPhase, isGameOver, isPaused, spawnEnemiesOnTick, isBossWaveActive.current]);
+  }, [isShopPhase, isGameOver, isPaused, spawnEnemiesOnTick, isBossWaveActive.current]); // Added isBossWaveActive.current
 
   const startNextWave = () => {
     setIsShopPhase(false);
@@ -1667,7 +1669,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     lastLogicUpdateTimestampRef.current = 0;
     setIsPaused(false);
 
-    handleStartWaveLogic(wave); 
+    handleStartWaveLogic(nextWaveNumber); // Pass the *new* wave number
   };
 
 
@@ -1677,7 +1679,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         <h2 className="text-4xl font-bold text-destructive mb-4">Fim de Jogo!</h2>
         <p className="text-xl mb-2">Pontuação Final: {score}</p>
         <p className="text-lg mb-2">Onda Alcançada: {wave}</p>
-        <p className="text-lg mb-4">Total XP Coletado: {playerXP}</p>
+        <p className="text-lg mb-4">Total Dinheiro Coletado: ${playerDollars}</p> 
         <Button onClick={() => resetGameState()} className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-lg">
           Jogar Novamente
         </Button>
@@ -1690,17 +1692,17 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
   if (isShopPhase) {
     return <ShopDialog
-              onStartNextWave={startNextWave} wave={wave} score={score} playerXP={playerXP}
+              onStartNextWave={startNextWave} wave={wave} score={score} playerMoney={playerDollars} // Changed playerXP to playerMoney
               shopOfferings={shopOfferings} playerWeapons={playerWeapons}
               onBuyWeapon={handleBuyWeapon} onRecycleWeapon={handleRecycleWeapon}
-              canAfford={(cost) => playerXP >= cost} inventoryFull={playerWeapons.length >= MAX_PLAYER_WEAPONS}
+              canAfford={(cost) => playerDollars >= cost} inventoryFull={playerWeapons.length >= MAX_PLAYER_WEAPONS} // Changed playerXP to playerMoney
             />;
   }
 
   return (
     <div className="flex flex-col items-center p-1 sm:p-4 w-full h-full">
       <div className="w-full max-w-2xl flex justify-between items-start mb-1 sm:mb-2">
-        <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerXP={playerXP} />
+        <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerMoney={playerDollars} />
         <Button onClick={() => setIsPaused(!isPaused)} variant="outline" size="icon" className="ml-2 sm:ml-4 mt-1 text-foreground hover:bg-accent hover:text-accent-foreground" aria-label={isPaused ? "Continuar" : "Pausar"}>
             {isPaused ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
         </Button>
@@ -1735,7 +1737,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                   type={enemy.type} isStunned={enemy.isStunned} isDetonating={enemy.isDetonating}
                 />
               ))}
-              {xpOrbs.map((orb) => (<XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} /> ))}
+              {moneyOrbs.map((orb) => (<XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} /> ))}
               {playerProjectiles.map((proj) => ( <Projectile key={proj.id} x={proj.x} y={proj.y} size={proj.size} projectileType={proj.projectileType} width={proj.width} height={proj.height} /> ))}
               {enemyProjectiles.map((proj) => ( <Projectile key={proj.id} x={proj.x} y={proj.y} size={proj.size} projectileType={proj.projectileType} width={proj.width} height={proj.height} isBarrelOrDynamite={proj.isBarrelOrDynamite} hasLanded={proj.hasLanded} /> ))}
               {laserSightLines.map(line => {

@@ -13,7 +13,7 @@ interface ShopDialogProps {
   onStartNextWave: () => void;
   wave: number;
   score: number;
-  playerXP: number;
+  playerMoney: number; // Changed from playerXP
   shopOfferings: Weapon[];
   playerWeapons: Weapon[];
   onBuyWeapon: (weapon: Weapon) => void;
@@ -26,7 +26,7 @@ export function ShopDialog({
   onStartNextWave,
   wave,
   score,
-  playerXP,
+  playerMoney, // Changed from playerXP
   shopOfferings,
   playerWeapons,
   onBuyWeapon,
@@ -64,13 +64,13 @@ export function ShopDialog({
         <CardHeader className="flex-shrink-0 p-3 sm:p-4">
           <CardTitle className="text-xl sm:text-2xl text-center text-primary">Onda {wave} Concluída!</CardTitle>
           <CardDescription className="text-center text-xs sm:text-sm">
-            Prepare-se para a próxima horda. Gaste seu XP com sabedoria!
+            Prepare-se para a próxima horda. Gaste seu dinheiro com sabedoria!
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2 sm:space-y-4 flex-grow overflow-hidden p-2 sm:p-4">
           <div className="text-center mb-1 sm:mb-2">
             <p className="text-sm sm:text-md">Pontuação: <span className="font-bold text-primary">{score}</span></p>
-            <p className="text-sm sm:text-md">XP: <span className="font-bold text-yellow-400">{playerXP}</span></p>
+            <p className="text-sm sm:text-md">Dinheiro: <span className="font-bold text-yellow-400">${playerMoney}</span></p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 sm:gap-4 h-full">
@@ -89,14 +89,14 @@ export function ShopDialog({
                 {shopOfferings.map((weapon) => {
                   const IconComponent = weapon.icon || HelpCircle;
                   const isOwned = playerWeapons.some(pw => pw.id === weapon.id);
-                  const affordable = canAfford(weapon.xpCost);
+                  const affordable = canAfford(weapon.moneyCost); // Changed from weapon.xpCost
                   const actionText = isOwned ? "Aprimorar" : "Comprar";
 
                   const isDisabled = weapon.upgradedThisRound || !affordable || (inventoryFull && !isOwned);
 
                   let titleText = `${actionText} ${weapon.name}`;
                   if (weapon.upgradedThisRound) titleText = "Já interagido nesta rodada";
-                  else if (!affordable) titleText = "XP insuficiente";
+                  else if (!affordable) titleText = "Dinheiro insuficiente";
                   else if (inventoryFull && !isOwned) titleText = "Inventário cheio (Máx 5)";
 
                   return (
@@ -110,7 +110,7 @@ export function ShopDialog({
                             Dano: {weapon.damage} {weapon.projectilesPerShot && weapon.projectilesPerShot > 1 ? `x ${weapon.projectilesPerShot}` : ''}
                           </p>
                           <p className="text-xs -mt-0.5">Cad: {getCadenceText(weapon.cooldown)} | Alc: {getRangeText(weapon.range)}</p>
-                          <p className="text-xs -mt-0.5">Custo: <span className="font-semibold text-yellow-400">{weapon.xpCost} XP</span></p>
+                          <p className="text-xs -mt-0.5">Custo: <span className="font-semibold text-yellow-400">${weapon.moneyCost}</span></p>
                           <p className="text-xs mt-0 italic text-accent-foreground/70">{weapon.effectDescription}</p>
                         </div>
                         <Button

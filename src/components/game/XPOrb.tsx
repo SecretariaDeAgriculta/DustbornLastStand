@@ -21,9 +21,7 @@ export function XPOrb({ x, y, size }: XPOrbProps) {
         opacity: 0.8,
       }}
       role="img"
-      aria-label="XP Orb"
+      aria-label="Moeda"
     />
   );
 }
-
-    

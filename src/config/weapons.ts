@@ -18,7 +18,7 @@ export interface Weapon {
   shotgunSpreadAngle?: number; // degrees
   penetrationCount?: number;
   icon?: Icon;
-  xpCost: number;
+  moneyCost: number; // Changed from xpCost
   upgradedThisRound?: boolean;
   projectileType: ProjectileType;
   stunDuration?: number; // milliseconds
@@ -33,7 +33,7 @@ export const initialWeapon: Weapon = {
   range: 300,
   effectDescription: 'Uma relíquia enferrujada, mas ainda funciona.',
   icon: HelpCircle,
-  xpCost: 0,
+  moneyCost: 0, // Changed from xpCost
   projectileType: 'bullet',
   penetrationCount: 0,
   upgradedThisRound: false,
@@ -51,7 +51,7 @@ const commonWeapons: Weapon[] = [
     criticalMultiplier: 1.5,
     effectDescription: '10% de chance de tiro crítico (x1.5 dano).',
     icon: Target,
-    xpCost: 50,
+    moneyCost: 50, // Changed from xpCost
     projectileType: 'bullet',
     penetrationCount: 0,
   },
@@ -66,7 +66,7 @@ const commonWeapons: Weapon[] = [
     shotgunSpreadAngle: 30,
     effectDescription: 'Dispara 3 projéteis em cone.',
     icon: Aperture,
-    xpCost: 60,
+    moneyCost: 60, // Changed from xpCost
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
   },
@@ -77,10 +77,10 @@ const commonWeapons: Weapon[] = [
     damage: 6,
     cooldown: 500,
     range: 400,
-    penetrationCount: 1, // Penetra 1 inimigo (acerta 2 no total)
+    penetrationCount: 1, 
     effectDescription: 'Penetra mais 1 inimigo.',
     icon: GitFork,
-    xpCost: 70,
+    moneyCost: 70, // Changed from xpCost
     projectileType: 'knife',
   },
 ];
@@ -93,10 +93,10 @@ const rareWeapons: Weapon[] = [
     damage: 8,
     cooldown: 400,
     range: 500,
-    penetrationCount: 1, // Penetra 1 inimigo (acerta 2 no total)
+    penetrationCount: 1, 
     effectDescription: 'Tiros rápidos e precisos que atravessam um inimigo.',
     icon: Crosshair,
-    xpCost: 280,
+    moneyCost: 280, // Changed from xpCost
     projectileType: 'bullet',
   },
   {
@@ -110,7 +110,7 @@ const rareWeapons: Weapon[] = [
     shotgunSpreadAngle: 40,
     effectDescription: 'Dispara 5 projéteis em um cone largo, cobrindo uma grande área frontal.',
     icon: Aperture,
-    xpCost: 320,
+    moneyCost: 320, // Changed from xpCost
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
   },
@@ -123,7 +123,7 @@ const rareWeapons: Weapon[] = [
     range: 200, 
     effectDescription: 'Impacto causa dano. (Efeito de área de fogo não implementado).',
     icon: Flame,
-    xpCost: 350,
+    moneyCost: 350, // Changed from xpCost
     projectileType: 'molotov_flask',
     penetrationCount: 0, 
   }
@@ -140,7 +140,7 @@ const legendaryWeapons: Weapon[] = [
     range: 350, 
     effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros.',
     icon: Sparkles,
-    xpCost: 750,
+    moneyCost: 750, // Changed from xpCost
     projectileType: 'bullet',
     penetrationCount: 0,
   },
@@ -155,7 +155,7 @@ const legendaryWeapons: Weapon[] = [
     shotgunSpreadAngle: 35,
     effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto por 1s.',
     icon: Volume2,
-    xpCost: 800,
+    moneyCost: 800, // Changed from xpCost
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
     stunDuration: 1000,
@@ -167,10 +167,10 @@ const legendaryWeapons: Weapon[] = [
     damage: 40,
     cooldown: 2000, 
     range: 700, 
-    penetrationCount: 99, // Effectively pierces all
+    penetrationCount: 99, 
     effectDescription: 'Rifle de precisão. Tiros atravessam todos os inimigos em linha reta.',
     icon: LocateFixed,
-    xpCost: 900,
+    moneyCost: 900, // Changed from xpCost
     projectileType: 'bullet',
   }
 ];
