@@ -4,6 +4,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { characterSprites } from '@/data/assets';
 
 interface PlayerCharacterProps {
   x: number;
@@ -17,7 +18,7 @@ export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerC
   return (
     <div
       className={cn(
-        "absolute rounded-sm shadow-md overflow-hidden", // Added overflow-hidden
+        "absolute rounded-sm shadow-md overflow-hidden",
         isTakingDamage ? 'ring-2 ring-inset ring-red-500 animate-pulse' : ''
       )}
       style={{
@@ -30,12 +31,12 @@ export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerC
       aria-label="Player character"
     >
       <Image
-        src={`https://placehold.co/${width}x${height}.png`}
-        alt="Player Character Sprite"
+        src={characterSprites.adultSilas}
+        alt="Silas Kane, o Pistoleiro"
         width={width}
         height={height}
         className="object-cover"
-        data-ai-hint="cowboy hero"
+        data-ai-hint="cowboy hero protagonist"
         priority
       />
     </div>
