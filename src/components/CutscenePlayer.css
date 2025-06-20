@@ -1,0 +1,66 @@
+
+.cutscene-player {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: black;
+  z-index: 1000; /* Ensure it's on top */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden; /* Crucial for Ken Burns within bounds */
+}
+
+.cutscene-image-wrapper {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden; /* Ensures Ken Burns effect stays within viewport */
+}
+
+.cutscene-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: kenburns-effect 10s ease-out forwards;
+}
+
+@keyframes kenburns-effect {
+  0% {
+    transform: scale(1) translate(0, 0);
+  }
+  100% {
+    transform: scale(1.05) translate(-1%, 1%); /* Example: slight zoom and pan */
+  }
+}
+
+.narrator-box {
+  position: absolute;
+  bottom: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80%;
+  max-width: 900px;
+  padding: 20px;
+  background-color: rgba(0, 0, 0, 0.75);
+  color: white;
+  text-align: center;
+  font-family: 'Georgia', 'Times New Roman', Times, serif;
+  font-size: 1.2rem; /* Adjusted for better readability */
+  line-height: 1.6;
+  border-radius: 8px;
+  box-shadow: 0 2px 15px rgba(0,0,0,0.5);
+  z-index: 10; /* Above image */
+}
+
+@media (min-width: 768px) {
+  .narrator-box {
+    font-size: 1.4rem;
+    padding: 25px;
+  }
+}

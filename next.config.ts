@@ -17,6 +17,12 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+      {
+        protocol: 'https',
+        hostname: 'raw.githubusercontent.com',
+        port: '',
+        pathname: '/**',
+      }
     ],
     // Allow serving local images from the public directory for next/image
     // No specific entry needed if using `src="/assets/..."` as next/image handles this by default.

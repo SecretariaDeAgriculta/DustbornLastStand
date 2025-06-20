@@ -9,9 +9,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Settings, Laptop, Smartphone, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
+import { CutscenePlayer } from '@/components/CutscenePlayer';
+import { openingCutsceneData } from '@/data/openingCutscene';
+
+type ViewMode = 'opening_cutscene' | 'mainMenu' | 'storyChapterSelect' | 'freeMode';
 
 export default function Home() {
-  const [viewMode, setViewMode] = useState<'mainMenu' | 'storyChapterSelect' | 'freeMode'>('mainMenu');
+  const [viewMode, setViewMode] = useState<ViewMode>('opening_cutscene');
   const [deviceSetting, setDeviceSetting] = useState<'auto' | 'computer' | 'mobile'>('auto');
   const [currentDeviceMode, setCurrentDeviceMode] = useState<'computer' | 'mobile'>('computer');
   const { toast } = useToast();
@@ -39,7 +43,6 @@ export default function Home() {
 
   }, [deviceSetting, toast, currentDeviceMode]);
 
-
   const handleSetDevice = (mode: 'auto' | 'computer' | 'mobile') => {
     setDeviceSetting(mode);
     if (mode !== 'auto') {
@@ -51,6 +54,14 @@ export default function Home() {
     }
     setIsSettingsDialogOpen(false);
   };
+
+  const handleCutsceneComplete = () => {
+    setViewMode('mainMenu');
+  };
+
+  if (viewMode === 'opening_cutscene') {
+    return <CutscenePlayer slides={openingCutsceneData} onComplete={handleCutsceneComplete} />;
+  }
 
   if (viewMode === 'freeMode') {
     return (
