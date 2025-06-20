@@ -31,7 +31,7 @@ export function Prologue({ onComplete }: PrologueProps) {
   const [playerPosition, setPlayerPosition] = useState({ x: PROLOGUE_WIDTH / 2 - PLAYER_SIZE / 2, y: PROLOGUE_HEIGHT * 0.7 });
   const [subtitle, setSubtitle] = useState<string | null>(null);
   const [showFather, setShowFather] = useState(true);
-  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(prologuePlaceholders.father); // Changed from fatherStanding
+  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(prologuePlaceholders.father);
   const [goons, setGoons] = useState<{ x: number; y: number; visible: boolean }[]>([
     { x: PROLOGUE_WIDTH * 0.6, y: PROLOGUE_HEIGHT * 0.65, visible: true },
     { x: PROLOGUE_WIDTH * 0.4, y: PROLOGUE_HEIGHT * 0.65, visible: true },
@@ -96,7 +96,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         setSubtitle(null);
         setShowFather(true);
         setFatherSpriteUrl(prologuePlaceholders.father);
-        setGoons(prev => prev.map(g => ({ ...g, x: g.x, y: g.y, visible: true }))); // ensure positions are reset if needed
+        setGoons(prev => prev.map(g => ({ ...g, x: g.x, y: g.y, visible: true }))); 
         
         stageTimer.current = setTimeout(() => {
           setSubtitle("SAIAM DA MINHA CASA! SUAS BESTAS!");
@@ -104,10 +104,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         }, 500);
 
         stageTimer.current = setTimeout(() => {
-          // Simulate father falling - in a real scenario, use a different sprite or animation
-          setFatherSpriteUrl(prologuePlaceholders.father); // Re-setting to potentially trigger re-render if CSS handles "fallen" state
-          // For a simple visual cue if you don't have a fallen sprite immediately:
-          // setFatherStyle({ ...fatherStyle, transform: 'rotate(-75deg) translateY(20px)', filter: 'grayscale(1)' });
+          setFatherSpriteUrl(prologuePlaceholders.father); 
         }, 2500);
         
         stageTimer.current = setTimeout(() => {
@@ -126,15 +123,14 @@ export function Prologue({ onComplete }: PrologueProps) {
         break;
 
       case 'find_weapon':
-        setIsPlayerControlEnabled(false); // Control disabled
+        setIsPlayerControlEnabled(false); 
         setSubtitle("[E] Pegar Revólver");
-        setShowRevolver(true); // Make revolver visible
+        setShowRevolver(true); 
         break;
 
       case 'scripted_combat':
         setIsPlayerControlEnabled(false);
         setSubtitle(null);
-        // Make the first goon visible and move in front of player
         setGoons(prev => [
           { x: playerPosition.x + (playerPosition.x < PROLOGUE_WIDTH / 2 ? 60 : -60) , y: playerPosition.y -10, visible: true },
           { ...prev[1], visible: false }
@@ -149,7 +145,7 @@ export function Prologue({ onComplete }: PrologueProps) {
           playSfx(prologueSounds.gunshot);
           setShowFlash(true);
           setGoons(prev => [{ ...prev[0], visible: false }, prev[1]]);
-          setTimeout(() => setShowFlash(false), 100); // Flash duration
+          setTimeout(() => setShowFlash(false), 100); 
         }, 2500);
 
         stageTimer.current = setTimeout(() => {
@@ -163,7 +159,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         break;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, playSfx]); // playerPosition removed for now to avoid re-triggering on move
+  }, [stage, playSfx]);
 
   // Player Movement and Interaction Logic
   useEffect(() => {
@@ -172,12 +168,12 @@ export function Prologue({ onComplete }: PrologueProps) {
         activeKeys.current.add(event.key.toLowerCase());
       }
       if (stage === 'find_weapon' && event.key.toLowerCase() === 'e') {
-        if (showRevolver) { // Check if revolver is still there
+        if (showRevolver) { 
             setShowRevolver(false);
             setPlayerHasWeapon(true);
             setSubtitle("Você pegou o revólver!");
-            playSfx(prologueSounds.gunshot); // Placeholder for "pickup" sound
-            if (stageTimer.current) clearTimeout(stageTimer.current); // Clear any pending timer
+            playSfx(prologueSounds.gunshot); 
+            if (stageTimer.current) clearTimeout(stageTimer.current); 
             stageTimer.current = setTimeout(() => setStage('scripted_combat'), 1000);
         }
       }
@@ -259,7 +255,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         priority
       />
 
-      {showFather && (
+      {showFather && fatherSpriteUrl && (
         <Image
           src={fatherSpriteUrl}
           alt="Father"
@@ -270,7 +266,7 @@ export function Prologue({ onComplete }: PrologueProps) {
             left: PROLOGUE_WIDTH / 2 - FATHER_SIZE / 2,
             top: PROLOGUE_HEIGHT * 0.55,
             zIndex: 5,
-            filter: fatherSpriteUrl === prologuePlaceholders.father && stage !== 'intro_scene' ? 'grayscale(80%) rotate(-15deg)' : 'none', // Example for fallen
+            filter: fatherSpriteUrl === prologuePlaceholders.father && stage !== 'intro_scene' ? 'grayscale(80%) rotate(-15deg)' : 'none',
             transition: 'filter 0.5s ease, transform 0.5s ease'
           }}
           data-ai-hint="old farmer dying"
