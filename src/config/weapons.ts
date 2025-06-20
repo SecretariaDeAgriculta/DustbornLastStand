@@ -2,7 +2,7 @@
 import type { Icon } from 'lucide-react';
 import { Target, Aperture, GitFork, HelpCircle, Crosshair, Flame, Sparkles, Volume2, LocateFixed } from 'lucide-react';
 
-export type ProjectileType = 'bullet' | 'shotgun_pellet' | 'knife' | 'molotov_flask' | 'enemy_bullet';
+export type ProjectileType = 'bullet' | 'shotgun_pellet' | 'knife' | 'molotov_flask' | 'enemy_bullet' | 'barrel_explosive' | 'dynamite_explosive';
 
 export interface Weapon {
   id: string;
@@ -18,10 +18,11 @@ export interface Weapon {
   shotgunSpreadAngle?: number; // degrees
   penetrationCount?: number;
   icon?: Icon;
-  moneyCost: number; // Changed from xpCost
+  moneyCost: number;
   upgradedThisRound?: boolean;
   projectileType: ProjectileType;
   stunDuration?: number; // milliseconds
+  createsFirePatch?: boolean;
 }
 
 export const initialWeapon: Weapon = {
@@ -33,7 +34,7 @@ export const initialWeapon: Weapon = {
   range: 300,
   effectDescription: 'Uma relíquia enferrujada, mas ainda funciona.',
   icon: HelpCircle,
-  moneyCost: 0, // Changed from xpCost
+  moneyCost: 0,
   projectileType: 'bullet',
   penetrationCount: 0,
   upgradedThisRound: false,
@@ -51,7 +52,7 @@ const commonWeapons: Weapon[] = [
     criticalMultiplier: 1.5,
     effectDescription: '10% de chance de tiro crítico (x1.5 dano).',
     icon: Target,
-    moneyCost: 50, // Changed from xpCost
+    moneyCost: 50,
     projectileType: 'bullet',
     penetrationCount: 0,
   },
@@ -66,7 +67,7 @@ const commonWeapons: Weapon[] = [
     shotgunSpreadAngle: 30,
     effectDescription: 'Dispara 3 projéteis em cone.',
     icon: Aperture,
-    moneyCost: 60, // Changed from xpCost
+    moneyCost: 60,
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
   },
@@ -77,10 +78,10 @@ const commonWeapons: Weapon[] = [
     damage: 6,
     cooldown: 500,
     range: 400,
-    penetrationCount: 1, 
+    penetrationCount: 1,
     effectDescription: 'Penetra mais 1 inimigo.',
     icon: GitFork,
-    moneyCost: 70, // Changed from xpCost
+    moneyCost: 70,
     projectileType: 'knife',
   },
 ];
@@ -93,10 +94,10 @@ const rareWeapons: Weapon[] = [
     damage: 8,
     cooldown: 400,
     range: 500,
-    penetrationCount: 1, 
+    penetrationCount: 1,
     effectDescription: 'Tiros rápidos e precisos que atravessam um inimigo.',
     icon: Crosshair,
-    moneyCost: 280, // Changed from xpCost
+    moneyCost: 280,
     projectileType: 'bullet',
   },
   {
@@ -110,22 +111,23 @@ const rareWeapons: Weapon[] = [
     shotgunSpreadAngle: 40,
     effectDescription: 'Dispara 5 projéteis em um cone largo, cobrindo uma grande área frontal.',
     icon: Aperture,
-    moneyCost: 320, // Changed from xpCost
+    moneyCost: 320,
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
   },
   {
-    id: 'lanca_molotov',
-    name: 'Lança-Molotov',
+    id: 'coquetel_molotov',
+    name: 'Coquetel Molotov',
     rarity: 'Raro',
-    damage: 10, 
-    cooldown: 1500,
-    range: 200, 
-    effectDescription: 'Impacto causa dano. (Efeito de área de fogo não implementado).',
+    damage: 2, // Minimal impact damage
+    cooldown: 2000, // Slower cooldown due to AoE effect
+    range: 200,
+    effectDescription: 'Impacto cria uma área de fogo que causa dano ao longo do tempo.',
     icon: Flame,
-    moneyCost: 350, // Changed from xpCost
+    moneyCost: 350,
     projectileType: 'molotov_flask',
-    penetrationCount: 0, 
+    penetrationCount: 0,
+    createsFirePatch: true, // New flag
   }
 ];
 
@@ -135,12 +137,12 @@ const legendaryWeapons: Weapon[] = [
     name: '“Víbora de Aço”',
     rarity: 'Lendária',
     damage: 15,
-    projectilesPerShot: 1, 
-    cooldown: 200, 
-    range: 350, 
+    projectilesPerShot: 1,
+    cooldown: 200,
+    range: 350,
     effectDescription: 'Pistola personalizada. 25% de chance de disparar 2 tiros.',
     icon: Sparkles,
-    moneyCost: 750, // Changed from xpCost
+    moneyCost: 750,
     projectileType: 'bullet',
     penetrationCount: 0,
   },
@@ -150,12 +152,12 @@ const legendaryWeapons: Weapon[] = [
     rarity: 'Lendária',
     damage: 10,
     projectilesPerShot: 6,
-    cooldown: 800, 
-    range: 200, 
+    cooldown: 800,
+    range: 200,
     shotgunSpreadAngle: 35,
     effectDescription: 'Escopeta lendária. Atordoa inimigos no impacto por 1s.',
     icon: Volume2,
-    moneyCost: 800, // Changed from xpCost
+    moneyCost: 800,
     projectileType: 'shotgun_pellet',
     penetrationCount: 0,
     stunDuration: 1000,
@@ -165,12 +167,12 @@ const legendaryWeapons: Weapon[] = [
     name: '“Justiça de Ferro”',
     rarity: 'Lendária',
     damage: 40,
-    cooldown: 2000, 
-    range: 700, 
-    penetrationCount: 99, 
+    cooldown: 2000,
+    range: 700,
+    penetrationCount: 99,
     effectDescription: 'Rifle de precisão. Tiros atravessam todos os inimigos em linha reta.',
     icon: LocateFixed,
-    moneyCost: 900, // Changed from xpCost
+    moneyCost: 900,
     projectileType: 'bullet',
   }
 ];
