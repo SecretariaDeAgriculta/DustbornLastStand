@@ -16,15 +16,17 @@ export function CutscenePlayer({ slides, onComplete }: CutscenePlayerProps) {
   const [fadeOut, setFadeOut] = useState(false);
 
   const handleNextSlide = useCallback(() => {
+    if (fadeOut) return; // Prevent advancing if already fading out
+
     if (currentSlideIndex < slides.length - 1) {
       setCurrentSlideIndex(prevIndex => prevIndex + 1);
     } else {
       setFadeOut(true);
       setTimeout(() => {
         onComplete();
-      }, 500); // Match fade-out duration
+      }, 500); // Match fade-out duration, ensures fade completes before callback
     }
-  }, [currentSlideIndex, slides.length, onComplete]);
+  }, [currentSlideIndex, slides.length, onComplete, fadeOut]);
 
   useEffect(() => {
     const handleKeyPress = (event: KeyboardEvent) => {
@@ -43,7 +45,7 @@ export function CutscenePlayer({ slides, onComplete }: CutscenePlayerProps) {
   const currentSlide = slides[currentSlideIndex];
 
   if (!currentSlide) {
-    return null; // Should not happen if logic is correct
+    return null; 
   }
 
   return (
@@ -57,13 +59,13 @@ export function CutscenePlayer({ slides, onComplete }: CutscenePlayerProps) {
       {currentSlide.image && (
         <div className="cutscene-image-wrapper">
           <Image
-            key={currentSlideIndex} // Re-trigger animation by changing key
+            key={currentSlideIndex} 
             src={currentSlide.image}
             alt={`Cutscene image ${currentSlideIndex + 1}`}
             layout="fill"
             objectFit="cover"
             className="cutscene-image"
-            priority={currentSlideIndex === 0} // Prioritize loading the first image
+            priority={currentSlideIndex === 0} 
             data-ai-hint="western landscape story"
           />
         </div>

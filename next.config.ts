@@ -37,7 +37,7 @@ const nextConfig: NextConfig = {
       },
       {
         protocol: 'https',
-        hostname: 'images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com', // for deviantart pre
+        hostname: 'images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com',
         port: '',
         pathname: '/**',
       },
@@ -46,10 +46,14 @@ const nextConfig: NextConfig = {
         hostname: 'img.itch.zone',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ibb.co', // For imgbb.com links like the revolver
+        port: '',
+        pathname: '/**',
       }
     ],
-    // Allow serving local images from the public directory for next/image
-    // No specific entry needed if using `src="/assets/..."` as next/image handles this by default.
   },
 };
 

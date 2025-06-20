@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -105,3 +106,30 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom menu styles */
+@layer components {
+  .menu-container {
+    @apply flex flex-col items-center justify-center min-h-screen p-8 text-center;
+  }
+  .menu-container h1 {
+    @apply text-5xl font-bold text-primary mb-8;
+     font-family: 'PT Sans', sans-serif; /* Ensuring title font */
+  }
+  .menu-container h2 {
+    @apply text-3xl font-semibold text-primary mb-6;
+     font-family: 'PT Sans', sans-serif;
+  }
+  .menu-container button {
+    @apply bg-secondary text-secondary-foreground hover:bg-secondary/80 
+           font-semibold py-3 px-6 rounded-md text-lg mb-4 w-full max-w-sm
+           transition-all duration-150 ease-in-out;
+  }
+  .menu-container button:disabled {
+    @apply bg-muted text-muted-foreground opacity-60 cursor-not-allowed hover:bg-muted;
+  }
+  .menu-container button.back-button {
+    @apply bg-transparent border border-primary text-primary hover:bg-primary hover:text-primary-foreground mt-6;
+  }
+}
+

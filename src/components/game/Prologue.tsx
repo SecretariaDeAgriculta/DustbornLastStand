@@ -5,7 +5,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { playerSprite, prologuePlaceholders, prologueSounds } from '@/data/prologueAssets';
 import { SubtitleBox } from './SubtitleBox';
-import { Button } from '@/components/ui/button'; // For potential future use
+// import { Button } from '@/components/ui/button'; // Not used in this version
 
 const PROLOGUE_WIDTH = 800;
 const PROLOGUE_HEIGHT = 600;
@@ -31,7 +31,7 @@ export function Prologue({ onComplete }: PrologueProps) {
   const [playerPosition, setPlayerPosition] = useState({ x: PROLOGUE_WIDTH / 2 - PLAYER_SIZE / 2, y: PROLOGUE_HEIGHT * 0.7 });
   const [subtitle, setSubtitle] = useState<string | null>(null);
   const [showFather, setShowFather] = useState(true);
-  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(prologuePlaceholders.fatherStanding);
+  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(prologuePlaceholders.father); // Changed from fatherStanding
   const [goons, setGoons] = useState<{ x: number; y: number; visible: boolean }[]>([
     { x: PROLOGUE_WIDTH * 0.6, y: PROLOGUE_HEIGHT * 0.65, visible: true },
     { x: PROLOGUE_WIDTH * 0.4, y: PROLOGUE_HEIGHT * 0.65, visible: true },
@@ -44,30 +44,43 @@ export function Prologue({ onComplete }: PrologueProps) {
 
   const activeKeys = useRef<Set<string>>(new Set());
   const stageTimer = useRef<NodeJS.Timeout | null>(null);
+  const animationFrameIdRef = useRef<number | null>(null);
 
-  const fireLoopAudioRef = useRef<HTMLAudioElement>(null);
-  const musicAudioRef = useRef<HTMLAudioElement>(null);
-  const sfxAudioRef = useRef<HTMLAudioElement>(null);
+  const fireLoopAudioRef = useRef<HTMLAudioElement | null>(null);
+  const musicAudioRef = useRef<HTMLAudioElement | null>(null);
+  const sfxAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const playSfx = (soundSrc: string) => {
+  const playSfx = useCallback((soundSrc: string) => {
     if (sfxAudioRef.current) {
       sfxAudioRef.current.src = soundSrc;
       sfxAudioRef.current.play().catch(e => console.warn("Audio play failed:", e));
     }
-  };
+  }, []);
 
   useEffect(() => {
-    if (fireLoopAudioRef.current) fireLoopAudioRef.current.volume = 0.3;
-    if (musicAudioRef.current) musicAudioRef.current.volume = 0.4;
-    if (sfxAudioRef.current) sfxAudioRef.current.volume = 0.7;
+    // Initialize audio elements on mount
+    fireLoopAudioRef.current = new Audio(prologueSounds.fireLoop);
+    musicAudioRef.current = new Audio(prologueSounds.music);
+    sfxAudioRef.current = new Audio(); // For one-shot SFX
 
-    fireLoopAudioRef.current?.play().catch(e => console.warn("Fire loop play failed:", e));
-    musicAudioRef.current?.play().catch(e => console.warn("Music play failed:", e));
+    if (fireLoopAudioRef.current) {
+        fireLoopAudioRef.current.loop = true;
+        fireLoopAudioRef.current.volume = 0.3;
+        fireLoopAudioRef.current.play().catch(e => console.warn("Fire loop play failed:", e));
+    }
+    if (musicAudioRef.current) {
+        musicAudioRef.current.loop = true;
+        musicAudioRef.current.volume = 0.4;
+        musicAudioRef.current.play().catch(e => console.warn("Music play failed:", e));
+    }
+     if (sfxAudioRef.current) sfxAudioRef.current.volume = 0.7;
+
 
     return () => {
       fireLoopAudioRef.current?.pause();
       musicAudioRef.current?.pause();
       if (stageTimer.current) clearTimeout(stageTimer.current);
+      if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
     };
   }, []);
 
@@ -75,15 +88,15 @@ export function Prologue({ onComplete }: PrologueProps) {
   // Stage Logic
   useEffect(() => {
     if (stageTimer.current) clearTimeout(stageTimer.current);
-    activeKeys.current.clear(); // Clear keys on stage change
+    activeKeys.current.clear(); 
 
     switch (stage) {
       case 'intro_scene':
         setIsPlayerControlEnabled(false);
         setSubtitle(null);
         setShowFather(true);
-        setFatherSpriteUrl(prologuePlaceholders.fatherStanding);
-        setGoons(prev => prev.map(g => ({ ...g, visible: true })));
+        setFatherSpriteUrl(prologuePlaceholders.father);
+        setGoons(prev => prev.map(g => ({ ...g, x: g.x, y: g.y, visible: true }))); // ensure positions are reset if needed
         
         stageTimer.current = setTimeout(() => {
           setSubtitle("SAIAM DA MINHA CASA! SUAS BESTAS!");
@@ -91,7 +104,10 @@ export function Prologue({ onComplete }: PrologueProps) {
         }, 500);
 
         stageTimer.current = setTimeout(() => {
-          setFatherSpriteUrl(prologuePlaceholders.fatherFallen);
+          // Simulate father falling - in a real scenario, use a different sprite or animation
+          setFatherSpriteUrl(prologuePlaceholders.father); // Re-setting to potentially trigger re-render if CSS handles "fallen" state
+          // For a simple visual cue if you don't have a fallen sprite immediately:
+          // setFatherStyle({ ...fatherStyle, transform: 'rotate(-75deg) translateY(20px)', filter: 'grayscale(1)' });
         }, 2500);
         
         stageTimer.current = setTimeout(() => {
@@ -106,14 +122,13 @@ export function Prologue({ onComplete }: PrologueProps) {
 
       case 'run_for_cover':
         setIsPlayerControlEnabled(true);
-        setSubtitle("Corra para se proteger!");
-        // Target zone: x < 150, y > 400 (example)
+        setSubtitle("Corra para se proteger! (Mova-se para o canto inferior esquerdo)");
         break;
 
       case 'find_weapon':
-        setIsPlayerControlEnabled(false);
-        setShowRevolver(true);
+        setIsPlayerControlEnabled(false); // Control disabled
         setSubtitle("[E] Pegar Revólver");
+        setShowRevolver(true); // Make revolver visible
         break;
 
       case 'scripted_combat':
@@ -121,7 +136,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         setSubtitle(null);
         // Make the first goon visible and move in front of player
         setGoons(prev => [
-          { x: playerPosition.x + 60, y: playerPosition.y - 10, visible: true },
+          { x: playerPosition.x + (playerPosition.x < PROLOGUE_WIDTH / 2 ? 60 : -60) , y: playerPosition.y -10, visible: true },
           { ...prev[1], visible: false }
         ]);
         
@@ -144,10 +159,11 @@ export function Prologue({ onComplete }: PrologueProps) {
 
       case 'final_escape':
         setIsPlayerControlEnabled(true);
-        setSubtitle("Fuja para a floresta!");
+        setSubtitle("Fuja para a floresta! (Mova-se para a borda direita)");
         break;
     }
-  }, [stage, playerPosition.x, playerPosition.y]); // Added playerPosition for scripted_combat goon positioning
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stage, playSfx]); // playerPosition removed for now to avoid re-triggering on move
 
   // Player Movement and Interaction Logic
   useEffect(() => {
@@ -156,11 +172,14 @@ export function Prologue({ onComplete }: PrologueProps) {
         activeKeys.current.add(event.key.toLowerCase());
       }
       if (stage === 'find_weapon' && event.key.toLowerCase() === 'e') {
-        setShowRevolver(false);
-        setPlayerHasWeapon(true);
-        setSubtitle("Você pegou o revólver!");
-        playSfx(prologueSounds.gunshot); // Placeholder for "pickup" sound
-        setTimeout(() => setStage('scripted_combat'), 1000);
+        if (showRevolver) { // Check if revolver is still there
+            setShowRevolver(false);
+            setPlayerHasWeapon(true);
+            setSubtitle("Você pegou o revólver!");
+            playSfx(prologueSounds.gunshot); // Placeholder for "pickup" sound
+            if (stageTimer.current) clearTimeout(stageTimer.current); // Clear any pending timer
+            stageTimer.current = setTimeout(() => setStage('scripted_combat'), 1000);
+        }
       }
     };
 
@@ -173,7 +192,6 @@ export function Prologue({ onComplete }: PrologueProps) {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    let animationFrameId: number;
     if (isPlayerControlEnabled) {
       const gameLoop = () => {
         setPlayerPosition(prev => {
@@ -187,26 +205,29 @@ export function Prologue({ onComplete }: PrologueProps) {
           newX = Math.max(0, Math.min(newX, PROLOGUE_WIDTH - PLAYER_SIZE));
           newY = Math.max(0, Math.min(newY, PROLOGUE_HEIGHT - PLAYER_SIZE));
           
-          // Check stage-specific conditions
-          if (stage === 'run_for_cover' && newX < 150 && newY > PROLOGUE_HEIGHT - 150) { // Example cover zone
+          if (stage === 'run_for_cover' && newX < 100 && newY > PROLOGUE_HEIGHT - (PLAYER_SIZE + 50) ) { 
+             if (stageTimer.current) clearTimeout(stageTimer.current);
             setStage('find_weapon');
           }
           if (stage === 'final_escape' && newX > PROLOGUE_WIDTH * 0.90) {
+            if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
             onComplete();
           }
           return { x: newX, y: newY };
         });
-        animationFrameId = requestAnimationFrame(gameLoop);
+        animationFrameIdRef.current = requestAnimationFrame(gameLoop);
       };
-      animationFrameId = requestAnimationFrame(gameLoop);
+      animationFrameIdRef.current = requestAnimationFrame(gameLoop);
+    } else {
+        if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
     }
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      if (animationFrameIdRef.current) cancelAnimationFrame(animationFrameIdRef.current);
     };
-  }, [isPlayerControlEnabled, stage, onComplete]);
+  }, [isPlayerControlEnabled, stage, onComplete, playSfx, showRevolver, playerHasWeapon]);
 
 
   return (
@@ -214,21 +235,14 @@ export function Prologue({ onComplete }: PrologueProps) {
       position: 'relative',
       width: PROLOGUE_WIDTH,
       height: PROLOGUE_HEIGHT,
-      backgroundColor: 'black',
+      backgroundImage: `url(${prologuePlaceholders.background})`,
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
       overflow: 'hidden',
-      margin: 'auto', // Center on page
-      border: '2px solid #C0B283' // Dusty Gold border
+      margin: 'auto', 
+      border: '2px solid var(--primary)'
     }}>
-      <Image
-        src={prologuePlaceholders.burningFarmhouse}
-        alt="Burning Farmhouse Background"
-        layout="fill"
-        objectFit="cover"
-        priority
-        data-ai-hint="burning farmhouse night"
-      />
 
-      {/* Player */}
       <Image
         src={playerSprite.youngSilas}
         alt="Young Silas"
@@ -242,9 +256,9 @@ export function Prologue({ onComplete }: PrologueProps) {
           transition: 'left 0.05s linear, top 0.05s linear',
         }}
         data-ai-hint="young boy terrified"
+        priority
       />
 
-      {/* Father */}
       {showFather && (
         <Image
           src={fatherSpriteUrl}
@@ -256,14 +270,13 @@ export function Prologue({ onComplete }: PrologueProps) {
             left: PROLOGUE_WIDTH / 2 - FATHER_SIZE / 2,
             top: PROLOGUE_HEIGHT * 0.55,
             zIndex: 5,
-            filter: fatherSpriteUrl === prologuePlaceholders.fatherFallen ? 'grayscale(80%) rotate(-15deg)' : 'none',
+            filter: fatherSpriteUrl === prologuePlaceholders.father && stage !== 'intro_scene' ? 'grayscale(80%) rotate(-15deg)' : 'none', // Example for fallen
             transition: 'filter 0.5s ease, transform 0.5s ease'
           }}
           data-ai-hint="old farmer dying"
         />
       )}
       
-      {/* Goons */}
       {goons.map((goon, index) => goon.visible && (
         <Image
           key={`goon-${index}`}
@@ -281,7 +294,6 @@ export function Prologue({ onComplete }: PrologueProps) {
         />
       ))}
 
-      {/* Revolver */}
       {showRevolver && (
          <Image
           src={prologuePlaceholders.revolverOnGround}
@@ -299,7 +311,6 @@ export function Prologue({ onComplete }: PrologueProps) {
         />
       )}
       
-      {/* Screen Flash for Gunshot */}
       {showFlash && (
         <div style={{
           position: 'absolute',
@@ -310,12 +321,7 @@ export function Prologue({ onComplete }: PrologueProps) {
       )}
 
       <SubtitleBox text={subtitle} />
-
-      {/* Audio Elements */}
-      <audio ref={fireLoopAudioRef} src={prologueSounds.fireLoop} loop />
-      <audio ref={musicAudioRef} src={prologueSounds.music} loop />
-      <audio ref={sfxAudioRef} />
-
+      
       <style jsx global>{`
         @keyframes glow {
           from { box-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #C0B283; }
