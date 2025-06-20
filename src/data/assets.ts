@@ -1,9 +1,12 @@
+
 // src/data/assets.ts
 
 // Personagens Principais e Chefes
 export const characterSprites = {
+  // Personagens da família Kane
   youngSilas: 'https://raw.githubusercontent.com/Gustavito456/assets/main/young-silas-kane.jpeg',
-  fatherPlaceholder: 'https://i.pinimg.com/originals/a1/27/2d/a1272d3195692053984534f378413a3e.png',
+  adultSilas: 'https://raw.githubusercontent.com/Gustavito456/assets/main/Adult-Silas-Kane.png',
+  father: 'https://raw.githubusercontent.com/Gustavito456/assets/main/Silas-Kane-s-father.png',
   
   // Inimigos e Chefes
   railroadHenchman: 'https://raw.githubusercontent.com/Gustavito456/assets/main/McGraw-railroad-henchman.png',

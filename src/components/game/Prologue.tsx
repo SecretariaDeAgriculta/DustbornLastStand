@@ -31,7 +31,7 @@ export function Prologue({ onComplete }: PrologueProps) {
   const [playerPosition, setPlayerPosition] = useState({ x: PROLOGUE_WIDTH / 2 - PLAYER_SIZE / 2, y: PROLOGUE_HEIGHT * 0.7 });
   const [subtitle, setSubtitle] = useState<string | null>(null);
   const [showFather, setShowFather] = useState(true);
-  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(characterSprites.fatherPlaceholder);
+  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(characterSprites.father); // Use the direct sprite
   const [goons, setGoons] = useState<{ x: number; y: number; visible: boolean }[]>([
     { x: PROLOGUE_WIDTH * 0.6, y: PROLOGUE_HEIGHT * 0.65, visible: true },
     { x: PROLOGUE_WIDTH * 0.4, y: PROLOGUE_HEIGHT * 0.65, visible: true },
@@ -95,7 +95,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         setIsPlayerControlEnabled(false);
         setSubtitle(null);
         setShowFather(true);
-        setFatherSpriteUrl(characterSprites.fatherPlaceholder);
+        setFatherSpriteUrl(characterSprites.father); // Ensure it's set initially
         setGoons(prev => prev.map(g => ({ ...g, x: g.x, y: g.y, visible: true }))); 
         
         stageTimer.current = setTimeout(() => {
@@ -103,11 +103,8 @@ export function Prologue({ onComplete }: PrologueProps) {
           playSfx(prologueSounds.fatherShout1);
         }, 500);
 
-        stageTimer.current = setTimeout(() => {
-          // The "fallen" effect is handled by CSS based on stage, so no need to change fatherSpriteUrl here
-          // if it's intended to be the same image with a filter.
-          // If a distinct "fallen" sprite URL was available in characterSprites, it would be set here.
-        }, 2500);
+        // The "fallen" effect is handled by CSS based on stage (filter),
+        // so we don't need to change fatherSpriteUrl if it's the same base image.
         
         stageTimer.current = setTimeout(() => {
           setSubtitle("Silas! CORRA! FUJA DAQUI!");
@@ -161,7 +158,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         break;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stage, playSfx]);
+  }, [stage, playSfx]); // Removed playerPosition from deps as it could cause rapid refiring of this effect
 
   // Player Movement and Interaction Logic
   useEffect(() => {
@@ -268,7 +265,7 @@ export function Prologue({ onComplete }: PrologueProps) {
             left: PROLOGUE_WIDTH / 2 - FATHER_SIZE / 2,
             top: PROLOGUE_HEIGHT * 0.55,
             zIndex: 5,
-            filter: stage !== 'intro_scene' ? 'grayscale(80%) rotate(-15deg)' : 'none', // Simplified "fallen" effect
+            filter: stage !== 'intro_scene' && stage !== 'run_for_cover' ? 'grayscale(80%) rotate(-15deg)' : 'none',
             transition: 'filter 0.5s ease, transform 0.5s ease'
           }}
           data-ai-hint="old farmer dying"
@@ -319,8 +316,8 @@ export function Prologue({ onComplete }: PrologueProps) {
       )}
 
       {/* Cover Object Example (can be enabled based on stage if needed) */}
-      {/* 
-      {stage === 'run_for_cover' && (
+      { 
+      stage === 'run_for_cover' && (
         <Image
           src={environmentSprites.coverObjectPlaceholder}
           alt="Cover Object"
@@ -334,8 +331,8 @@ export function Prologue({ onComplete }: PrologueProps) {
           }}
           data-ai-hint="wooden crate cover"
         />
-      )}
-      */}
+      )
+      }
 
       <SubtitleBox text={subtitle} />
       
