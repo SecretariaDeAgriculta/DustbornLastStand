@@ -11,8 +11,9 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
 import { CutscenePlayer } from '@/components/CutscenePlayer';
 import { openingCutsceneData } from '@/data/openingCutscene';
+import { Prologue } from '@/components/game/Prologue'; // New Import
 
-type ViewMode = 'opening_cutscene' | 'mainMenu' | 'storyChapterSelect' | 'freeMode';
+type ViewMode = 'opening_cutscene' | 'prologue_gameplay' | 'mainMenu' | 'storyChapterSelect' | 'freeMode';
 
 export default function Home() {
   const [viewMode, setViewMode] = useState<ViewMode>('opening_cutscene');
@@ -56,11 +57,23 @@ export default function Home() {
   };
 
   const handleCutsceneComplete = () => {
-    setViewMode('mainMenu');
+    setViewMode('prologue_gameplay'); // Transition to prologue after cutscene
+  };
+
+  const handlePrologueComplete = () => {
+    setViewMode('mainMenu'); // Transition to main menu after prologue
   };
 
   if (viewMode === 'opening_cutscene') {
     return <CutscenePlayer slides={openingCutsceneData} onComplete={handleCutsceneComplete} />;
+  }
+
+  if (viewMode === 'prologue_gameplay') {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-0 selection:bg-primary selection:text-primary-foreground">
+        <Prologue onComplete={handlePrologueComplete} />
+      </div>
+    );
   }
 
   if (viewMode === 'freeMode') {
@@ -82,7 +95,7 @@ export default function Home() {
   }
 
   const storyChapters = [
-    { title: 'Prólogo' },
+    { title: 'Prólogo' }, // This will be clickable later to replay prologue
     { title: 'Ato 1: O Silêncio dos Boyle' },
     { title: 'Ato 2: O Sussurro dos Gaviões' },
     { title: 'Ato 3: O Eco do Canyon' },
@@ -176,11 +189,19 @@ export default function Home() {
                     key={index}
                     variant="secondary"
                     className="w-full py-2 sm:py-3 text-md sm:text-lg relative"
-                    disabled
-                    aria-disabled="true"
+                    disabled={chapter.title !== 'Prólogo'} // Enable prologue later for replay
+                    aria-disabled={chapter.title !== 'Prólogo'}
+                    onClick={() => {
+                      if (chapter.title === 'Prólogo') {
+                        // Potentially reset prologue state here if needed for replay
+                        setViewMode('prologue_gameplay'); 
+                      }
+                    }}
                   >
                     {chapter.title}
-                    <span className="absolute top-1 right-1 sm:top-1.5 sm:right-2 text-xs bg-muted text-muted-foreground px-1.5 sm:px-2 py-0.5 rounded-full">Em Breve</span>
+                    {chapter.title !== 'Prólogo' && (
+                        <span className="absolute top-1 right-1 sm:top-1.5 sm:right-2 text-xs bg-muted text-muted-foreground px-1.5 sm:px-2 py-0.5 rounded-full">Em Breve</span>
+                    )}
                   </Button>
                 ))}
                 <Button

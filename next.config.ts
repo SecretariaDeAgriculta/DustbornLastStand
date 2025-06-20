@@ -22,6 +22,30 @@ const nextConfig: NextConfig = {
         hostname: 'raw.githubusercontent.com',
         port: '',
         pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.pinimg.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'www.vhv.rs',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com', // for deviantart pre
+        port: '',
+        pathname: '/**',
+      },
+       {
+        protocol: 'https',
+        hostname: 'img.itch.zone',
+        port: '',
+        pathname: '/**',
       }
     ],
     // Allow serving local images from the public directory for next/image
