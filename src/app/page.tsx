@@ -104,9 +104,11 @@ export default function Home() {
         return (
           <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-0 selection:bg-primary selection:text-primary-foreground">
             <Prologue onComplete={() => {
-              unlockNextLevel(0); // Unlock Act 1 (index 1)
-              setViewMode('acts_menu');
-              toast({ title: "Prólogo Concluído!", description: "Ato 1 desbloqueado."});
+              setTimeout(() => {
+                unlockNextLevel(0); // Unlock Act 1 (index 1)
+                setViewMode('acts_menu');
+                toast({ title: "Prólogo Concluído!", description: "Ato 1 desbloqueado."});
+              }, 0);
             }} />
           </div>
         );
