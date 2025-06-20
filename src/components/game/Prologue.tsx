@@ -3,7 +3,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Image from 'next/image';
-import { playerSprite, prologuePlaceholders, prologueSounds } from '@/data/prologueAssets';
+import { characterSprites, itemSprites, environmentSprites, prologueSounds } from '@/data/assets';
 import { SubtitleBox } from './SubtitleBox';
 // import { Button } from '@/components/ui/button'; // Not used in this version
 
@@ -31,7 +31,7 @@ export function Prologue({ onComplete }: PrologueProps) {
   const [playerPosition, setPlayerPosition] = useState({ x: PROLOGUE_WIDTH / 2 - PLAYER_SIZE / 2, y: PROLOGUE_HEIGHT * 0.7 });
   const [subtitle, setSubtitle] = useState<string | null>(null);
   const [showFather, setShowFather] = useState(true);
-  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(prologuePlaceholders.father);
+  const [fatherSpriteUrl, setFatherSpriteUrl] = useState(characterSprites.fatherPlaceholder);
   const [goons, setGoons] = useState<{ x: number; y: number; visible: boolean }[]>([
     { x: PROLOGUE_WIDTH * 0.6, y: PROLOGUE_HEIGHT * 0.65, visible: true },
     { x: PROLOGUE_WIDTH * 0.4, y: PROLOGUE_HEIGHT * 0.65, visible: true },
@@ -95,7 +95,7 @@ export function Prologue({ onComplete }: PrologueProps) {
         setIsPlayerControlEnabled(false);
         setSubtitle(null);
         setShowFather(true);
-        setFatherSpriteUrl(prologuePlaceholders.father);
+        setFatherSpriteUrl(characterSprites.fatherPlaceholder);
         setGoons(prev => prev.map(g => ({ ...g, x: g.x, y: g.y, visible: true }))); 
         
         stageTimer.current = setTimeout(() => {
@@ -104,7 +104,9 @@ export function Prologue({ onComplete }: PrologueProps) {
         }, 500);
 
         stageTimer.current = setTimeout(() => {
-          setFatherSpriteUrl(prologuePlaceholders.father); 
+          // The "fallen" effect is handled by CSS based on stage, so no need to change fatherSpriteUrl here
+          // if it's intended to be the same image with a filter.
+          // If a distinct "fallen" sprite URL was available in characterSprites, it would be set here.
         }, 2500);
         
         stageTimer.current = setTimeout(() => {
@@ -231,7 +233,7 @@ export function Prologue({ onComplete }: PrologueProps) {
       position: 'relative',
       width: PROLOGUE_WIDTH,
       height: PROLOGUE_HEIGHT,
-      backgroundImage: `url(${prologuePlaceholders.background})`,
+      backgroundImage: `url(${environmentSprites.prologueFloor})`,
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       overflow: 'hidden',
@@ -240,7 +242,7 @@ export function Prologue({ onComplete }: PrologueProps) {
     }}>
 
       <Image
-        src={playerSprite.youngSilas}
+        src={characterSprites.youngSilas}
         alt="Young Silas"
         width={PLAYER_SIZE}
         height={PLAYER_SIZE}
@@ -266,7 +268,7 @@ export function Prologue({ onComplete }: PrologueProps) {
             left: PROLOGUE_WIDTH / 2 - FATHER_SIZE / 2,
             top: PROLOGUE_HEIGHT * 0.55,
             zIndex: 5,
-            filter: fatherSpriteUrl === prologuePlaceholders.father && stage !== 'intro_scene' ? 'grayscale(80%) rotate(-15deg)' : 'none',
+            filter: stage !== 'intro_scene' ? 'grayscale(80%) rotate(-15deg)' : 'none', // Simplified "fallen" effect
             transition: 'filter 0.5s ease, transform 0.5s ease'
           }}
           data-ai-hint="old farmer dying"
@@ -276,7 +278,7 @@ export function Prologue({ onComplete }: PrologueProps) {
       {goons.map((goon, index) => goon.visible && (
         <Image
           key={`goon-${index}`}
-          src={prologuePlaceholders.goon}
+          src={characterSprites.railroadHenchman}
           alt={`Goon ${index + 1}`}
           width={GOON_SIZE}
           height={GOON_SIZE}
@@ -292,7 +294,7 @@ export function Prologue({ onComplete }: PrologueProps) {
 
       {showRevolver && (
          <Image
-          src={prologuePlaceholders.revolverOnGround}
+          src={itemSprites.rustyRevolver}
           alt="Revolver on ground"
           width={REVOLVER_SIZE}
           height={REVOLVER_SIZE}
@@ -315,6 +317,25 @@ export function Prologue({ onComplete }: PrologueProps) {
           zIndex: 50,
         }} />
       )}
+
+      {/* Cover Object Example (can be enabled based on stage if needed) */}
+      {/* 
+      {stage === 'run_for_cover' && (
+        <Image
+          src={environmentSprites.coverObjectPlaceholder}
+          alt="Cover Object"
+          width={60} 
+          height={60}
+          style={{
+            position: 'absolute',
+            left: 50, 
+            bottom: 50, 
+            zIndex: 4,
+          }}
+          data-ai-hint="wooden crate cover"
+        />
+      )}
+      */}
 
       <SubtitleBox text={subtitle} />
       
