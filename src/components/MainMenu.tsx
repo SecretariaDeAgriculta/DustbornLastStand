@@ -1,4 +1,3 @@
-
 'use client';
 
 import React from 'react';
@@ -6,11 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface MainMenuProps {
-  onSelectStoryMode: () => void;
-  onSelectFreeMode: () => void;
+  onPlay: () => void;
 }
 
-export function MainMenu({ onSelectStoryMode, onSelectFreeMode }: MainMenuProps) {
+export function MainMenu({ onPlay }: MainMenuProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 text-center">
       <div className="z-10 flex flex-col items-center justify-center p-8 text-center">
@@ -24,23 +22,16 @@ export function MainMenu({ onSelectStoryMode, onSelectFreeMode }: MainMenuProps)
         <Card className="w-full max-w-xs sm:max-w-sm bg-card/80 backdrop-blur-sm shadow-xl">
           <CardHeader className="pb-4">
             <CardTitle className="text-center text-xl sm:text-2xl text-card-foreground">
-              Escolha o Modo de Jogo
+              Menu Principal
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 sm:space-y-4">
             <Button
-              variant="secondary"
-              className="w-full py-2 sm:py-3 text-md sm:text-lg relative"
-              onClick={onSelectStoryMode}
-            >
-              Modo História
-            </Button>
-            <Button
               variant="default"
               className="w-full py-2 sm:py-3 text-md sm:text-lg bg-accent hover:bg-accent/90 text-accent-foreground"
-              onClick={onSelectFreeMode}
+              onClick={onPlay}
             >
-              Modo Livre
+              Jogar
             </Button>
           </CardContent>
         </Card>

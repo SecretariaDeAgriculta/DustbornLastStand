@@ -1,35 +1,21 @@
-
 'use client';
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { DustbornGame } from '@/components/game/DustbornGame';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from '@/components/ui/dialog';
-import { Settings, Laptop, Smartphone, RefreshCw, Trash2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Settings, Laptop, Smartphone, RefreshCw } from 'lucide-react';
 import { useToast } from "@/hooks/use-toast";
-import { cn } from '@/lib/utils';
-import { CutscenePlayer } from '@/components/CutscenePlayer';
-import { openingCutsceneData } from '@/data/openingCutscene';
-import { Prologue } from '@/components/game/Prologue';
 import { MainMenu } from '@/components/MainMenu';
-import { ActsMenu } from '@/components/ActsMenu';
-import { unlockNextLevel, resetProgress as resetGameProgress } from '@/lib/progress';
 
-type ViewMode = 
-  | 'opening_cutscene' 
-  | 'main_menu' 
-  | 'acts_menu' 
-  | 'gameplay_act_0' // Prologue
-  | 'freeMode'; // Existing free mode
+type ViewMode = 'main_menu' | 'gameplay';
 
 export default function Home() {
-  const [viewMode, setViewMode] = useState<ViewMode>('opening_cutscene');
+  const [viewMode, setViewMode] = useState<ViewMode>('main_menu');
   const [deviceSetting, setDeviceSetting] = useState<'auto' | 'computer' | 'mobile'>('auto');
   const [currentDeviceMode, setCurrentDeviceMode] = useState<'computer' | 'mobile'>('computer');
   const { toast } = useToast();
   const [isSettingsDialogOpen, setIsSettingsDialogOpen] = useState(false);
-  const [isConfirmResetDialogOpen, setIsConfirmResetDialogOpen] = useState(false);
 
   useEffect(() => {
     let modeToUse: 'computer' | 'mobile';
@@ -65,55 +51,16 @@ export default function Home() {
     setIsSettingsDialogOpen(false);
   };
 
-  const handleConfirmResetProgress = () => {
-    resetGameProgress();
-    setViewMode('main_menu'); // Go back to main menu
-    toast({
-      title: "Progresso Reiniciado",
-      description: "Todo o progresso da história foi apagado.",
-    });
-    setIsConfirmResetDialogOpen(false);
-    setIsSettingsDialogOpen(false);
-  };
-
   const renderContent = () => {
     switch (viewMode) {
-      case 'opening_cutscene':
-        return <CutscenePlayer slides={openingCutsceneData} onComplete={() => setViewMode('main_menu')} />;
-      
       case 'main_menu':
         return (
           <MainMenu 
-            onSelectStoryMode={() => setViewMode('acts_menu')} 
-            onSelectFreeMode={() => setViewMode('freeMode')}
+            onPlay={() => setViewMode('gameplay')}
           />
         );
 
-      case 'acts_menu':
-        return (
-          <ActsMenu 
-            onSelectAct={(actIndex) => {
-              if (actIndex === 0) setViewMode('gameplay_act_0');
-              // Add cases for other acts later
-            }} 
-            onBack={() => setViewMode('main_menu')} 
-          />
-        );
-
-      case 'gameplay_act_0':
-        return (
-          <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-0 selection:bg-primary selection:text-primary-foreground">
-            <Prologue onComplete={() => {
-              setTimeout(() => {
-                unlockNextLevel(0); // Unlock Act 1 (index 1)
-                setViewMode('acts_menu');
-                toast({ title: "Prólogo Concluído!", description: "Ato 1 desbloqueado."});
-              }, 0);
-            }} />
-          </div>
-        );
-      
-      case 'freeMode':
+      case 'gameplay':
         return (
           <div className="min-h-screen bg-background text-foreground flex flex-col items-center justify-center p-0 sm:p-4 selection:bg-primary selection:text-primary-foreground">
             <main className="w-full h-full sm:max-w-screen-lg flex-grow flex flex-col items-center justify-center">
@@ -141,9 +88,8 @@ export default function Home() {
         );
     }
   };
-
-  // Settings dialog is available on main_menu, acts_menu
-  const showSettingsButton = ['main_menu', 'acts_menu', 'freeMode'].includes(viewMode);
+  
+  const showSettingsButton = viewMode !== 'gameplay';
 
 
   return (
@@ -185,34 +131,6 @@ export default function Home() {
                <Smartphone className="mr-2 h-5 w-5" />
                Móvel (Toque)
              </Button>
-
-             <hr className="my-2 border-border" />
-              <p className="text-sm font-medium text-card-foreground mb-1">Progresso do Jogo:</p>
-              <Dialog open={isConfirmResetDialogOpen} onOpenChange={setIsConfirmResetDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="destructive"
-                    className="w-full justify-start"
-                  >
-                    <Trash2 className="mr-2 h-5 w-5" />
-                    Reiniciar Progresso da História
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md bg-card text-card-foreground">
-                  <DialogHeader>
-                    <DialogTitle className="text-destructive">Confirmar Reinício</DialogTitle>
-                    <DialogDescription>
-                      Tem certeza de que deseja apagar todo o progresso salvo da história? Esta ação não pode ser desfeita.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter className="mt-4">
-                    <Button variant="outline" onClick={() => setIsConfirmResetDialogOpen(false)}>Cancelar</Button>
-                    <Button variant="destructive" onClick={handleConfirmResetProgress}>Sim, Reiniciar</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-
            </div>
            <DialogFooter>
              <Button variant="outline" onClick={() => setIsSettingsDialogOpen(false)}>Fechar</Button>
@@ -221,8 +139,7 @@ export default function Home() {
        </Dialog>
       )}
       {renderContent()}
-      {/* Footer for main_menu and acts_menu if not in game */}
-      { (viewMode === 'main_menu' || viewMode === 'acts_menu') &&
+      { viewMode === 'main_menu' &&
         <footer className="absolute bottom-0 w-full text-center py-3 sm:py-4 text-muted-foreground/80 text-xs z-10">
           <p>&copy; {new Date().getFullYear()} Dustborn: Last Stand. Construído no Firebase Studio.</p>
         </footer>

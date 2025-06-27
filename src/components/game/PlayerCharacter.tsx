@@ -1,10 +1,7 @@
-
 'use client';
 
 import React from 'react';
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
-import { characterSprites } from '@/data/assets';
 
 interface PlayerCharacterProps {
   x: number;
@@ -18,8 +15,8 @@ export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerC
   return (
     <div
       className={cn(
-        "absolute rounded-sm shadow-md overflow-hidden",
-        isTakingDamage ? 'ring-2 ring-inset ring-red-500 animate-pulse' : ''
+        "absolute rounded-sm shadow-md",
+        isTakingDamage ? 'bg-red-500 animate-pulse' : 'bg-yellow-400'
       )}
       style={{
         left: x,
@@ -29,16 +26,6 @@ export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerC
       }}
       role="img"
       aria-label="Player character"
-    >
-      <Image
-        src={characterSprites.adultSilas}
-        alt="Silas Kane, o Pistoleiro"
-        width={width}
-        height={height}
-        className="object-cover"
-        data-ai-hint="cowboy hero protagonist"
-        priority
-      />
-    </div>
+    />
   );
 }
