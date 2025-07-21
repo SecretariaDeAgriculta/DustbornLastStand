@@ -871,7 +871,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             }
           }
           if (closestEnemy) {
-            lastPlayerShotTimestampRef.current = { ...lastPlayerShotTimestampRef.current, [weapon.id]: now };
+            lastPlayerShotTimestampRef.current[weapon.id] = now;
             const targetX = closestEnemy.x + closestEnemy.width / 2;
             const targetY = closestEnemy.y + closestEnemy.height / 2;
             const baseAngle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
@@ -914,7 +914,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         lastLogicUpdateTimestampRef.current = timestamp;
 
         const damageToApplyToEnemies = new Map<string, { damage: number, originWeaponId?: string }>();
-        const projectilesToKeep: ProjectileData[] = [];
+        const newPlayerProjectilesList: ProjectileData[] = [];
         const firePatchesToCreate: Omit<FirePatchData, 'id'>[] = [];
         
         const currentProjectilesThisFrame = [...playerProjectilesRef.current, ...newlySpawnedProjectiles];
@@ -988,11 +988,11 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             }
 
             if (!projectileShouldBeRemoved) {
-                projectilesToKeep.push(currentProj);
+                newPlayerProjectilesList.push(currentProj);
             }
         });
 
-        setPlayerProjectiles(projectilesToKeep);
+        setPlayerProjectiles(newPlayerProjectilesList);
 
         if (firePatchesToCreate.length > 0) {
             setFirePatches(prev => [...prev, ...firePatchesToCreate.map(fp => ({...fp, id: `fire_${Date.now()}_${Math.random()}`}))]);
