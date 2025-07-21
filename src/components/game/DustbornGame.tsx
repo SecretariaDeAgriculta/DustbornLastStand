@@ -274,10 +274,10 @@ interface Enemy extends Entity {
   burstShotsLeft?: number;
   burstTimer?: number;
 
-  barrelThrowCooldownTimer?: number;
-  dynamiteThrowCooldownTimer?: number;
-  fissureCreateCooldownTimer?: number;
-  droneSpawnCooldownTimer?: number;
+  barrelThrowCooldownTimer?: boolean;
+  dynamiteThrowCooldownTimer?: boolean;
+  fissureCreateCooldownTimer?: boolean;
+  droneSpawnCooldownTimer?: boolean;
 
   attackMode?: 'pistol' | 'knife';
   isDashing?: boolean;
@@ -850,6 +850,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       }
 
       const now = Date.now();
+      const newlySpawnedProjectiles: ProjectileData[] = [];
+
       playerWeapons.forEach(weapon => {
         const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
         if (enemiesRef.current.length > 0 && now - lastShotTime >= weapon.cooldown) {
@@ -873,7 +875,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             const targetX = closestEnemy.x + closestEnemy.width / 2;
             const targetY = closestEnemy.y + closestEnemy.height / 2;
             const baseAngle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
-            const projectilesToSpawn: Omit<ProjectileData, 'id'>[] = [];
+            
             let numProjectilesToFire = weapon.projectilesPerShot || 1;
             if (weapon.id === 'vibora_aco' && Math.random() < 0.25) numProjectilesToFire = 2;
             const spread = weapon.shotgunSpreadAngle ? weapon.shotgunSpreadAngle * (Math.PI / 180) : 0;
@@ -891,7 +893,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 damage = Math.round(damage * (weapon.criticalMultiplier || 1.5));
                 isCritical = true;
               }
-              projectilesToSpawn.push({
+              newlySpawnedProjectiles.push({
+                id: `proj_${Date.now()}_${Math.random()}_${i}`,
                 x: playerCenterX - (weapon.projectileType === 'knife' ? (PLAYER_SIZE * 0.5) / 2 : PLAYER_PROJECTILE_BASE_SIZE / 2) ,
                 y: playerCenterY - (weapon.projectileType === 'knife' ? (PLAYER_SIZE * 1.5) / 2 : PLAYER_PROJECTILE_BASE_SIZE / 2) ,
                 size: PLAYER_PROJECTILE_BASE_SIZE,
@@ -903,7 +906,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 originWeaponId: weapon.id, isEnemyProjectile: false,
               });
             }
-            setPlayerProjectiles(prev => [...prev, ...projectilesToSpawn.map(p => ({...p, id: `proj_${Date.now()}_${Math.random()}`}))]);
           }
         }
       });
@@ -912,11 +914,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         lastLogicUpdateTimestampRef.current = timestamp;
 
         const damageToApplyToEnemies = new Map<string, { damage: number, originWeaponId?: string }>();
-        const newPlayerProjectilesList: ProjectileData[] = [];
+        const projectilesToKeep: ProjectileData[] = [];
         const firePatchesToCreate: Omit<FirePatchData, 'id'>[] = [];
+        
+        const currentProjectilesThisFrame = [...playerProjectilesRef.current, ...newlySpawnedProjectiles];
 
 
-        playerProjectilesRef.current.forEach(proj => {
+        currentProjectilesThisFrame.forEach(proj => {
             let currentProj = { ...proj };
             currentProj.x += currentProj.dx * (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
             currentProj.y += currentProj.dy * (currentProj.projectileType === 'knife' ? PLAYER_SPEED * 1.8 : PLAYER_REGULAR_PROJECTILE_SPEED);
@@ -984,11 +988,11 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             }
 
             if (!projectileShouldBeRemoved) {
-                newPlayerProjectilesList.push(currentProj);
+                projectilesToKeep.push(currentProj);
             }
         });
 
-        setPlayerProjectiles(newPlayerProjectilesList);
+        setPlayerProjectiles(projectilesToKeep);
 
         if (firePatchesToCreate.length > 0) {
             setFirePatches(prev => [...prev, ...firePatchesToCreate.map(fp => ({...fp, id: `fire_${Date.now()}_${Math.random()}`}))]);
@@ -1876,3 +1880,4 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   );
 }
 
+    
