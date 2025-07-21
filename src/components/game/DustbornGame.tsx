@@ -852,28 +852,30 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       const now = Date.now();
       const newlySpawnedProjectiles: ProjectileData[] = [];
 
-      playerWeapons.forEach(weapon => {
-        const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
-        if (enemiesRef.current.length > 0 && now - lastShotTime >= weapon.cooldown) {
-          let closestEnemy: Enemy | null = null;
-          let minDistanceSquared = weapon.range ** 2;
-          const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
-          const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
+      let closestEnemy: Enemy | null = null;
+      let minDistanceSquared = Infinity;
+      const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+      const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
 
-          for (const enemy of enemiesRef.current) {
-            if (enemy.isDetonating || enemy.isAiming) continue;
-            const enemyCenterX = enemy.x + enemy.width / 2;
-            const enemyCenterY = enemy.y + enemy.height / 2;
-            const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
-            if (distSq < minDistanceSquared) {
-              minDistanceSquared = distSq;
-              closestEnemy = enemy;
-            }
-          }
-          if (closestEnemy) {
+      for (const enemy of enemiesRef.current) {
+        if (enemy.isDetonating || enemy.isAiming) continue;
+        const enemyCenterX = enemy.x + enemy.width / 2;
+        const enemyCenterY = enemy.y + enemy.height / 2;
+        const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
+        if (distSq < minDistanceSquared) {
+          minDistanceSquared = distSq;
+          closestEnemy = enemy;
+        }
+      }
+
+      if (closestEnemy) {
+        playerWeapons.forEach(weapon => {
+          const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
+          if (now - lastShotTime >= weapon.cooldown && minDistanceSquared <= weapon.range ** 2) {
             lastPlayerShotTimestampRef.current[weapon.id] = now;
-            const targetX = closestEnemy.x + closestEnemy.width / 2;
-            const targetY = closestEnemy.y + closestEnemy.height / 2;
+            
+            const targetX = closestEnemy!.x + closestEnemy!.width / 2;
+            const targetY = closestEnemy!.y + closestEnemy!.height / 2;
             const baseAngle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
             
             let numProjectilesToFire = weapon.projectilesPerShot || 1;
@@ -907,8 +909,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
               });
             }
           }
-        }
-      });
+        });
+      }
+
 
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
         lastLogicUpdateTimestampRef.current = timestamp;
