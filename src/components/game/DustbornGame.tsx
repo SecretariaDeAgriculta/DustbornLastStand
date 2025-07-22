@@ -314,11 +314,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
     const gameTick = (timestamp: number) => {
         const now = Date.now();
+        let currentTarget = targetEnemy;
 
         // --- Aquisição de Alvo (Otimizado) ---
         const newTarget = acquireTarget(now, lastTargetUpdateRef.current, playerRef.current, enemiesRef.current);
         if (newTarget !== undefined) { // 'undefined' significa que não houve tentativa de atualização
             setTargetEnemy(newTarget);
+            currentTarget = newTarget; // Use o alvo recém-adquirido neste quadro
             if (newTarget) lastTargetUpdateRef.current = now;
         }
 
@@ -326,8 +328,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setPlayer(p => updatePlayerMovement(p, activeKeys.current));
 
         // --- Disparos do Jogador ---
-        if (targetEnemy) {
-            const { projectiles, updatedTimestamps } = handleShooting(now, targetEnemy, playerRef.current, playerWeapons, lastPlayerShotTimestampRef.current);
+        if (currentTarget) {
+            const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, playerRef.current, playerWeapons, lastPlayerShotTimestampRef.current);
             if (projectiles.length > 0) {
                 setPlayerProjectiles(prev => [...prev, ...projectiles]);
             }
