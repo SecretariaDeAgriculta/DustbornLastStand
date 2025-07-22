@@ -375,6 +375,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const [isPaused, setIsPaused] = useState(false);
   const [playerDollars, setPlayerDollars] = useState(0);
   const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
+  const [fps, setFps] = useState(0);
 
   const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([{...initialWeapon, upgradedThisRound: false}]);
   const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
@@ -398,12 +399,36 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const isBossWaveActive = useRef(false);
   const currentBossId = useRef<string | null>(null);
 
+  const frameCountRef = useRef(0);
+  const lastFpsUpdateRef = useRef(performance.now());
+  const fpsCounterRef = useRef<number | null>(null);
+
 
   useEffect(() => { playerRef.current = player; }, [player]);
   useEffect(() => { waveRef.current = wave; }, [wave]);
   useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
   useEffect(() => { playerProjectilesRef.current = playerProjectiles; }, [playerProjectiles]);
 
+
+  useEffect(() => {
+    const countFps = (now: number) => {
+      frameCountRef.current++;
+      if (now - lastFpsUpdateRef.current > 1000) {
+        setFps(frameCountRef.current);
+        frameCountRef.current = 0;
+        lastFpsUpdateRef.current = now;
+      }
+      fpsCounterRef.current = requestAnimationFrame(countFps);
+    };
+
+    fpsCounterRef.current = requestAnimationFrame(countFps);
+
+    return () => {
+      if (fpsCounterRef.current) {
+        cancelAnimationFrame(fpsCounterRef.current);
+      }
+    };
+  }, []);
 
   useLayoutEffect(() => {
     const calculateScale = () => {
@@ -1843,6 +1868,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
           <Card className="shadow-2xl overflow-hidden border-2 border-primary">
             <div ref={gameAreaRef} className="relative bg-muted/30 overflow-hidden" style={{ width: GAME_WIDTH, height: GAME_HEIGHT }} role="application" aria-label="Área de jogo Dustborn" tabIndex={-1}>
+              <div className="absolute top-1 left-1 bg-black/50 text-white text-xs px-2 py-1 rounded z-50 font-mono">
+                FPS: {fps}
+              </div>
               {isPaused && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
                   <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>
