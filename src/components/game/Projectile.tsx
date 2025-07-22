@@ -2,23 +2,13 @@
 'use client';
 
 import React from 'react';
-import type { ProjectileType as PlayerProjectileType } from '@/config/weapons';
+import type { ProjectileData } from '@/game/types';
+import { PLAYER_PROJECTILE_BASE_SIZE } from '@/game/constants/projectiles';
+import { PLAYER_SIZE } from '@/game/constants/player';
 
-type GameProjectileType = PlayerProjectileType | 'enemy_bullet' | 'barrel_explosive' | 'dynamite_explosive';
-
-
-interface ProjectileProps {
-  x: number;
-  y: number;
-  size: number; 
-  projectileType: GameProjectileType;
-  width?: number; 
-  height?: number; 
-  isBarrelOrDynamite?: boolean;
-  hasLanded?: boolean; 
-}
-
-export function Projectile({ x, y, size, projectileType, width: propWidth, height: propHeight, isBarrelOrDynamite, hasLanded }: ProjectileProps) {
+export function Projectile(props: ProjectileData) {
+  const { x, y, size, projectileType, width: propWidth, height: propHeight, isBarrelOrDynamite, hasLanded } = props;
+  
   let style: React.CSSProperties = {
     left: x,
     top: y,
@@ -46,8 +36,8 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
       style.border = '1px solid #F97316'; 
       break;
     case 'knife':
-      currentWidth = size * 0.5; 
-      currentHeight = size * 1.5; 
+      currentWidth = PLAYER_SIZE * 0.5; 
+      currentHeight = PLAYER_SIZE * 1.5; 
       style.backgroundColor = '#D1D5DB'; 
       style.width = currentWidth;
       style.height = currentHeight;
@@ -129,3 +119,4 @@ export function Projectile({ x, y, size, projectileType, width: propWidth, heigh
   );
 }
 
+    

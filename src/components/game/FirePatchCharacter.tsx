@@ -2,6 +2,7 @@
 'use client';
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { FIRE_PATCH_DURATION } from '@/game/constants/game';
 
 interface FirePatchProps {
   x: number; // Center X
@@ -11,7 +12,7 @@ interface FirePatchProps {
   maxDuration: number;
 }
 
-export function FirePatchCharacter({ x, y, radius, remainingDuration, maxDuration }: FirePatchProps) {
+export function FirePatchCharacter({ x, y, radius, remainingDuration, maxDuration = FIRE_PATCH_DURATION }: FirePatchProps) {
   const opacity = Math.max(0.2, (remainingDuration / maxDuration) * 0.7); // Fades out
   const scale = Math.min(1, 0.8 + (1 - remainingDuration / maxDuration) * 0.4); // Subtle flicker/growth
 
@@ -44,3 +45,5 @@ export function FirePatchCharacter({ x, y, radius, remainingDuration, maxDuratio
     </div>
   );
 }
+
+    

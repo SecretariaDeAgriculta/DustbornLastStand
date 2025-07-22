@@ -1,0 +1,27 @@
+
+import { PLAYER_SIZE } from './player';
+
+// --- PLAYER PROJECTILES ---
+export const PLAYER_PROJECTILE_BASE_SIZE = 8;
+export const PLAYER_REGULAR_PROJECTILE_SPEED = 7;
+export const PLAYER_KNIFE_PROJECTILE_SPEED_MULTIPLIER = 1.8;
+
+// --- ENEMY PROJECTILES ---
+export const ENEMY_PROJECTILE_SPEED = 7;
+export const ENEMY_PROJECTILE_SIZE = 8;
+
+// --- BARREL (Big Doyle) ---
+export const BARREL_PROJECTILE_SIZE = PLAYER_SIZE * 0.9;
+export const BARREL_PROJECTILE_SPEED = 4;
+export const BARREL_EXPLOSION_RADIUS_SQUARED = (PLAYER_SIZE * 3.5) ** 2;
+export const BARREL_FUSE_TIME = 2000;
+export const BARREL_MAX_TRAVEL_DISTANCE = 500;
+
+// --- DYNAMITE (Caleb Hodge) ---
+export const DYNAMITE_PROJECTILE_SIZE = PLAYER_SIZE * 0.6;
+export const DYNAMITE_PROJECTILE_SPEED = 5;
+export const DYNAMITE_FUSE_TIME = 2500;
+export const DYNAMITE_EXPLOSION_RADIUS_SQUARED = (PLAYER_SIZE * 3) ** 2;
+export const DYNAMITE_MAX_TRAVEL_DISTANCE = 450;
+
+    
