@@ -1,5 +1,6 @@
 
 import type { Player, Enemy } from '../types';
+import { quadtree as d3Quadtree } from 'd3-quadtree';
 
 const TARGET_UPDATE_INTERVAL = 200; // ms
 
@@ -14,29 +15,21 @@ export const acquireTarget = (
         return undefined; // Indicate no update needed
     }
 
-    if (enemies.length === 0) {
+    const validEnemies = enemies.filter(enemy => enemy.health > 0 && !enemy.isDetonating && !enemy.isAiming);
+    
+    if (validEnemies.length === 0) {
         return null;
     }
 
-    let closest: Enemy | null = null;
-    let minDistanceSquared = Infinity;
     const playerCenterX = player.x + player.width / 2;
     const playerCenterY = player.y + player.height / 2;
 
-    for (const enemy of enemies) {
-        if (enemy.health <= 0 || enemy.isDetonating || enemy.isAiming) continue;
-        
-        const enemyCenterX = enemy.x + enemy.width / 2;
-        const enemyCenterY = enemy.y + enemy.height / 2;
-        const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
+    const quadtree = d3Quadtree<Enemy>()
+        .x(e => e.x + e.width / 2)
+        .y(e => e.y + e.height / 2)
+        .addAll(validEnemies);
 
-        if (distSq < minDistanceSquared) {
-            minDistanceSquared = distSq;
-            closest = enemy;
-        }
-    }
+    const closest = quadtree.find(playerCenterX, playerCenterY);
     
-    return closest;
+    return closest || null;
 };
-
-    
