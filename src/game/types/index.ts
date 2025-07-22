@@ -43,10 +43,10 @@ export interface Enemy extends Entity {
   isBursting?: boolean;
   burstShotsLeft?: number;
   burstTimer?: number;
-  barrelThrowCooldownTimer?: boolean;
-  dynamiteThrowCooldownTimer?: boolean;
-  fissureCreateCooldownTimer?: boolean;
-  droneSpawnCooldownTimer?: boolean;
+  barrelThrowCooldownTimer?: number;
+  dynamiteThrowCooldownTimer?: number;
+  fissureCreateCooldownTimer?: number;
+  droneSpawnCooldownTimer?: number;
   attackMode?: 'pistol' | 'knife';
   isDashing?: boolean;
   dashTimer?: number;

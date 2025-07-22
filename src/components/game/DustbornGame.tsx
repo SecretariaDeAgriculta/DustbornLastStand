@@ -1,7 +1,7 @@
 
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useLayoutEffect } from 'react';
+import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
 import { PlayerCharacter } from './PlayerCharacter';
 import { EnemyCharacter } from './EnemyCharacter';
 import { GameHUD } from './GameHUD';
@@ -88,7 +88,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const playerProjectilesRef = useRef(playerProjectiles);
   const playerWeaponsRef = useRef(playerWeapons); // Adicionando ref para armas
   const isBossWaveActive = useRef(false);
-  const currentBossId = useRef<string | null>(null);
   const frameCountRef = useRef(0);
   const lastFpsUpdateRef = useRef(performance.now());
   const fpsCounterRef = useRef<number | null>(null);
@@ -169,7 +168,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     lastTargetUpdateRef.current = 0;
     lastPlayerShotTimestampRef.current = {};
     isBossWaveActive.current = false;
-    currentBossId.current = null;
     if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
     enemySpawnTimerId.current = null;
 
@@ -315,127 +313,125 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     let animationFrameId: number;
 
     const gameTick = (timestamp: number) => {
-        const now = Date.now();
-        let currentTarget = targetEnemy;
+      const now = Date.now();
+      let currentTarget = targetEnemy;
 
-        // --- Aquisição de Alvo (Otimizado) ---
-        const newTarget = acquireTarget(now, lastTargetUpdateRef.current, playerRef.current, enemiesRef.current);
-        if (newTarget !== undefined) { // 'undefined' significa que não houve tentativa de atualização
-            setTargetEnemy(newTarget);
-            currentTarget = newTarget; // Use o alvo recém-adquirido neste quadro
-            if (newTarget) lastTargetUpdateRef.current = now;
-        }
+      // --- Aquisição de Alvo (Otimizado) ---
+      const newTarget = acquireTarget(now, lastTargetUpdateRef.current, playerRef.current, enemiesRef.current);
+      if (newTarget !== undefined) {
+        setTargetEnemy(newTarget);
+        currentTarget = newTarget;
+      }
+      if (newTarget) lastTargetUpdateRef.current = now;
 
-        // --- Movimento do Jogador ---
-        setPlayer(p => updatePlayerMovement(p, activeKeys.current));
 
-        // --- Disparos do Jogador ---
-        if (currentTarget) {
-            const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, playerRef.current, playerWeaponsRef.current, lastPlayerShotTimestampRef.current);
-            if (projectiles.length > 0) {
-                setPlayerProjectiles(prev => [...prev, ...projectiles]);
-            }
-            if (Object.keys(updatedTimestamps).length > 0) {
-                lastPlayerShotTimestampRef.current = updatedTimestamps;
-            }
-        }
+      // --- Movimento do Jogador ---
+      setPlayer(p => updatePlayerMovement(p, activeKeys.current));
 
-        // --- Atualização de Projéteis ---
-        const projectileState = updateProjectiles(playerProjectilesRef.current, enemyProjectiles, enemiesRef.current, playerWeaponsRef.current);
-        setPlayerProjectiles(projectileState.newPlayerProjectiles);
-        setEnemyProjectiles(projectileState.newEnemyProjectiles);
-        setFirePatches(prev => [...prev, ...projectileState.firePatchesToCreate]);
-        if (projectileState.playerDamage > 0) {
-            setPlayer(p => {
-                const newHealth = Math.max(0, p.health - projectileState.playerDamage);
-                if (newHealth < p.health && !isPlayerTakingDamage) {
-                    setIsPlayerTakingDamage(true);
-                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
-                }
-                if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
-                return { ...p, health: newHealth };
-            });
-        }
-        
-        // --- Atualização de Efeitos de Área ---
-        const firePatchUpdate = updateFirePatches(now, firePatches, enemiesRef.current);
-        setFirePatches(firePatchUpdate.updatedPatches);
-        
-        const fissureTrapUpdate = updateFissureTraps(now, fissureTraps, playerRef.current);
-        setFissureTraps(fissureTrapUpdate.updatedTraps);
-        if (fissureTrapUpdate.playerDamage > 0) {
-            setPlayer(p => {
-                const newHealth = Math.max(0, p.health - fissureTrapUpdate.playerDamage);
-                if (newHealth < p.health && !isPlayerTakingDamage) {
-                    setIsPlayerTakingDamage(true);
-                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
-                }
-                if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
-                return { ...p, health: newHealth };
-            });
-        }
+      // --- Disparos do Jogador ---
+      if (currentTarget) {
+          const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, playerRef.current, playerWeaponsRef.current, lastPlayerShotTimestampRef.current);
+          if (projectiles.length > 0) {
+              setPlayerProjectiles(prev => [...prev, ...projectiles]);
+          }
+           if (Object.keys(updatedTimestamps).length > 0) {
+              lastPlayerShotTimestampRef.current = updatedTimestamps;
+          }
+      }
 
-        // --- Atualização de Inimigos ---
-        const enemyState = updateEnemies({
-            enemies: enemiesRef.current,
-            player: playerRef.current,
-            isPlayerTakingDamage: isPlayerTakingDamage,
-            isGameOver: isGameOver,
-            fissureTraps: fissureTraps,
-            timestamp: timestamp,
-            damageToApply: new Map([...projectileState.damageToEnemies, ...firePatchUpdate.damageToEnemies]),
-        });
-        setEnemies(enemyState.updatedEnemies);
-        setEnemyProjectiles(prev => [...prev, ...enemyState.newEnemyProjectiles]);
-        setFissureTraps(prev => [...prev, ...enemyState.newFissureTraps]);
-        setLaserSightLines(enemyState.newLaserSights);
-        if (enemyState.playerDamage > 0) {
-            setPlayer(p => {
-                const newHealth = Math.max(0, p.health - enemyState.playerDamage);
-                if (newHealth < p.health && !isPlayerTakingDamage) {
-                    setIsPlayerTakingDamage(true);
-                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
-                }
-                if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
-                return { ...p, health: newHealth };
-            });
-        }
-        if (enemyState.killedEnemies.length > 0) {
-            const moneyFromKills = enemyState.killedEnemies
-                .filter(e => e.moneyValue > 0)
-                .map(e => ({
-                    id: `money_${now}_${Math.random()}_${e.id}`,
-                    x: e.x + e.width / 2 - 5, y: e.y + e.height / 2 - 5,
-                    size: 10, value: e.moneyValue
-                }));
-            if (moneyFromKills.length > 0) setMoneyOrbs(prev => [...prev, ...moneyFromKills]);
-            
-            const scoreFromKills = enemyState.killedEnemies.reduce((acc, e) => acc + e.moneyValue * (e.type.startsWith('Boss_') ? 20 : 5), 0);
-            if(scoreFromKills > 0) setScore(prev => prev + scoreFromKills);
-        }
-        if (enemyState.bossDefeated) {
-            currentBossId.current = null;
-            isBossWaveActive.current = false;
-            toast({ title: `${enemyState.defeatedBossType?.replace('Boss_', '')} Derrotado!`, description: "A onda continua..."});
-        }
-        if (enemyState.targetKilled) {
-            setTargetEnemy(null);
-        }
-
-        // --- Coleta de Orbs de Dinheiro ---
-        const moneyOrbState = updateMoneyOrbs(moneyOrbs, playerRef.current);
-        setMoneyOrbs(moneyOrbState.remainingOrbs);
-        if (moneyOrbState.collectedValue > 0) {
-            setPlayerDollars(prev => prev + moneyOrbState.collectedValue);
-        }
+      // --- Atualização de Projéteis ---
+      const projectileState = updateProjectiles(playerProjectilesRef.current, enemyProjectiles, enemiesRef.current, playerWeaponsRef.current);
+      setPlayerProjectiles(projectileState.newPlayerProjectiles);
+      setEnemyProjectiles(projectileState.newEnemyProjectiles);
+      setFirePatches(prev => [...prev, ...projectileState.firePatchesToCreate]);
+      if (projectileState.playerDamage > 0) {
+          setPlayer(p => {
+              const newHealth = Math.max(0, p.health - projectileState.playerDamage);
+              if (newHealth < p.health && !isPlayerTakingDamage) {
+                  setIsPlayerTakingDamage(true);
+                  setTimeout(() => setIsPlayerTakingDamage(false), 200);
+              }
+              if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
+              return { ...p, health: newHealth };
+          });
+      }
       
-        if (playerRef.current.health <= 0 && !isGameOver) setIsGameOver(true);
-        if (!isGameOver && !isShopPhase && !isPaused) animationFrameId = requestAnimationFrame(gameTick);
+      // --- Atualização de Efeitos de Área ---
+      const firePatchUpdate = updateFirePatches(now, firePatches, enemiesRef.current);
+      setFirePatches(firePatchUpdate.updatedPatches);
+      
+      const fissureTrapUpdate = updateFissureTraps(now, fissureTraps, playerRef.current);
+      setFissureTraps(fissureTrapUpdate.updatedTraps);
+      if (fissureTrapUpdate.playerDamage > 0) {
+          setPlayer(p => {
+              const newHealth = Math.max(0, p.health - fissureTrapUpdate.playerDamage);
+              if (newHealth < p.health && !isPlayerTakingDamage) {
+                  setIsPlayerTakingDamage(true);
+                  setTimeout(() => setIsPlayerTakingDamage(false), 200);
+              }
+              if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
+              return { ...p, health: newHealth };
+          });
+      }
+
+      // --- Atualização de Inimigos ---
+      const enemyState = updateEnemies({
+          enemies: enemiesRef.current,
+          player: playerRef.current,
+          fissureTraps: fissureTraps,
+          timestamp: timestamp,
+          damageToApply: new Map([...projectileState.damageToEnemies, ...firePatchUpdate.damageToEnemies]),
+      });
+      setEnemies(enemyState.updatedEnemies);
+      setEnemyProjectiles(prev => [...prev, ...enemyState.newEnemyProjectiles]);
+      setFissureTraps(prev => [...prev, ...enemyState.newFissureTraps]);
+      setLaserSightLines(enemyState.newLaserSights);
+      if (enemyState.playerDamage > 0) {
+          setPlayer(p => {
+              const newHealth = Math.max(0, p.health - enemyState.playerDamage);
+              if (newHealth < p.health && !isPlayerTakingDamage) {
+                  setIsPlayerTakingDamage(true);
+                  setTimeout(() => setIsPlayerTakingDamage(false), 200);
+              }
+              if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
+              return { ...p, health: newHealth };
+          });
+      }
+      if (enemyState.killedEnemies.length > 0) {
+          const moneyFromKills = enemyState.killedEnemies
+              .filter(e => e.moneyValue > 0)
+              .map(e => ({
+                  id: `money_${now}_${Math.random()}_${e.id}`,
+                  x: e.x + e.width / 2 - 5, y: e.y + e.height / 2 - 5,
+                  size: 10, value: e.moneyValue
+              }));
+          if (moneyFromKills.length > 0) setMoneyOrbs(prev => [...prev, ...moneyFromKills]);
+          
+          const scoreFromKills = enemyState.killedEnemies.reduce((acc, e) => acc + e.moneyValue * (e.type.startsWith('Boss_') ? 20 : 5), 0);
+          if(scoreFromKills > 0) setScore(prev => prev + scoreFromKills);
+      }
+      if (enemyState.bossDefeated) {
+          isBossWaveActive.current = false;
+          toast({ title: `${enemyState.defeatedBossType?.replace('Boss_', '')} Derrotado!`, description: "A onda continua..."});
+      }
+      if (enemyState.targetKilled) {
+          setTargetEnemy(null);
+      }
+
+      // --- Coleta de Orbs de Dinheiro ---
+      const moneyOrbState = updateMoneyOrbs(moneyOrbs, playerRef.current);
+      setMoneyOrbs(moneyOrbState.remainingOrbs);
+      if (moneyOrbState.collectedValue > 0) {
+          setPlayerDollars(prev => prev + moneyOrbState.collectedValue);
+      }
+    
+      if (playerRef.current.health <= 0 && !isGameOver) setIsGameOver(true);
+      animationFrameId = requestAnimationFrame(gameTick);
     };
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, toast, generateShopOfferings, isPlayerTakingDamage, targetEnemy, firePatches, fissureTraps, enemyProjectiles, moneyOrbs]);
+  }, [isGameOver, isShopPhase, isPaused, toast, generateShopOfferings, targetEnemy, firePatches, fissureTraps, enemyProjectiles, moneyOrbs]);
 
   // --- Controle de Ondas (Waves) ---
   useEffect(() => {
@@ -471,7 +467,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     if (newEnemies.length > 0) {
         setEnemies(prev => [...prev, ...newEnemies]);
     }
-    if(newBossId !== undefined) currentBossId.current = newBossId;
     if(newIsBossWaveActive !== undefined && newIsBossWaveActive !== isBossWaveActive.current) {
         isBossWaveActive.current = newIsBossWaveActive;
         if(newIsBossWaveActive){
@@ -518,7 +513,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
     if (nextWaveNumber % 10 === 0) {
       isBossWaveActive.current = true;
-      currentBossId.current = null;
       if (enemySpawnTimerId.current) {
           clearInterval(enemySpawnTimerId.current);
           enemySpawnTimerId.current = null;
@@ -644,3 +638,5 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
+
+    

@@ -9,15 +9,13 @@ import { createEnemyInstance } from './enemySpawningSystem';
 interface UpdateEnemiesProps {
     enemies: Enemy[];
     player: Player;
-    isPlayerTakingDamage: boolean;
-    isGameOver: boolean;
     fissureTraps: FissureTrapData[];
     timestamp: number;
     damageToApply: Map<string, { damage: number, originWeaponId?: string }>;
 }
 
 export const updateEnemies = (props: UpdateEnemiesProps) => {
-    const { enemies, player, isGameOver, fissureTraps, damageToApply } = props;
+    const { enemies, player, fissureTraps, damageToApply } = props;
 
     let playerDamageThisTick = 0;
     const newEnemyProjectiles: ProjectileData[] = [];
@@ -438,3 +436,5 @@ export const updateEnemies = (props: UpdateEnemiesProps) => {
         targetKilled
     };
 };
+
+    
