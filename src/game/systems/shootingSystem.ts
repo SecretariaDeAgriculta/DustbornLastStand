@@ -66,5 +66,3 @@ export const handleShooting = (
         updatedTimestamps,
     };
 };
-
-    

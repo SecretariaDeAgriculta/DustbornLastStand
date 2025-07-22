@@ -2,8 +2,8 @@
 import type { ProjectileData, Enemy, FirePatchData } from '../types';
 import type { Weapon } from '@/config/weapons';
 import { GAME_WIDTH, GAME_HEIGHT, FIRE_PATCH_DURATION, FIRE_PATCH_RADIUS, FIRE_PATCH_DAMAGE_PER_TICK, FIRE_PATCH_TICK_INTERVAL } from '../constants/game';
-import { PLAYER_KNIFE_PROJECTILE_SPEED_MULTIPLIER, PLAYER_REGULAR_PROJECTILE_SPEED, PLAYER_PROJECTILE_BASE_SIZE, BARREL_MAX_TRAVEL_DISTANCE, BARREL_FUSE_TIME, BARREL_PROJECTILE_SPEED, DYNAMITE_MAX_TRAVEL_DISTANCE, DYNAMITE_FUSE_TIME, DYNAMITE_PROJECTILE_SPEED, BARREL_EXPLOSION_RADIUS_SQUARED, DYNAMITE_EXPLOSION_RADIUS_SQUARED } from '../constants/projectiles';
-import { PLAYER_SIZE } from '../constants/player';
+import { PLAYER_KNIFE_PROJECTILE_SPEED_MULTIPLIER, PLAYER_REGULAR_PROJECTILE_SPEED, BARREL_MAX_TRAVEL_DISTANCE, BARREL_FUSE_TIME, BARREL_PROJECTILE_SPEED, DYNAMITE_MAX_TRAVEL_DISTANCE, DYNAMITE_FUSE_TIME, DYNAMITE_PROJECTILE_SPEED } from '../constants/projectiles';
+
 
 export const updateProjectiles = (
     playerProjectiles: ProjectileData[],
@@ -118,8 +118,31 @@ export const updateProjectiles = (
     const remainingEnemyProjectiles: ProjectileData[] = [];
     for (const proj of updatedEnemyProjectiles) {
         let projectileConsumed = false;
-        // Collision logic would go here, for now just filter out old ones
-        if (proj.x > -proj.size && proj.x < GAME_WIDTH && proj.y > -proj.size && proj.y < GAME_HEIGHT && proj.traveledDistance < proj.maxRange) {
+
+        // Simple collision check with player
+        // A more robust check would consider player's actual shape and position
+        const playerCenterX = 30 / 2 + 400; // Assuming player is at a fixed position for simplicity
+        const playerCenterY = 30 / 2 + 300;
+        const distToPlayerSq = (proj.x - playerCenterX)**2 + (proj.y - playerCenterY)**2;
+        
+        if(distToPlayerSq < (proj.size/2 + 30/2)**2){
+            playerDamage += proj.damage;
+            projectileConsumed = true;
+        }
+
+        if (proj.isBarrelOrDynamite && proj.hasLanded && (proj.fuseTimer || 0) <= 0) {
+            // EXPLODE!
+            const explosionRadiusSq = proj.explosionRadiusSquared || 0;
+            const distToPlayerFromExplosionSq = (proj.x - playerCenterX)**2 + (proj.y - playerCenterY)**2;
+            if (distToPlayerFromExplosionSq < explosionRadiusSq) {
+                 playerDamage += proj.damage;
+            }
+            projectileConsumed = true;
+        }
+
+
+        // Filter out old or consumed projectiles
+        if (!projectileConsumed && proj.x > -proj.size && proj.x < GAME_WIDTH && proj.y > -proj.size && proj.y < GAME_HEIGHT && proj.traveledDistance < proj.maxRange) {
             remainingEnemyProjectiles.push(proj);
         }
     }
@@ -132,5 +155,3 @@ export const updateProjectiles = (
         playerDamage,
     };
 };
-
-    

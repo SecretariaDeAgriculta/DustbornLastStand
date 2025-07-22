@@ -86,6 +86,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const waveRef = useRef(wave);
   const enemiesRef = useRef(enemies);
   const playerProjectilesRef = useRef(playerProjectiles);
+  const playerWeaponsRef = useRef(playerWeapons); // Adicionando ref para armas
   const isBossWaveActive = useRef(false);
   const currentBossId = useRef<string | null>(null);
   const frameCountRef = useRef(0);
@@ -97,6 +98,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   useEffect(() => { waveRef.current = wave; }, [wave]);
   useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
   useEffect(() => { playerProjectilesRef.current = playerProjectiles; }, [playerProjectiles]);
+  useEffect(() => { playerWeaponsRef.current = playerWeapons; }, [playerWeapons]); // Sincronizando ref de armas
 
   // --- Efeitos de Setup e Controle ---
 
@@ -329,7 +331,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
         // --- Disparos do Jogador ---
         if (currentTarget) {
-            const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, playerRef.current, playerWeapons, lastPlayerShotTimestampRef.current);
+            const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, playerRef.current, playerWeaponsRef.current, lastPlayerShotTimestampRef.current);
             if (projectiles.length > 0) {
                 setPlayerProjectiles(prev => [...prev, ...projectiles]);
             }
@@ -339,7 +341,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         }
 
         // --- Atualização de Projéteis ---
-        const projectileState = updateProjectiles(playerProjectilesRef.current, enemyProjectiles, enemiesRef.current, playerWeapons);
+        const projectileState = updateProjectiles(playerProjectilesRef.current, enemyProjectiles, enemiesRef.current, playerWeaponsRef.current);
         setPlayerProjectiles(projectileState.newPlayerProjectiles);
         setEnemyProjectiles(projectileState.newEnemyProjectiles);
         setFirePatches(prev => [...prev, ...projectileState.firePatchesToCreate]);
@@ -433,7 +435,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, targetEnemy, firePatches, fissureTraps, enemyProjectiles, moneyOrbs]);
+  }, [isGameOver, isShopPhase, isPaused, toast, generateShopOfferings, isPlayerTakingDamage, targetEnemy, firePatches, fissureTraps, enemyProjectiles, moneyOrbs]);
 
   // --- Controle de Ondas (Waves) ---
   useEffect(() => {
@@ -488,7 +490,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         }
     }
 
-  }, [isShopPhase, isGameOver, isPaused ]);
+  }, [isShopPhase, isGameOver, isPaused, toast ]);
 
   useEffect(() => {
     if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) {
@@ -642,5 +644,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
-    
