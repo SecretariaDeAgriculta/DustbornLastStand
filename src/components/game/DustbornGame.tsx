@@ -360,6 +360,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     health: PLAYER_INITIAL_HEALTH,
   });
   const [enemies, setEnemies] = useState<Enemy[]>([]);
+  const [targetEnemy, setTargetEnemy] = useState<Enemy | null>(null);
   const [moneyOrbs, setMoneyOrbs] = useState<MoneyOrbData[]>([]);
   const [playerProjectiles, setPlayerProjectiles] = useState<ProjectileData[]>([]);
   const [enemyProjectiles, setEnemyProjectiles] = useState<ProjectileData[]>([]);
@@ -385,6 +386,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
   const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
   const lastLogicUpdateTimestampRef = useRef(0);
+  const lastTargetUpdateRef = useRef(0);
   const lastPlayerShotTimestampRef = useRef<Record<string, number>>({});
   const gameAreaRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
@@ -437,6 +439,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
       health: PLAYER_INITIAL_HEALTH,
     });
     setEnemies([]);
+    setTargetEnemy(null);
     setMoneyOrbs([]);
     setPlayerProjectiles([]);
     setEnemyProjectiles([]);
@@ -455,6 +458,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     setShopOfferings([]);
     activeKeys.current.clear();
     lastLogicUpdateTimestampRef.current = 0;
+    lastTargetUpdateRef.current = 0;
     lastPlayerShotTimestampRef.current = {};
     isBossWaveActive.current = false;
     currentBossId.current = null;
@@ -820,12 +824,43 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
   useEffect(() => {
     if (isGameOver || isShopPhase || isPaused) return;
+
     let animationFrameId: number;
+
     const gameTick = (timestamp: number) => {
       if (isPaused) {
         animationFrameId = requestAnimationFrame(gameTick);
         return;
       }
+      
+      const now = Date.now();
+      const newlySpawnedProjectiles: ProjectileData[] = [];
+
+      // --- Start Target Acquisition (Throttled) ---
+      if (now - lastTargetUpdateRef.current > 200) { // Update target every 200ms
+        lastTargetUpdateRef.current = now;
+        
+        let closest: Enemy | null = null;
+        let minDistanceSquared = Infinity;
+        const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+        const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
+
+        for (const enemy of enemiesRef.current) {
+          if (enemy.health <= 0 || enemy.isDetonating || enemy.isAiming) continue;
+          
+          const enemyCenterX = enemy.x + enemy.width / 2;
+          const enemyCenterY = enemy.y + enemy.height / 2;
+          const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
+
+          if (distSq < minDistanceSquared) {
+            minDistanceSquared = distSq;
+            closest = enemy;
+          }
+        }
+        setTargetEnemy(closest);
+      }
+      // --- End Target Acquisition ---
+
       let inputDx = 0, inputDy = 0;
       if (activeKeys.current.has('arrowup') || activeKeys.current.has('w')) inputDy -= 1;
       if (activeKeys.current.has('arrowdown') || activeKeys.current.has('s')) inputDy += 1;
@@ -849,34 +884,21 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         }));
       }
 
-      const now = Date.now();
-      const newlySpawnedProjectiles: ProjectileData[] = [];
+      // --- Start Shooting Logic ---
+      if (targetEnemy && targetEnemy.health > 0) {
+        const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
+        const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
+        const targetCenterX = targetEnemy.x + targetEnemy.width / 2;
+        const targetCenterY = targetEnemy.y + targetEnemy.height / 2;
 
-      let closestEnemy: Enemy | null = null;
-      let minDistanceSquared = Infinity;
-      const playerCenterX = playerRef.current.x + playerRef.current.width / 2;
-      const playerCenterY = playerRef.current.y + playerRef.current.height / 2;
+        const distSq = (playerCenterX - targetCenterX) ** 2 + (playerCenterY - targetCenterY) ** 2;
 
-      for (const enemy of enemiesRef.current) {
-        if (enemy.isDetonating || enemy.isAiming) continue;
-        const enemyCenterX = enemy.x + enemy.width / 2;
-        const enemyCenterY = enemy.y + enemy.height / 2;
-        const distSq = (playerCenterX - enemyCenterX) ** 2 + (playerCenterY - enemyCenterY) ** 2;
-        if (distSq < minDistanceSquared) {
-          minDistanceSquared = distSq;
-          closestEnemy = enemy;
-        }
-      }
-
-      if (closestEnemy) {
         playerWeapons.forEach(weapon => {
           const lastShotTime = lastPlayerShotTimestampRef.current[weapon.id] || 0;
-          if (now - lastShotTime >= weapon.cooldown && minDistanceSquared <= weapon.range ** 2) {
+          if (now - lastShotTime >= weapon.cooldown && distSq <= weapon.range ** 2) {
             lastPlayerShotTimestampRef.current[weapon.id] = now;
             
-            const targetX = closestEnemy!.x + closestEnemy!.width / 2;
-            const targetY = closestEnemy!.y + closestEnemy!.height / 2;
-            const baseAngle = Math.atan2(targetY - playerCenterY, targetX - playerCenterX);
+            const baseAngle = Math.atan2(targetCenterY - playerCenterY, targetCenterX - playerCenterX);
             
             let numProjectilesToFire = weapon.projectilesPerShot || 1;
             if (weapon.id === 'vibora_aco' && Math.random() < 0.25) numProjectilesToFire = 2;
@@ -911,6 +933,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
           }
         });
       }
+      // --- End Shooting Logic ---
 
 
       if (timestamp - lastLogicUpdateTimestampRef.current >= ENEMY_MOVE_INTERVAL) {
@@ -1056,6 +1079,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                             currentBossId.current = null;
                             isBossWaveActive.current = false;
                             toast({ title: `${currentEnemyData.type.replace('Boss_', '')} Derrotado!`, description: "A onda continua..."});
+                        }
+                        if (targetEnemy?.id === currentEnemyData.id) {
+                           setTargetEnemy(null);
                         }
                     }
 
@@ -1680,7 +1706,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     };
     animationFrameId = requestAnimationFrame(gameTick);
     return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, createEnemyInstance, fissureTraps, firePatches]);
+  }, [isGameOver, isShopPhase, isPaused, playerWeapons, toast, generateShopOfferings, isPlayerTakingDamage, createEnemyInstance, fissureTraps, firePatches, targetEnemy]);
 
 
   useEffect(() => {
@@ -1721,6 +1747,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         isBossWaveActive.current = true;
         currentBossId.current = null;
         setEnemies([]);
+        setTargetEnemy(null);
         setPlayerProjectiles([]);
         setEnemyProjectiles([]);
         setLaserSightLines([]);
@@ -1770,6 +1797,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
     lastPlayerShotTimestampRef.current = {};
     lastLogicUpdateTimestampRef.current = 0;
+    lastTargetUpdateRef.current = 0;
     setIsPaused(false);
 
     handleStartWaveLogic(nextWaveNumber);
@@ -1882,5 +1910,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
-    
