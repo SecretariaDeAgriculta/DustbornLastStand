@@ -55,7 +55,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
     const [fps, setFps] = useState(0);
 
-    const [scale, setScale] = useState(1);
+    const scale = useGameStore(state => {
+        if (typeof window === 'undefined') return 1;
+        const availableWidth = window.innerWidth;
+        const availableHeight = window.innerHeight;
+        const scaleX = availableWidth / GAME_WIDTH;
+        const scaleY = availableHeight / GAME_HEIGHT;
+        return Math.max(0.1, Math.min(scaleX, scaleY));
+    });
+
     const gameWrapperRef = useRef<HTMLDivElement>(null);
     const activeKeys = useRef<Set<string>>(new Set());
     const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
@@ -93,7 +101,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 const scaleX = availableWidth / GAME_WIDTH;
                 const scaleY = availableHeight / GAME_HEIGHT;
                 const newScale = Math.min(scaleX, scaleY);
-                setScale(Math.max(0.1, newScale));
+                useGameStore.setState({ scale: Math.max(0.1, newScale) });
             }
         }
         };
@@ -365,7 +373,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
         animationFrameId = requestAnimationFrame(gameTick);
         return () => cancelAnimationFrame(animationFrameId);
-    }, [isGameOver, isShopPhase, isPaused, toast, isPlayerTakingDamage]);
+    }, [isGameOver, isShopPhase, isPaused, toast, isPlayerTakingDamage, setEnemies, setEnemyProjectiles, setFirePatches, setFissureTraps, setIsGameOver, setLaserSightLines, setMoneyOrbs, setPlayer, setPlayerProjectiles, setScore, setTargetEnemy]);
 
     // --- Controle de Ondas (Waves) ---
     useEffect(() => {
@@ -513,7 +521,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                   type={enemy.type} isStunned={enemy.isStunned} isDetonating={enemy.isDetonating}
                 />
               ))}
-              {moneyOrbs.map((orb) => (<XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} /> ))}
+              {Array.isArray(moneyOrbs) && moneyOrbs.map((orb) => (<XPOrb key={orb.id} x={orb.x} y={orb.y} size={orb.size} /> ))}
               {playerProjectiles.map((proj) => ( <Projectile key={proj.id} {...proj} /> ))}
               {enemyProjectiles.map((proj) => ( <Projectile key={proj.id} {...proj} /> ))}
               {laserSightLines.map(line => {

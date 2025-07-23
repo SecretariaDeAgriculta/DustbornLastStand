@@ -25,6 +25,7 @@ type GameState = {
   playerDollars: number;
   playerWeapons: Weapon[];
   shopOfferings: Weapon[];
+  scale: number;
 
   // Actions
   setPlayer: (player: Player) => void;
@@ -74,6 +75,7 @@ const getInitialState = () => ({
   playerDollars: 0,
   playerWeapons: [{ ...initialWeapon, upgradedThisRound: false }],
   shopOfferings: [],
+  scale: 1,
 });
 
 export const useGameStore = create<GameState>((set) => ({
@@ -98,3 +100,5 @@ export const useGameStore = create<GameState>((set) => ({
   setShopOfferings: (offerings) => set({ shopOfferings: offerings }),
   resetGame: () => set(getInitialState()),
 }));
+
+    
