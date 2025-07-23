@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { useGameStore } from '@/store/useGameStore';
 
 // Importando Tipos e Constantes
-import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL, MAX_PLAYER_WEAPONS, RECYCLE_MONEY_PERCENTAGE, INITIAL_WEAPON_RECYCLE_MONEY } from '@/game/constants/game';
+import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL } from '@/game/constants/game';
 import { PLAYER_INITIAL_HEALTH, PLAYER_SIZE } from '@/game/constants/player';
 
 // Importando Sistemas de Lógica do Jogo
@@ -274,15 +274,16 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
             // --- Aquisição de Alvo (Otimizado) ---
             acquireTarget(now, lastTargetUpdateRef.current);
-            const currentTarget = useGameStore.getState().targetEnemy;
-            if (currentTarget) lastTargetUpdateRef.current = now;
+            if (state.targetEnemy) {
+              lastTargetUpdateRef.current = now;
+            }
 
             // --- Movimento do Jogador ---
             updatePlayerMovement(activeKeys.current);
 
             // --- Disparos do Jogador ---
-            if (currentTarget) {
-                const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, state.player, state.playerWeapons, lastPlayerShotTimestampRef.current);
+            if (state.targetEnemy) {
+                const { projectiles, updatedTimestamps } = handleShooting(now, state.targetEnemy, state.player, state.playerWeapons, lastPlayerShotTimestampRef.current);
                 if (projectiles.length > 0) {
                     setPlayerProjectiles([...state.playerProjectiles, ...projectiles]);
                 }
