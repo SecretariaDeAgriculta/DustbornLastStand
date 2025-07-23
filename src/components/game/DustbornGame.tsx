@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 import { useGameStore } from '@/store/useGameStore';
 
 // Importando Tipos e Constantes
-import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL } from '@/game/constants/game';
+import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL, MAX_PLAYER_WEAPONS, RECYCLE_MONEY_PERCENTAGE, INITIAL_WEAPON_RECYCLE_MONEY } from '@/game/constants/game';
 import { PLAYER_INITIAL_HEALTH, PLAYER_SIZE } from '@/game/constants/player';
 
 // Importando Sistemas de Lógica do Jogo
@@ -43,14 +43,52 @@ interface DustbornGameProps {
 
 export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const {
-        player, enemies, targetEnemy, moneyOrbs, playerProjectiles, enemyProjectiles,
+        player, enemies, moneyOrbs, playerProjectiles, enemyProjectiles,
         laserSightLines, fissureTraps, firePatches, score, wave, waveTimer, isShopPhase,
         isGameOver, isPaused, playerDollars, playerWeapons, shopOfferings,
         setPlayer, setEnemies, setTargetEnemy, setMoneyOrbs, setPlayerProjectiles,
         setEnemyProjectiles, setLaserSightLines, setFissureTraps, setFirePatches,
         setScore, setWave, setWaveTimer, setIsShopPhase, setIsGameOver, setIsPaused,
         setPlayerDollars, setPlayerWeapons, setShopOfferings, resetGame
-    } = useGameStore();
+    } = useGameStore(state => ({
+        player: state.player,
+        enemies: state.enemies,
+        targetEnemy: state.targetEnemy,
+        moneyOrbs: state.moneyOrbs,
+        playerProjectiles: state.playerProjectiles,
+        enemyProjectiles: state.enemyProjectiles,
+        laserSightLines: state.laserSightLines,
+        fissureTraps: state.fissureTraps,
+        firePatches: state.firePatches,
+        score: state.score,
+        wave: state.wave,
+        waveTimer: state.waveTimer,
+        isShopPhase: state.isShopPhase,
+        isGameOver: state.isGameOver,
+        isPaused: state.isPaused,
+        playerDollars: state.playerDollars,
+        playerWeapons: state.playerWeapons,
+        shopOfferings: state.shopOfferings,
+        setPlayer: state.setPlayer,
+        setEnemies: state.setEnemies,
+        setTargetEnemy: state.setTargetEnemy,
+        setMoneyOrbs: state.setMoneyOrbs,
+        setPlayerProjectiles: state.setPlayerProjectiles,
+        setEnemyProjectiles: state.setEnemyProjectiles,
+        setLaserSightLines: state.setLaserSightLines,
+        setFissureTraps: state.setFissureTraps,
+        setFirePatches: state.setFirePatches,
+        setScore: state.setScore,
+        setWave: state.setWave,
+        setWaveTimer: state.setWaveTimer,
+        setIsShopPhase: state.setIsShopPhase,
+        setIsGameOver: state.setIsGameOver,
+        setIsPaused: state.setIsPaused,
+        setPlayerDollars: state.setPlayerDollars,
+        setPlayerWeapons: state.setPlayerWeapons,
+        setShopOfferings: state.setShopOfferings,
+        resetGame: state.resetGame,
+    }));
     
     const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
     const [fps, setFps] = useState(0);
@@ -270,10 +308,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         let animationFrameId: number;
         const gameTick = (timestamp: number) => {
             const now = Date.now();
+            
+            // --- Aquisição de Alvo ---
+            acquireTarget(now, lastTargetUpdateRef.current);
+            
+            // --- Ler o estado mais recente APÓS a aquisição de alvo ---
             const state = useGameStore.getState();
 
-            // --- Aquisição de Alvo (Otimizado) ---
-            acquireTarget(now, lastTargetUpdateRef.current);
             if (state.targetEnemy) {
               lastTargetUpdateRef.current = now;
             }
@@ -390,10 +431,12 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     }, [isGameOver, isShopPhase, isPaused, setWaveTimer]);
 
     useEffect(() => {
+        if (isShopPhase) return; // Se já estamos na fase da loja, não faça nada.
+
         if(waveTimer <= 0) {
             if (waveIntervalId.current) clearInterval(waveIntervalId.current);
             
-            // Coletar todas as orbs de dinheiro restantes no final da onda.
+            // Apenas para ter certeza, pegamos o estado mais atual antes de modificar.
             const currentState = useGameStore.getState();
             if (Array.isArray(currentState.moneyOrbs) && currentState.moneyOrbs.length > 0) {
                 const remainingValue = currentState.moneyOrbs.reduce((sum, orb) => sum + orb.value, 0);
@@ -401,15 +444,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 setMoneyOrbs([]); // Limpa as orbs após coletar.
             }
             
-            setIsShopPhase(true);
+            setIsShopPhase(true); // Mude para a fase da loja.
             generateShopOfferings();
             if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
             enemySpawnTimerId.current = null;
             setFissureTraps([]);
             setFirePatches([]);
-            setWaveTimer(WAVE_DURATION);
         }
-    }, [waveTimer, generateShopOfferings, setMoneyOrbs, setPlayerDollars, setIsShopPhase, setFissureTraps, setFirePatches, setWaveTimer]);
+    }, [waveTimer, generateShopOfferings, setMoneyOrbs, setPlayerDollars, setIsShopPhase, setFissureTraps, setFirePatches, isShopPhase]);
 
     const doSpawnEnemies = useCallback(() => {
         const { isShopPhase, isGameOver, isPaused, wave, player, enemies } = useGameStore.getState();
@@ -434,9 +476,9 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     }, [isShopPhase, isGameOver, isPaused, doSpawnEnemies]);
 
     const startNextWave = () => {
+        setWaveTimer(WAVE_DURATION);
         setIsShopPhase(false);
         setWave(wave + 1);
-        setWaveTimer(WAVE_DURATION);
         setPlayer({ ...player, health: PLAYER_INITIAL_HEALTH });
         lastPlayerShotTimestampRef.current = {};
         lastTargetUpdateRef.current = 0;
