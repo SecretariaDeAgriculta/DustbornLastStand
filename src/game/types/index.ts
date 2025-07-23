@@ -43,18 +43,7 @@ export interface Enemy extends Entity {
   isBursting?: boolean;
   burstShotsLeft?: number;
   burstTimer?: number;
-  barrelThrowCooldownTimer?: number;
-  dynamiteThrowCooldownTimer?: number;
-  fissureCreateCooldownTimer?: number;
-  droneSpawnCooldownTimer?: number;
   attackMode?: 'pistol' | 'knife';
-  isDashing?: boolean;
-  dashTimer?: number;
-  dashDx?: number;
-  dashDy?: number;
-  dashCooldownTimer?: number;
-  allySpawnCooldownTimer?: number;
-  modeSwitchCooldownTimer?: number;
 }
 
 export interface MoneyOrbData extends Entity {
@@ -97,12 +86,15 @@ export interface FissureTrapData extends Entity {
 }
 
 export interface FirePatchData extends Entity {
+  id: string;
   radius: number;
   remainingDuration: number;
   maxDuration: number;
   damagePerTick: number;
   tickInterval: number;
   lastDamageTickToEnemies: Record<string, number>; // Enemy ID to timestamp
+  x: number;
+  y: number;
 }
 
 export interface LaserSightLine {

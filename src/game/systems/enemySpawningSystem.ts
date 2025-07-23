@@ -15,11 +15,9 @@ export const createEnemyInstance = (
         enemyDamageVal: number, enemyMoneyVal: number, enemyAtkRangeSq: number,
         enemyAtkCooldown: number, enemyIsDetonating = false, enemyDetonationTimer = 0,
         enemyIsAiming = false, enemyAimingTimer = 0, enemyIsBursting = false,
-        enemyBurstShotsLeft = 0, enemyBurstTimer = 0, enemyBarrelThrowCooldownTimer = 0,
-        enemyDroneSpawnCooldownTimer = 0, enemyAttackMode: 'pistol' | 'knife' | undefined = undefined,
-        enemyDashCooldownTimer = 0, enemyAllySpawnCooldownTimer = 0, enemyModeSwitchCooldownTimer = 0,
-        enemyDynamiteThrowCooldownTimer = 0, enemyFissureCreateCooldownTimer = 0,
-        maxDuration: number | undefined = undefined, lastDamageTickPlayer: number | undefined = undefined;
+        enemyBurstShotsLeft = 0, enemyBurstTimer = 0,
+        enemyAttackMode: 'pistol' | 'knife' | undefined = undefined;
+
 
     let finalHealth: number = 0, finalSpeed: number = 0, finalMoneyValue: number = 0;
 
@@ -69,57 +67,6 @@ export const createEnemyInstance = (
             enemyBaseSpeed = EnemyConstants.ENEMY_DESERTOR_BASE_SPEED; enemyDamageVal = EnemyConstants.ENEMY_DESERTOR_DAMAGE;
             enemyMoneyVal = EnemyConstants.ENEMY_DESERTOR_MONEY_VALUE; enemyAtkRangeSq = EnemyConstants.ENEMY_DESERTOR_ATTACK_RANGE_SQUARED;
             enemyAtkCooldown = EnemyConstants.ENEMY_DESERTOR_ATTACK_COOLDOWN; enemyIsBursting = false; enemyBurstShotsLeft = 0; enemyBurstTimer = 0; break;
-        case 'Boss_BigDoyle':
-            enemyBaseSize = EnemyConstants.ENEMY_BIGDOYLE_SIZE; enemyInitialHealth = EnemyConstants.ENEMY_BIGDOYLE_INITIAL_HEALTH;
-            enemyBaseSpeed = EnemyConstants.ENEMY_BIGDOYLE_BASE_SPEED; enemyDamageVal = EnemyConstants.ENEMY_BIGDOYLE_MELEE_DAMAGE;
-            enemyMoneyVal = EnemyConstants.ENEMY_BIGDOYLE_MONEY_VALUE; enemyAtkRangeSq = EnemyConstants.ENEMY_BIGDOYLE_MELEE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = EnemyConstants.ENEMY_BIGDOYLE_MELEE_ATTACK_COOLDOWN;
-            enemyBarrelThrowCooldownTimer = EnemyConstants.ENEMY_BIGDOYLE_BARREL_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
-            break;
-        case 'Boss_CaptainMcGraw':
-            enemyBaseSize = EnemyConstants.ENEMY_CAPTAINMCGRAW_SIZE; enemyInitialHealth = EnemyConstants.ENEMY_CAPTAINMCGRAW_INITIAL_HEALTH;
-            enemyBaseSpeed = EnemyConstants.ENEMY_CAPTAINMCGRAW_BASE_SPEED; enemyDamageVal = EnemyConstants.ENEMY_CAPTAINMCGRAW_RIFLE_DAMAGE;
-            enemyMoneyVal = EnemyConstants.ENEMY_CAPTAINMCGRAW_MONEY_VALUE; enemyAtkRangeSq = EnemyConstants.ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = EnemyConstants.ENEMY_CAPTAINMCGRAW_RIFLE_ATTACK_COOLDOWN;
-            enemyIsAiming = false; enemyAimingTimer = 0;
-            enemyDroneSpawnCooldownTimer = EnemyConstants.ENEMY_CAPTAINMCGRAW_DRONE_SPAWN_COOLDOWN * (0.3 + Math.random() * 0.4);
-            break;
-        case 'Boss_DomGael':
-            enemyBaseSize = EnemyConstants.ENEMY_DOMGAEL_SIZE; enemyInitialHealth = EnemyConstants.ENEMY_DOMGAEL_INITIAL_HEALTH;
-            enemyBaseSpeed = EnemyConstants.ENEMY_DOMGAEL_BASE_SPEED; enemyDamageVal = EnemyConstants.ENEMY_DOMGAEL_PISTOL_DAMAGE;
-            enemyMoneyVal = EnemyConstants.ENEMY_DOMGAEL_MONEY_VALUE; enemyAtkRangeSq = EnemyConstants.ENEMY_DOMGAEL_PISTOL_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = EnemyConstants.ENEMY_DOMGAEL_PISTOL_COOLDOWN;
-            enemyAttackMode = 'pistol';
-            enemyDashCooldownTimer = EnemyConstants.ENEMY_DOMGAEL_DASH_COOLDOWN * (0.2 + Math.random() * 0.8);
-            enemyAllySpawnCooldownTimer = EnemyConstants.ENEMY_DOMGAEL_ALLY_SPAWN_COOLDOWN * (0.5 + Math.random() * 0.5);
-            enemyModeSwitchCooldownTimer = 0;
-            break;
-        case 'Boss_CalebHodge':
-            enemyBaseSize = EnemyConstants.ENEMY_CALEBHODGE_SIZE; enemyInitialHealth = EnemyConstants.ENEMY_CALEBHODGE_INITIAL_HEALTH;
-            enemyBaseSpeed = EnemyConstants.ENEMY_CALEBHODGE_BASE_SPEED; enemyDamageVal = EnemyConstants.ENEMY_CALEBHODGE_DYNAMITE_DAMAGE;
-            enemyMoneyVal = EnemyConstants.ENEMY_CALEBHODGE_MONEY_VALUE; enemyAtkRangeSq = EnemyConstants.ENEMY_CALEBHODGE_DYNAMITE_THROW_RANGE_SQUARED;
-            enemyAtkCooldown = EnemyConstants.ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN;
-            enemyDynamiteThrowCooldownTimer = EnemyConstants.ENEMY_CALEBHODGE_DYNAMITE_THROW_COOLDOWN * (0.5 + Math.random() * 0.5);
-            enemyFissureCreateCooldownTimer = EnemyConstants.ENEMY_CALEBHODGE_FISSURE_CREATE_COOLDOWN * (0.3 + Math.random() * 0.7);
-            break;
-        case 'PatrolDrone':
-            enemyBaseSize = EnemyConstants.ENEMY_DRONE_SIZE; enemyInitialHealth = EnemyConstants.ENEMY_DRONE_INITIAL_HEALTH;
-            enemyBaseSpeed = EnemyConstants.ENEMY_DRONE_BASE_SPEED; enemyDamageVal = EnemyConstants.ENEMY_DRONE_DAMAGE;
-            enemyMoneyVal = EnemyConstants.ENEMY_DRONE_MONEY_VALUE; enemyAtkRangeSq = EnemyConstants.ENEMY_DRONE_ATTACK_RANGE_SQUARED;
-            enemyAtkCooldown = EnemyConstants.ENEMY_DRONE_ATTACK_COOLDOWN;
-
-            finalHealth = enemyInitialHealth; finalSpeed = enemyBaseSpeed; finalMoneyValue = enemyMoneyVal;
-             let droneX, droneY; const droneSpawnPadding = 50;
-            droneX = Math.random() * (GAME_WIDTH - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
-            droneY = Math.random() * (GAME_HEIGHT - enemyBaseSize - 2 * droneSpawnPadding) + droneSpawnPadding;
-
-            return {
-                id: `enemy_${Date.now()}_${Math.random()}_${type}`, x: droneX, y: droneY,
-                width: enemyBaseSize, height: enemyBaseSize, health: finalHealth, maxHealth: finalHealth,
-                type: type, moneyValue: finalMoneyValue, attackCooldownTimer: Math.random() * enemyAtkCooldown,
-                speed: finalSpeed, damage: enemyDamageVal, attackRangeSquared: enemyAtkRangeSq,
-                attackCooldown: enemyAtkCooldown,
-            };
         default: console.error("Tipo de inimigo desconhecido:", type); return null;
     }
 
@@ -172,38 +119,14 @@ export const createEnemyInstance = (
         attackCooldown: enemyAtkCooldown, isDetonating: enemyIsDetonating, detonationTimer: enemyDetonationTimer,
         isAiming: enemyIsAiming, aimingTimer: enemyAimingTimer, isBursting: enemyIsBursting,
         burstShotsLeft: enemyBurstShotsLeft, burstTimer: enemyBurstTimer,
-        barrelThrowCooldownTimer: type === 'Boss_BigDoyle' ? enemyBarrelThrowCooldownTimer : undefined,
-        dynamiteThrowCooldownTimer: type === 'Boss_CalebHodge' ? enemyDynamiteThrowCooldownTimer : undefined,
-        fissureCreateCooldownTimer: type === 'Boss_CalebHodge' ? enemyFissureCreateCooldownTimer : undefined,
-        droneSpawnCooldownTimer: type === 'Boss_CaptainMcGraw' ? enemyDroneSpawnCooldownTimer : undefined,
         attackMode: type === 'Boss_DomGael' ? enemyAttackMode : undefined,
-        isDashing: type === 'Boss_DomGael' ? false : undefined,
-        dashTimer: type === 'Boss_DomGael' ? 0 : undefined,
-        dashCooldownTimer: type === 'Boss_DomGael' ? enemyDashCooldownTimer : undefined,
-        allySpawnCooldownTimer: type === 'Boss_DomGael' ? enemyAllySpawnCooldownTimer : undefined,
-        modeSwitchCooldownTimer: type === 'Boss_DomGael' ? enemyModeSwitchCooldownTimer : undefined,
     };
   };
 
-export const spawnEnemiesOnTick = (currentWave: number, currentPlayer: Player, currentEnemiesList: Enemy[], isBossWave: boolean) => {
+export const spawnEnemiesOnTick = (currentWave: number, currentPlayer: Player, currentEnemiesList: Enemy[]) => {
     const newEnemies: Enemy[] = [];
     let newBossId: string | null = null;
     let newIsBossWaveActive: boolean | undefined = undefined;
-
-    if (currentWave % 10 === 0 && !isBossWave && currentEnemiesList.length === 0) {
-        newIsBossWaveActive = true;
-        const randomBossType = bossPool[Math.floor(Math.random() * bossPool.length)];
-        const bossEnemy = createEnemyInstance(randomBossType, currentWave, currentPlayer);
-        if (bossEnemy) {
-            newEnemies.push(bossEnemy);
-            newBossId = bossEnemy.id;
-        }
-        return { newEnemies, newBossId, newIsBossWaveActive };
-    }
-    
-    if (isBossWave) {
-        return { newEnemies, newBossId, newIsBossWaveActive };
-    }
 
     const arruaceiroCount = currentEnemiesList.filter(e => e.type === 'ArruaceiroSaloon').length;
     const caoCount = currentEnemiesList.filter(e => e.type === 'Cão de Fazenda').length;

@@ -18,9 +18,9 @@ import type { Weapon } from '@/config/weapons';
 import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
 import { useToast } from "@/hooks/use-toast";
 import { cn } from '@/lib/utils';
+import { useGameStore } from '@/store/useGameStore';
 
 // Importando Tipos e Constantes
-import type { Player, Enemy, MoneyOrbData, ProjectileData, FissureTrapData, FirePatchData, LaserSightLine } from '@/game/types';
 import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL, MAX_PLAYER_WEAPONS, RECYCLE_MONEY_PERCENTAGE, INITIAL_WEAPON_RECYCLE_MONEY } from '@/game/constants/game';
 import { PLAYER_INITIAL_HEALTH, PLAYER_SIZE } from '@/game/constants/player';
 
@@ -42,490 +42,411 @@ interface DustbornGameProps {
 }
 
 export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
-  // --- Estados do Jogo ---
-  const [player, setPlayer] = useState<Player>({
-    id: 'player',
-    x: GAME_WIDTH / 2 - PLAYER_SIZE / 2,
-    y: GAME_HEIGHT / 2 - PLAYER_SIZE / 2,
-    width: PLAYER_SIZE,
-    height: PLAYER_SIZE,
-    health: PLAYER_INITIAL_HEALTH,
-  });
-  const [enemies, setEnemies] = useState<Enemy[]>([]);
-  const [targetEnemy, setTargetEnemy] = useState<Enemy | null>(null);
-  const [moneyOrbs, setMoneyOrbs] = useState<MoneyOrbData[]>([]);
-  const [playerProjectiles, setPlayerProjectiles] = useState<ProjectileData[]>([]);
-  const [enemyProjectiles, setEnemyProjectiles] = useState<ProjectileData[]>([]);
-  const [laserSightLines, setLaserSightLines] = useState<LaserSightLine[]>([]);
-  const [fissureTraps, setFissureTraps] = useState<FissureTrapData[]>([]);
-  const [firePatches, setFirePatches] = useState<FirePatchData[]>([]);
-  const [score, setScore] = useState(0);
-  const [wave, setWave] = useState(1);
-  const [waveTimer, setWaveTimer] = useState(WAVE_DURATION);
-  const [isShopPhase, setIsShopPhase] = useState(false);
-  const [isGameOver, setIsGameOver] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [playerDollars, setPlayerDollars] = useState(0);
-  const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
-  const [fps, setFps] = useState(0);
-
-  const [playerWeapons, setPlayerWeapons] = useState<Weapon[]>([{...initialWeapon, upgradedThisRound: false}]);
-  const [shopOfferings, setShopOfferings] = useState<Weapon[]>([]);
-
-  // --- Refs para controle e otimização ---
-  const [scale, setScale] = useState(1);
-  const gameWrapperRef = useRef<HTMLDivElement>(null);
-  const activeKeys = useRef<Set<string>>(new Set());
-  const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
-  const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
-  const lastTargetUpdateRef = useRef(0);
-  const lastPlayerShotTimestampRef = useRef<Record<string, number>>({});
-  const gameAreaRef = useRef<HTMLDivElement>(null);
-  const { toast } = useToast();
-  const playerRef = useRef(player);
-  const waveRef = useRef(wave);
-  const enemiesRef = useRef(enemies);
-  const playerProjectilesRef = useRef(playerProjectiles);
-  const playerWeaponsRef = useRef(playerWeapons); // Adicionando ref para armas
-  const isBossWaveActive = useRef(false);
-  const frameCountRef = useRef(0);
-  const lastFpsUpdateRef = useRef(performance.now());
-  const fpsCounterRef = useRef<number | null>(null);
-
-  // Efeitos para sincronizar refs com o estado
-  useEffect(() => { playerRef.current = player; }, [player]);
-  useEffect(() => { waveRef.current = wave; }, [wave]);
-  useEffect(() => { enemiesRef.current = enemies; }, [enemies]);
-  useEffect(() => { playerProjectilesRef.current = playerProjectiles; }, [playerProjectiles]);
-  useEffect(() => { playerWeaponsRef.current = playerWeapons; }, [playerWeapons]); // Sincronizando ref de armas
-
-  // --- Efeitos de Setup e Controle ---
-
-  // Contador de FPS
-  useEffect(() => {
-    const countFps = (now: number) => {
-      frameCountRef.current++;
-      if (now - lastFpsUpdateRef.current > 1000) {
-        setFps(frameCountRef.current);
-        frameCountRef.current = 0;
-        lastFpsUpdateRef.current = now;
-      }
-      fpsCounterRef.current = requestAnimationFrame(countFps);
-    };
-    fpsCounterRef.current = requestAnimationFrame(countFps);
-    return () => { if (fpsCounterRef.current) cancelAnimationFrame(fpsCounterRef.current); };
-  }, []);
-
-  // Responsividade do Canvas do Jogo
-  useLayoutEffect(() => {
-    const calculateScale = () => {
-      if (gameWrapperRef.current) {
-        const availableWidth = gameWrapperRef.current.clientWidth;
-        const availableHeight = gameWrapperRef.current.clientHeight;
-        if (availableWidth > 0 && availableHeight > 0) {
-            const scaleX = availableWidth / GAME_WIDTH;
-            const scaleY = availableHeight / GAME_HEIGHT;
-            const newScale = Math.min(scaleX, scaleY);
-            setScale(Math.max(0.1, newScale));
-        }
-      }
-    };
-    calculateScale();
-    const resizeObserver = new ResizeObserver(calculateScale);
-    if (gameWrapperRef.current) resizeObserver.observe(gameWrapperRef.current);
-    return () => {
-      if (gameWrapperRef.current) resizeObserver.unobserve(gameWrapperRef.current);
-      resizeObserver.disconnect();
-    };
-  }, []);
-
-  // --- Funções de Lógica do Jogo ---
-
-  const resetGameState = useCallback((exitToMenu = false) => {
-    setPlayer({
-      id: 'player', x: GAME_WIDTH / 2 - PLAYER_SIZE / 2, y: GAME_HEIGHT / 2 - PLAYER_SIZE / 2,
-      width: PLAYER_SIZE, height: PLAYER_SIZE, health: PLAYER_INITIAL_HEALTH,
-    });
-    setEnemies([]);
-    setTargetEnemy(null);
-    setMoneyOrbs([]);
-    setPlayerProjectiles([]);
-    setEnemyProjectiles([]);
-    setLaserSightLines([]);
-    setFissureTraps([]);
-    setFirePatches([]);
-    setScore(0);
-    setWave(1);
-    setWaveTimer(WAVE_DURATION);
-    setIsShopPhase(false);
-    setIsGameOver(false);
-    setIsPaused(false);
-    setPlayerDollars(0);
-    setIsPlayerTakingDamage(false);
-    setPlayerWeapons([{...initialWeapon, upgradedThisRound: false}]);
-    setShopOfferings([]);
-    activeKeys.current.clear();
-    lastTargetUpdateRef.current = 0;
-    lastPlayerShotTimestampRef.current = {};
-    isBossWaveActive.current = false;
-    if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
-    enemySpawnTimerId.current = null;
-
-    if (exitToMenu && onExitToMenu) {
-      onExitToMenu();
-    }
-  }, [onExitToMenu]);
-
-  const generateShopOfferings = useCallback(() => {
-    const purchasable = getPurchasableWeapons().filter(
-      (shopWeapon) => shopWeapon.id !== initialWeapon.id
-    );
-    const weightedList: Weapon[] = [];
-    purchasable.forEach(weapon => {
-        let copies = 1;
-        if (weapon.rarity === 'Comum') copies = 5;
-        else if (weapon.rarity === 'Raro') copies = 2;
-        else if (weapon.rarity === 'Lendária') copies = 1;
-        for (let i = 0; i < copies; i++) weightedList.push(weapon);
-    });
-    const shuffled = weightedList.sort(() => 0.5 - Math.random());
-    const uniqueWeaponIds = new Set<string>();
-    const currentOfferings: Weapon[] = [];
-    for (const weapon of shuffled) {
-        if (currentOfferings.length < 3 && !uniqueWeaponIds.has(weapon.id) ) {
-             uniqueWeaponIds.add(weapon.id);
-             const freshShopWeapon = getWeaponById(weapon.id);
-             if (freshShopWeapon) {
-                currentOfferings.push({...freshShopWeapon, upgradedThisRound: false});
-             }
-        }
-        if (currentOfferings.length >= 3) break;
-    }
-    setShopOfferings(currentOfferings);
-  }, []);
-
-  const handleBuyWeapon = (weaponToBuyOrUpgrade: Weapon) => {
-    const existingWeaponIndex = playerWeapons.findIndex(pw => pw.id === weaponToBuyOrUpgrade.id);
-    const isUpgrade = existingWeaponIndex !== -1;
-    const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
-    if (shopOfferingIndex === -1) return;
-    const currentShopOffering = shopOfferings[shopOfferingIndex];
-    if (currentShopOffering.upgradedThisRound) {
-      toast({ title: "Já Interagido", description: "Você já comprou ou aprimorou esta oferta nesta rodada.", variant: "destructive" });
-      return;
-    }
-    if (playerDollars < weaponToBuyOrUpgrade.moneyCost) {
-      toast({ title: "Dinheiro Insuficiente", description: `Você precisa de $${weaponToBuyOrUpgrade.moneyCost}.`, variant: "destructive" });
-      return;
-    }
-    if (isUpgrade) {
-      setPlayerWeapons(prevWeapons =>
-        prevWeapons.map((weapon, index) => {
-          if (index === existingWeaponIndex) {
-            const upgradedWeapon = getWeaponById(weapon.id);
-            if (!upgradedWeapon) return weapon;
-            return {
-              ...weapon,
-              damage: Math.round(weapon.damage + (upgradedWeapon.damage * 0.2)),
-              cooldown: Math.max(100, weapon.cooldown - (upgradedWeapon.cooldown * 0.05)),
-            };
-          }
-          return weapon;
-        })
-      );
-      setPlayerDollars(prevMoney => prevMoney - weaponToBuyOrUpgrade.moneyCost);
-      toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
-    } else {
-      if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
-        toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
-        return;
-      }
-      setPlayerDollars(prevMoney => prevMoney - weaponToBuyOrUpgrade.moneyCost);
-      const freshWeaponDefinition = getWeaponById(weaponToBuyOrUpgrade.id);
-      if (freshWeaponDefinition) {
-        setPlayerWeapons(prevWeapons => [...prevWeapons, {...freshWeaponDefinition, upgradedThisRound: false}]);
-        toast({ title: "Arma Comprada!", description: `${freshWeaponDefinition.name} adicionada ao seu arsenal.` });
-      } else {
-        toast({ title: "Erro na Loja", description: `Não foi possível encontrar a definição da arma ${weaponToBuyOrUpgrade.name}.`, variant: "destructive" });
-      }
-    }
-    setShopOfferings(prevOfferings =>
-      prevOfferings.map((offering, index) =>
-        index === shopOfferingIndex ? { ...offering, upgradedThisRound: true } : offering
-      )
-    );
-  };
-
-  const handleRecycleWeapon = (weaponIdToRecycle: string) => {
-    if (playerWeapons.length <= 1) {
-      toast({ title: "Não Pode Reciclar", description: "Você não pode reciclar sua última arma.", variant: "destructive" });
-      return;
-    }
-    const weaponToRecycle = playerWeapons.find(w => w.id === weaponIdToRecycle);
-    if (weaponToRecycle) {
-      let moneyGained = 0;
-      if (weaponToRecycle.id === initialWeapon.id) {
-        moneyGained = INITIAL_WEAPON_RECYCLE_MONEY;
-      } else {
-        const baseWeapon = getWeaponById(weaponIdToRecycle);
-        moneyGained = Math.floor((baseWeapon?.moneyCost || 0) * RECYCLE_MONEY_PERCENTAGE);
-      }
-      setPlayerDollars(prevMoney => prevMoney + moneyGained);
-      setPlayerWeapons(prevWeapons => prevWeapons.filter(w => w.id !== weaponIdToRecycle));
-      toast({ title: "Arma Reciclada!", description: `${weaponToRecycle.name} removida. +$${moneyGained}.` });
-    }
-  };
-
-  // --- Handlers de Input ---
-  useEffect(() => {
-    if (deviceType === 'mobile') return;
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (isGameOver) return;
-      if (event.key.toLowerCase() === 'p') {
-        setIsPaused(prev => !prev);
-        return;
-      }
-      if (isPaused || isShopPhase) return;
-      activeKeys.current.add(event.key.toLowerCase());
-    };
-    const handleKeyUp = (event: KeyboardEvent) => {
-      if (isGameOver || isPaused || isShopPhase) return;
-      activeKeys.current.delete(event.key.toLowerCase());
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, [isGameOver, isPaused, isShopPhase, deviceType]);
-
-  const handleMobileControl = (key: string, isPressed: boolean) => {
-    if (isGameOver || isPaused || isShopPhase) return;
-    if (isPressed) activeKeys.current.add(key);
-    else activeKeys.current.delete(key);
-  };
-
-  // --- O Loop Principal do Jogo (Game Loop) ---
-  useEffect(() => {
-    if (isGameOver || isShopPhase || isPaused) return;
-
-    let animationFrameId: number;
-
-    const gameTick = (timestamp: number) => {
-      const now = Date.now();
-      let currentTarget = targetEnemy;
-
-      // --- Aquisição de Alvo (Otimizado) ---
-      const newTarget = acquireTarget(now, lastTargetUpdateRef.current, playerRef.current, enemiesRef.current);
-      if (newTarget !== undefined) {
-        setTargetEnemy(newTarget);
-        currentTarget = newTarget;
-      }
-      if (newTarget) lastTargetUpdateRef.current = now;
-
-
-      // --- Movimento do Jogador ---
-      setPlayer(p => updatePlayerMovement(p, activeKeys.current));
-
-      // --- Disparos do Jogador ---
-      if (currentTarget) {
-          const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, playerRef.current, playerWeaponsRef.current, lastPlayerShotTimestampRef.current);
-          if (projectiles.length > 0) {
-              setPlayerProjectiles(prev => [...prev, ...projectiles]);
-          }
-           if (Object.keys(updatedTimestamps).length > 0) {
-              lastPlayerShotTimestampRef.current = updatedTimestamps;
-          }
-      }
-
-      // --- Atualização de Projéteis ---
-      const projectileState = updateProjectiles(playerProjectilesRef.current, enemyProjectiles, enemiesRef.current, playerWeaponsRef.current);
-      setPlayerProjectiles(projectileState.newPlayerProjectiles);
-      setEnemyProjectiles(projectileState.newEnemyProjectiles);
-      setFirePatches(prev => [...prev, ...projectileState.firePatchesToCreate]);
-      if (projectileState.playerDamage > 0) {
-          setPlayer(p => {
-              const newHealth = Math.max(0, p.health - projectileState.playerDamage);
-              if (newHealth < p.health && !isPlayerTakingDamage) {
-                  setIsPlayerTakingDamage(true);
-                  setTimeout(() => setIsPlayerTakingDamage(false), 200);
-              }
-              if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
-              return { ...p, health: newHealth };
-          });
-      }
-      
-      // --- Atualização de Efeitos de Área ---
-      const firePatchUpdate = updateFirePatches(now, firePatches, enemiesRef.current);
-      setFirePatches(firePatchUpdate.updatedPatches);
-      
-      const fissureTrapUpdate = updateFissureTraps(now, fissureTraps, playerRef.current);
-      setFissureTraps(fissureTrapUpdate.updatedTraps);
-      if (fissureTrapUpdate.playerDamage > 0) {
-          setPlayer(p => {
-              const newHealth = Math.max(0, p.health - fissureTrapUpdate.playerDamage);
-              if (newHealth < p.health && !isPlayerTakingDamage) {
-                  setIsPlayerTakingDamage(true);
-                  setTimeout(() => setIsPlayerTakingDamage(false), 200);
-              }
-              if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
-              return { ...p, health: newHealth };
-          });
-      }
-
-      // --- Atualização de Inimigos ---
-      const enemyState = updateEnemies({
-          enemies: enemiesRef.current,
-          player: playerRef.current,
-          fissureTraps: fissureTraps,
-          timestamp: timestamp,
-          damageToApply: new Map([...projectileState.damageToEnemies, ...firePatchUpdate.damageToEnemies]),
-      });
-      setEnemies(enemyState.updatedEnemies);
-      setEnemyProjectiles(prev => [...prev, ...enemyState.newEnemyProjectiles]);
-      setFissureTraps(prev => [...prev, ...enemyState.newFissureTraps]);
-      setLaserSightLines(enemyState.newLaserSights);
-      if (enemyState.playerDamage > 0) {
-          setPlayer(p => {
-              const newHealth = Math.max(0, p.health - enemyState.playerDamage);
-              if (newHealth < p.health && !isPlayerTakingDamage) {
-                  setIsPlayerTakingDamage(true);
-                  setTimeout(() => setIsPlayerTakingDamage(false), 200);
-              }
-              if (newHealth <= 0 && !isGameOver) setIsGameOver(true);
-              return { ...p, health: newHealth };
-          });
-      }
-      if (enemyState.killedEnemies.length > 0) {
-          const moneyFromKills = enemyState.killedEnemies
-              .filter(e => e.moneyValue > 0)
-              .map(e => ({
-                  id: `money_${now}_${Math.random()}_${e.id}`,
-                  x: e.x + e.width / 2 - 5, y: e.y + e.height / 2 - 5,
-                  size: 10, value: e.moneyValue
-              }));
-          if (moneyFromKills.length > 0) setMoneyOrbs(prev => [...prev, ...moneyFromKills]);
-          
-          const scoreFromKills = enemyState.killedEnemies.reduce((acc, e) => acc + e.moneyValue * (e.type.startsWith('Boss_') ? 20 : 5), 0);
-          if(scoreFromKills > 0) setScore(prev => prev + scoreFromKills);
-      }
-      if (enemyState.bossDefeated) {
-          isBossWaveActive.current = false;
-          toast({ title: `${enemyState.defeatedBossType?.replace('Boss_', '')} Derrotado!`, description: "A onda continua..."});
-      }
-      if (enemyState.targetKilled) {
-          setTargetEnemy(null);
-      }
-
-      // --- Coleta de Orbs de Dinheiro ---
-      const moneyOrbState = updateMoneyOrbs(moneyOrbs, playerRef.current);
-      setMoneyOrbs(moneyOrbState.remainingOrbs);
-      if (moneyOrbState.collectedValue > 0) {
-          setPlayerDollars(prev => prev + moneyOrbState.collectedValue);
-      }
+    const {
+        player, enemies, targetEnemy, moneyOrbs, playerProjectiles, enemyProjectiles,
+        laserSightLines, fissureTraps, firePatches, score, wave, waveTimer, isShopPhase,
+        isGameOver, isPaused, playerDollars, playerWeapons, shopOfferings,
+        setPlayer, setEnemies, setTargetEnemy, setMoneyOrbs, setPlayerProjectiles,
+        setEnemyProjectiles, setLaserSightLines, setFissureTraps, setFirePatches,
+        setScore, setWave, setWaveTimer, setIsShopPhase, setIsGameOver, setIsPaused,
+        setPlayerDollars, setPlayerWeapons, setShopOfferings, resetGame
+    } = useGameStore();
     
-      if (playerRef.current.health <= 0 && !isGameOver) setIsGameOver(true);
-      animationFrameId = requestAnimationFrame(gameTick);
+    const [isPlayerTakingDamage, setIsPlayerTakingDamage] = useState(false);
+    const [fps, setFps] = useState(0);
+
+    const [scale, setScale] = useState(1);
+    const gameWrapperRef = useRef<HTMLDivElement>(null);
+    const activeKeys = useRef<Set<string>>(new Set());
+    const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
+    const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
+    const lastTargetUpdateRef = useRef(0);
+    const lastPlayerShotTimestampRef = useRef<Record<string, number>>({});
+    const gameAreaRef = useRef<HTMLDivElement>(null);
+    const { toast } = useToast();
+    const frameCountRef = useRef(0);
+    const lastFpsUpdateRef = useRef(performance.now());
+    const fpsCounterRef = useRef<number | null>(null);
+
+    // Contador de FPS
+    useEffect(() => {
+        const countFps = (now: number) => {
+        frameCountRef.current++;
+        if (now - lastFpsUpdateRef.current > 1000) {
+            setFps(frameCountRef.current);
+            frameCountRef.current = 0;
+            lastFpsUpdateRef.current = now;
+        }
+        fpsCounterRef.current = requestAnimationFrame(countFps);
+        };
+        fpsCounterRef.current = requestAnimationFrame(countFps);
+        return () => { if (fpsCounterRef.current) cancelAnimationFrame(fpsCounterRef.current); };
+    }, []);
+
+    // Responsividade do Canvas do Jogo
+    useLayoutEffect(() => {
+        const calculateScale = () => {
+        if (gameWrapperRef.current) {
+            const availableWidth = gameWrapperRef.current.clientWidth;
+            const availableHeight = gameWrapperRef.current.clientHeight;
+            if (availableWidth > 0 && availableHeight > 0) {
+                const scaleX = availableWidth / GAME_WIDTH;
+                const scaleY = availableHeight / GAME_HEIGHT;
+                const newScale = Math.min(scaleX, scaleY);
+                setScale(Math.max(0.1, newScale));
+            }
+        }
+        };
+        calculateScale();
+        const resizeObserver = new ResizeObserver(calculateScale);
+        if (gameWrapperRef.current) resizeObserver.observe(gameWrapperRef.current);
+        return () => {
+        if (gameWrapperRef.current) resizeObserver.unobserve(gameWrapperRef.current);
+        resizeObserver.disconnect();
+        };
+    }, []);
+
+    const resetGameStateAndExit = useCallback(() => {
+        resetGame();
+        activeKeys.current.clear();
+        lastTargetUpdateRef.current = 0;
+        lastPlayerShotTimestampRef.current = {};
+        if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
+        enemySpawnTimerId.current = null;
+        if (onExitToMenu) onExitToMenu();
+    }, [onExitToMenu, resetGame]);
+
+    const handleReset = useCallback(() => {
+        resetGame();
+        activeKeys.current.clear();
+        lastTargetUpdateRef.current = 0;
+        lastPlayerShotTimestampRef.current = {};
+        if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
+        enemySpawnTimerId.current = null;
+    }, [resetGame]);
+
+    const generateShopOfferings = useCallback(() => {
+        const purchasable = getPurchasableWeapons().filter(
+        (shopWeapon) => shopWeapon.id !== initialWeapon.id
+        );
+        const weightedList: Weapon[] = [];
+        purchasable.forEach(weapon => {
+            let copies = 1;
+            if (weapon.rarity === 'Comum') copies = 5;
+            else if (weapon.rarity === 'Raro') copies = 2;
+            else if (weapon.rarity === 'Lendária') copies = 1;
+            for (let i = 0; i < copies; i++) weightedList.push(weapon);
+        });
+        const shuffled = weightedList.sort(() => 0.5 - Math.random());
+        const uniqueWeaponIds = new Set<string>();
+        const currentOfferings: Weapon[] = [];
+        for (const weapon of shuffled) {
+            if (currentOfferings.length < 3 && !uniqueWeaponIds.has(weapon.id) ) {
+                uniqueWeaponIds.add(weapon.id);
+                const freshShopWeapon = getWeaponById(weapon.id);
+                if (freshShopWeapon) {
+                    currentOfferings.push({...freshShopWeapon, upgradedThisRound: false});
+                }
+            }
+            if (currentOfferings.length >= 3) break;
+        }
+        setShopOfferings(currentOfferings);
+    }, [setShopOfferings]);
+
+    const handleBuyWeapon = (weaponToBuyOrUpgrade: Weapon) => {
+        const existingWeaponIndex = playerWeapons.findIndex(pw => pw.id === weaponToBuyOrUpgrade.id);
+        const isUpgrade = existingWeaponIndex !== -1;
+        const shopOfferingIndex = shopOfferings.findIndex(so => so.id === weaponToBuyOrUpgrade.id);
+        if (shopOfferingIndex === -1) return;
+        const currentShopOffering = shopOfferings[shopOfferingIndex];
+        if (currentShopOffering.upgradedThisRound) {
+        toast({ title: "Já Interagido", description: "Você já comprou ou aprimorou esta oferta nesta rodada.", variant: "destructive" });
+        return;
+        }
+        if (playerDollars < weaponToBuyOrUpgrade.moneyCost) {
+        toast({ title: "Dinheiro Insuficiente", description: `Você precisa de $${weaponToBuyOrUpgrade.moneyCost}.`, variant: "destructive" });
+        return;
+        }
+        if (isUpgrade) {
+        setPlayerWeapons(
+            playerWeapons.map((weapon, index) => {
+            if (index === existingWeaponIndex) {
+                const upgradedWeapon = getWeaponById(weapon.id);
+                if (!upgradedWeapon) return weapon;
+                return {
+                ...weapon,
+                damage: Math.round(weapon.damage + (upgradedWeapon.damage * 0.2)),
+                cooldown: Math.max(100, weapon.cooldown - (upgradedWeapon.cooldown * 0.05)),
+                };
+            }
+            return weapon;
+            })
+        );
+        setPlayerDollars(playerDollars - weaponToBuyOrUpgrade.moneyCost);
+        toast({ title: "Arma Aprimorada!", description: `${weaponToBuyOrUpgrade.name} teve seus atributos melhorados.` });
+        } else {
+        if (playerWeapons.length >= MAX_PLAYER_WEAPONS) {
+            toast({ title: "Inventário Cheio", description: "Você já possui o máximo de 5 armas.", variant: "destructive" });
+            return;
+        }
+        setPlayerDollars(playerDollars - weaponToBuyOrUpgrade.moneyCost);
+        const freshWeaponDefinition = getWeaponById(weaponToBuyOrUpgrade.id);
+        if (freshWeaponDefinition) {
+            setPlayerWeapons([...playerWeapons, {...freshWeaponDefinition, upgradedThisRound: false}]);
+            toast({ title: "Arma Comprada!", description: `${freshWeaponDefinition.name} adicionada ao seu arsenal.` });
+        } else {
+            toast({ title: "Erro na Loja", description: `Não foi possível encontrar a definição da arma ${weaponToBuyOrUpgrade.name}.`, variant: "destructive" });
+        }
+        }
+        setShopOfferings(
+        shopOfferings.map((offering, index) =>
+            index === shopOfferingIndex ? { ...offering, upgradedThisRound: true } : offering
+        )
+        );
     };
 
-    animationFrameId = requestAnimationFrame(gameTick);
-    return () => cancelAnimationFrame(animationFrameId);
-  }, [isGameOver, isShopPhase, isPaused, toast, generateShopOfferings, targetEnemy, firePatches, fissureTraps, enemyProjectiles, moneyOrbs]);
-
-  // --- Controle de Ondas (Waves) ---
-  useEffect(() => {
-    if (isGameOver || isShopPhase || isPaused) {
-      if (waveIntervalId.current) clearInterval(waveIntervalId.current);
-      return;
-    }
-    waveIntervalId.current = setInterval(() => {
-      setWaveTimer((prevTimer) => {
-        if (prevTimer <= 1) {
-          clearInterval(waveIntervalId.current!);
-          setMoneyOrbs(currentMoneyOrbs => {
-            if (currentMoneyOrbs.length > 0) setPlayerDollars(pMoney => pMoney + currentMoneyOrbs.reduce((s, o) => s + o.value, 0));
-            return [];
-          });
-          setIsShopPhase(true);
-          generateShopOfferings();
-          if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
-          enemySpawnTimerId.current = null;
-          setFissureTraps([]);
-          setFirePatches([]);
-          return WAVE_DURATION;
+    const handleRecycleWeapon = (weaponIdToRecycle: string) => {
+        if (playerWeapons.length <= 1) {
+        toast({ title: "Não Pode Reciclar", description: "Você não pode reciclar sua última arma.", variant: "destructive" });
+        return;
         }
-        return prevTimer - 1;
-      });
-    }, 1000);
-    return () => { if (waveIntervalId.current) clearInterval(waveIntervalId.current); };
-  }, [isGameOver, isShopPhase, isPaused, generateShopOfferings]);
-
-  const doSpawnEnemies = useCallback(() => {
-    if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) return;
-    const { newEnemies, newBossId, newIsBossWaveActive } = spawnEnemiesOnTick(waveRef.current, playerRef.current, enemiesRef.current, isBossWaveActive.current);
-    if (newEnemies.length > 0) {
-        setEnemies(prev => [...prev, ...newEnemies]);
-    }
-    if(newIsBossWaveActive !== undefined && newIsBossWaveActive !== isBossWaveActive.current) {
-        isBossWaveActive.current = newIsBossWaveActive;
-        if(newIsBossWaveActive){
-             const boss = newEnemies[0];
-             setEnemies(newEnemies);
-             setTargetEnemy(null);
-             setPlayerProjectiles([]);
-             setEnemyProjectiles([]);
-             setLaserSightLines([]);
-             setMoneyOrbs([]);
-             if (enemySpawnTimerId.current) {
-                 clearInterval(enemySpawnTimerId.current);
-                 enemySpawnTimerId.current = null;
-             }
-             toast({ title: `Chefe se Aproxima: ${boss.type.replace('Boss_', '')}!`, description: "Prepare-se para a batalha!" });
+        const weaponToRecycle = playerWeapons.find(w => w.id === weaponIdToRecycle);
+        if (weaponToRecycle) {
+        let moneyGained = 0;
+        if (weaponToRecycle.id === initialWeapon.id) {
+            moneyGained = INITIAL_WEAPON_RECYCLE_MONEY;
+        } else {
+            const baseWeapon = getWeaponById(weaponIdToRecycle);
+            moneyGained = Math.floor((baseWeapon?.moneyCost || 0) * RECYCLE_MONEY_PERCENTAGE);
         }
-    }
+        setPlayerDollars(playerDollars + moneyGained);
+        setPlayerWeapons(playerWeapons.filter(w => w.id !== weaponIdToRecycle));
+        toast({ title: "Arma Reciclada!", description: `${weaponToRecycle.name} removida. +$${moneyGained}.` });
+        }
+    };
 
-  }, [isShopPhase, isGameOver, isPaused, toast ]);
+    // --- Handlers de Input ---
+    useEffect(() => {
+        if (deviceType === 'mobile') return;
+        const handleKeyDown = (event: KeyboardEvent) => {
+        if (isGameOver) return;
+        if (event.key.toLowerCase() === 'p') {
+            setIsPaused(!isPaused);
+            return;
+        }
+        if (isPaused || isShopPhase) return;
+        activeKeys.current.add(event.key.toLowerCase());
+        };
+        const handleKeyUp = (event: KeyboardEvent) => {
+        if (isGameOver || isPaused || isShopPhase) return;
+        activeKeys.current.delete(event.key.toLowerCase());
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+        return () => {
+        window.removeEventListener('keydown', handleKeyDown);
+        window.removeEventListener('keyup', handleKeyUp);
+        };
+    }, [isGameOver, isPaused, isShopPhase, deviceType, setIsPaused]);
 
-  useEffect(() => {
-    if (isShopPhase || isGameOver || isPaused || isBossWaveActive.current) {
-      if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
-      enemySpawnTimerId.current = null;
-      return;
-    }
-    if (!enemySpawnTimerId.current) {
+    const handleMobileControl = (key: string, isPressed: boolean) => {
+        if (isGameOver || isPaused || isShopPhase) return;
+        if (isPressed) activeKeys.current.add(key);
+        else activeKeys.current.delete(key);
+    };
+
+    // --- O Loop Principal do Jogo (Game Loop) ---
+    useEffect(() => {
+        if (isGameOver || isShopPhase || isPaused) return;
+
+        let animationFrameId: number;
+        const gameTick = (timestamp: number) => {
+            const now = Date.now();
+            let state = useGameStore.getState();
+
+            // --- Aquisição de Alvo (Otimizado) ---
+            const newTarget = acquireTarget(now, lastTargetUpdateRef.current, state.player, state.enemies);
+            if (newTarget !== undefined) {
+                setTargetEnemy(newTarget);
+                state = useGameStore.getState(); 
+            }
+            if (newTarget) lastTargetUpdateRef.current = now;
+
+            // --- Movimento do Jogador ---
+            updatePlayerMovement(activeKeys.current);
+            state = useGameStore.getState();
+
+            // --- Disparos do Jogador ---
+            if (state.targetEnemy) {
+                const { projectiles, updatedTimestamps } = handleShooting(now, state.targetEnemy, state.player, state.playerWeapons, lastPlayerShotTimestampRef.current);
+                if (projectiles.length > 0) {
+                    setPlayerProjectiles([...state.playerProjectiles, ...projectiles]);
+                }
+                if (Object.keys(updatedTimestamps).length > 0) {
+                    lastPlayerShotTimestampRef.current = updatedTimestamps;
+                }
+                state = useGameStore.getState();
+            }
+
+            // --- Atualização de Projéteis ---
+            const projectileState = updateProjectiles(state.playerProjectiles, state.enemyProjectiles, state.enemies, state.playerWeapons);
+            setPlayerProjectiles(projectileState.newPlayerProjectiles);
+            setEnemyProjectiles(projectileState.newEnemyProjectiles);
+            if (projectileState.firePatchesToCreate.length > 0) {
+                setFirePatches([...state.firePatches, ...projectileState.firePatchesToCreate]);
+            }
+            if (projectileState.playerDamage > 0) {
+                const newHealth = Math.max(0, state.player.health - projectileState.playerDamage);
+                if (newHealth < state.player.health && !isPlayerTakingDamage) {
+                    setIsPlayerTakingDamage(true);
+                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                }
+                if (newHealth <= 0) setIsGameOver(true);
+                setPlayer({ ...state.player, health: newHealth });
+            }
+            state = useGameStore.getState();
+            
+            // --- Atualização de Efeitos de Área ---
+            const firePatchUpdate = updateFirePatches(now, state.firePatches, state.enemies);
+            setFirePatches(firePatchUpdate.updatedPatches);
+            
+            const fissureTrapUpdate = updateFissureTraps(now, state.fissureTraps, state.player);
+            setFissureTraps(fissureTrapUpdate.updatedTraps);
+            if (fissureTrapUpdate.playerDamage > 0) {
+                const newHealth = Math.max(0, state.player.health - fissureTrapUpdate.playerDamage);
+                if (newHealth < state.player.health && !isPlayerTakingDamage) {
+                    setIsPlayerTakingDamage(true);
+                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                }
+                if (newHealth <= 0) setIsGameOver(true);
+                setPlayer({ ...state.player, health: newHealth });
+            }
+            state = useGameStore.getState();
+
+            // --- Atualização de Inimigos ---
+            const enemyState = updateEnemies({
+                enemies: state.enemies,
+                player: state.player,
+                fissureTraps: state.fissureTraps,
+                timestamp: timestamp,
+                damageToApply: new Map([...projectileState.damageToEnemies, ...firePatchUpdate.damageToEnemies]),
+            });
+            setEnemies(enemyState.updatedEnemies);
+            if(enemyState.newEnemyProjectiles.length > 0) setEnemyProjectiles([...state.enemyProjectiles, ...enemyState.newEnemyProjectiles]);
+            if(enemyState.newFissureTraps.length > 0) setFissureTraps([...state.fissureTraps, ...enemyState.newFissureTraps]);
+            setLaserSightLines(enemyState.newLaserSights);
+            if (enemyState.playerDamage > 0) {
+                const newHealth = Math.max(0, state.player.health - enemyState.playerDamage);
+                if (newHealth < state.player.health && !isPlayerTakingDamage) {
+                    setIsPlayerTakingDamage(true);
+                    setTimeout(() => setIsPlayerTakingDamage(false), 200);
+                }
+                if (newHealth <= 0) setIsGameOver(true);
+                setPlayer({ ...state.player, health: newHealth });
+            }
+            if (enemyState.killedEnemies.length > 0) {
+                const moneyFromKills = enemyState.killedEnemies
+                    .filter(e => e.moneyValue > 0)
+                    .map(e => ({
+                        id: `money_${now}_${Math.random()}_${e.id}`,
+                        x: e.x + e.width / 2 - 5, y: e.y + e.height / 2 - 5,
+                        size: 10, value: e.moneyValue
+                    }));
+                if (moneyFromKills.length > 0) setMoneyOrbs([...state.moneyOrbs, ...moneyFromKills]);
+                
+                const scoreFromKills = enemyState.killedEnemies.reduce((acc, e) => acc + e.moneyValue * (e.type.startsWith('Boss_') ? 20 : 5), 0);
+                if(scoreFromKills > 0) setScore(state.score + scoreFromKills);
+            }
+            if (enemyState.bossDefeated) {
+                toast({ title: `${enemyState.defeatedBossType?.replace('Boss_', '')} Derrotado!`, description: "A onda continua..."});
+            }
+            if (enemyState.targetKilled) {
+                setTargetEnemy(null);
+            }
+            state = useGameStore.getState();
+
+            // --- Coleta de Orbs de Dinheiro ---
+            const moneyOrbState = updateMoneyOrbs(state.moneyOrbs, state.player);
+            setMoneyOrbs(moneyOrbState.remainingOrbs);
+            if (moneyOrbState.collectedValue > 0) {
+                setPlayerDollars(state.playerDollars + moneyOrbState.collectedValue);
+            }
+        
+            if (useGameStore.getState().player.health <= 0) setIsGameOver(true);
+            animationFrameId = requestAnimationFrame(gameTick);
+        };
+
+        animationFrameId = requestAnimationFrame(gameTick);
+        return () => cancelAnimationFrame(animationFrameId);
+    }, [isGameOver, isShopPhase, isPaused, toast, isPlayerTakingDamage]);
+
+    // --- Controle de Ondas (Waves) ---
+    useEffect(() => {
+        if (isGameOver || isShopPhase || isPaused) {
+        if (waveIntervalId.current) clearInterval(waveIntervalId.current);
+        return;
+        }
+        waveIntervalId.current = setInterval(() => {
+        setWaveTimer(useGameStore.getState().waveTimer - 1);
+        }, 1000);
+        return () => { if (waveIntervalId.current) clearInterval(waveIntervalId.current); };
+    }, [isGameOver, isShopPhase, isPaused, setWaveTimer]);
+
+    useEffect(() => {
+        if(waveTimer <= 0) {
+             if (waveIntervalId.current) clearInterval(waveIntervalId.current);
+              setMoneyOrbs(currentMoneyOrbs => {
+                if (currentMoneyOrbs.length > 0) setPlayerDollars(useGameStore.getState().playerDollars + currentMoneyOrbs.reduce((s, o) => s + o.value, 0));
+                return [];
+              });
+              setIsShopPhase(true);
+              generateShopOfferings();
+              if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
+              enemySpawnTimerId.current = null;
+              setFissureTraps([]);
+              setFirePatches([]);
+              setWaveTimer(WAVE_DURATION);
+        }
+    }, [waveTimer, generateShopOfferings]);
+
+    const doSpawnEnemies = useCallback(() => {
+        const { isShopPhase, isGameOver, isPaused, wave, player, enemies } = useGameStore.getState();
+        if (isShopPhase || isGameOver || isPaused) return;
+
+        const { newEnemies } = spawnEnemiesOnTick(wave, player, enemies);
+        if (newEnemies.length > 0) {
+            setEnemies([...enemies, ...newEnemies]);
+        }
+    }, [setEnemies]);
+
+    useEffect(() => {
+        if (isShopPhase || isGameOver || isPaused) {
+        if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
+        enemySpawnTimerId.current = null;
+        return;
+        }
+        if (!enemySpawnTimerId.current) {
+            doSpawnEnemies();
+            enemySpawnTimerId.current = setInterval(doSpawnEnemies, ENEMY_SPAWN_TICK_INTERVAL);
+        }
+    }, [isShopPhase, isGameOver, isPaused, doSpawnEnemies]);
+
+    const startNextWave = () => {
+        setIsShopPhase(false);
+        setWave(wave + 1);
+        setWaveTimer(WAVE_DURATION);
+        setPlayer({ ...player, health: PLAYER_INITIAL_HEALTH });
+        lastPlayerShotTimestampRef.current = {};
+        lastTargetUpdateRef.current = 0;
+        setIsPaused(false);
+        setFissureTraps([]);
+        setFirePatches([]);
+
         doSpawnEnemies();
-        enemySpawnTimerId.current = setInterval(doSpawnEnemies, ENEMY_SPAWN_TICK_INTERVAL);
-    }
-  }, [isShopPhase, isGameOver, isPaused, doSpawnEnemies]);
-
-  const startNextWave = () => {
-    setIsShopPhase(false);
-    const nextWaveNumber = wave + 1;
-    setWave(nextWaveNumber);
-    setWaveTimer(WAVE_DURATION);
-    setPlayer(p => ({ ...p, health: PLAYER_INITIAL_HEALTH }));
-    lastPlayerShotTimestampRef.current = {};
-    lastTargetUpdateRef.current = 0;
-    setIsPaused(false);
-    setFissureTraps([]);
-    setFirePatches([]);
-
-    if (nextWaveNumber % 10 === 0) {
-      isBossWaveActive.current = true;
-      if (enemySpawnTimerId.current) {
-          clearInterval(enemySpawnTimerId.current);
-          enemySpawnTimerId.current = null;
-      }
-      doSpawnEnemies(); // This will trigger boss spawn
-    } else {
-      isBossWaveActive.current = false;
-      if (!enemySpawnTimerId.current) {
-        doSpawnEnemies();
-        enemySpawnTimerId.current = setInterval(doSpawnEnemies, ENEMY_SPAWN_TICK_INTERVAL);
-      }
-    }
-  };
+        if (!enemySpawnTimerId.current) {
+            enemySpawnTimerId.current = setInterval(doSpawnEnemies, ENEMY_SPAWN_TICK_INTERVAL);
+        }
+    };
 
   // --- Renderização do Jogo ---
 
@@ -536,10 +457,10 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         <p className="text-xl mb-2">Pontuação Final: {score}</p>
         <p className="text-lg mb-2">Onda Alcançada: {wave}</p>
         <p className="text-lg mb-4">Total Dinheiro Coletado: ${playerDollars}</p>
-        <Button onClick={() => resetGameState()} className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-lg">
+        <Button onClick={handleReset} className="mt-4 px-6 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 text-lg">
           Jogar Novamente
         </Button>
-         <Button onClick={() => resetGameState(true)} variant="outline" className="mt-4 ml-2 px-6 py-2 text-lg">
+         <Button onClick={resetGameStateAndExit} variant="outline" className="mt-4 ml-2 px-6 py-2 text-lg">
           <HomeIcon className="mr-2 h-5 w-5" /> Menu Principal
         </Button>
       </div>
@@ -575,7 +496,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
                   <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>
                   <PlayerInventoryDisplay weapons={playerWeapons} canRecycle={false} className="w-full max-w-md bg-card/90 mb-6" />
-                  <Button onClick={() => resetGameState(true)} variant="secondary" className="text-lg py-3 px-6">
+                  <Button onClick={resetGameStateAndExit} variant="secondary" className="text-lg py-3 px-6">
                     <HomeIcon className="mr-2 h-5 w-5" /> Voltar ao Menu Principal
                   </Button>
                 </div>
@@ -638,5 +559,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
-    
