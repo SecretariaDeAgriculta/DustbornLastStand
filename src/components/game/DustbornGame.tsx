@@ -306,17 +306,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
         let animationFrameId: number;
         const gameTick = (timestamp: number) => {
+            animationFrameId = requestAnimationFrame(gameTick);
+
             const now = Date.now();
-            
-            // --- Aquisição de Alvo ---
-            acquireTarget(now, lastTargetUpdateRef.current);
-            
-            // --- Ler o estado mais recente APÓS a aquisição de alvo ---
             const state = useGameStore.getState();
 
-            if (state.targetEnemy) {
-              lastTargetUpdateRef.current = now;
-            }
+            // --- Aquisição de Alvo ---
+            acquireTarget(now, lastTargetUpdateRef.current);
+            if(state.targetEnemy) lastTargetUpdateRef.current = now;
+
 
             // --- Movimento do Jogador ---
             updatePlayerMovement(activeKeys.current);
@@ -327,7 +325,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 if (projectiles.length > 0) {
                     setPlayerProjectiles([...state.playerProjectiles, ...projectiles]);
                 }
-                if (Object.keys(updatedTimestamps).length > 0) {
+                 if (Object.keys(updatedTimestamps).length > 0) {
                     lastPlayerShotTimestampRef.current = updatedTimestamps;
                 }
             }
@@ -410,7 +408,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             updateMoneyOrbs();
         
             if (useGameStore.getState().player.health <= 0) setIsGameOver(true);
-            animationFrameId = requestAnimationFrame(gameTick);
+            
         };
 
         animationFrameId = requestAnimationFrame(gameTick);
