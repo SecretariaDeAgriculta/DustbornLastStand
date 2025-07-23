@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
@@ -416,7 +415,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
         animationFrameId = requestAnimationFrame(gameTick);
         return () => cancelAnimationFrame(animationFrameId);
-    }, [isGameOver, isShopPhase, isPaused, toast, isPlayerTakingDamage, setEnemies, setEnemyProjectiles, setFirePatches, setFissureTraps, setIsGameOver, setLaserSightLines, setMoneyOrbs, setPlayer, setPlayerProjectiles, setScore, setTargetEnemy]);
+    }, [isGameOver, isShopPhase, isPaused]);
 
     // --- Controle de Ondas (Waves) ---
     useEffect(() => {
