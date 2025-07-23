@@ -8,25 +8,29 @@ import { PLAYER_SIZE } from '../constants/player';
 
 export const handleShooting = (now: number, targetEnemy: Enemy | null, player: Player, playerWeapons: Weapon[]) => {
     const { 
-        setPlayerProjectiles, setLastPlayerShotTimestamp, lastPlayerShotTimestamp
+        setPlayerProjectiles, lastPlayerShotTimestamp
     } = useGameStore.getState();
 
     if (!targetEnemy) return;
 
     const newlySpawnedProjectiles: ProjectileData[] = [];
-    const timestamps = lastPlayerShotTimestamp || {};
-    const updatedTimestamps = { ...timestamps };
-
+    
     const playerCenterX = player.x + player.width / 2;
     const playerCenterY = player.y + player.height / 2;
     const targetCenterX = targetEnemy.x + targetEnemy.width / 2;
     const targetCenterY = targetEnemy.y + targetEnemy.height / 2;
     const distSq = (playerCenterX - targetCenterX) ** 2 + (playerCenterY - targetCenterY) ** 2;
 
+    let didShoot = false;
+    const currentTimestamps = lastPlayerShotTimestamp || {};
+    const updatedTimestamps: Record<string, number> = {};
+
     playerWeapons.forEach(weapon => {
-        const lastShotTime = updatedTimestamps[weapon.id] || 0;
+        const lastShotTime = currentTimestamps[weapon.id] || 0;
+
         if (now - lastShotTime >= weapon.cooldown && distSq <= weapon.range ** 2) {
             updatedTimestamps[weapon.id] = now;
+            didShoot = true;
             
             const baseAngle = Math.atan2(targetCenterY - playerCenterY, targetCenterX - playerCenterX);
             
@@ -68,8 +72,9 @@ export const handleShooting = (now: number, targetEnemy: Enemy | null, player: P
         setPlayerProjectiles([...currentProjectiles, ...newlySpawnedProjectiles]);
     }
     
-    if (Object.keys(updatedTimestamps).length !== Object.keys(timestamps).length || 
-        Object.keys(updatedTimestamps).some(key => updatedTimestamps[key] !== timestamps[key])) {
-        setLastPlayerShotTimestamp(updatedTimestamps);
+    if (didShoot) {
+        useGameStore.setState(state => ({
+             lastPlayerShotTimestamp: { ...state.lastPlayerShotTimestamp, ...updatedTimestamps }
+        }));
     }
 };
