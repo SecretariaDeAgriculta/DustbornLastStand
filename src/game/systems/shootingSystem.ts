@@ -1,13 +1,13 @@
 
-import type { ProjectileData } from '../types';
+import type { ProjectileData, Player, Enemy } from '../types';
+import type { Weapon } from '@/config/weapons';
 import { useGameStore } from '@/store/useGameStore';
 import { PLAYER_PROJECTILE_BASE_SIZE } from '../constants/projectiles';
 import { PLAYER_SIZE } from '../constants/player';
 
 
-export const handleShooting = (now: number) => {
+export const handleShooting = (now: number, targetEnemy: Enemy | null, player: Player, playerWeapons: Weapon[], lastPlayerShotTimestamp: Record<string, number>) => {
     const { 
-        targetEnemy, player, playerWeapons, lastPlayerShotTimestamp, 
         setPlayerProjectiles, setLastPlayerShotTimestamp 
     } = useGameStore.getState();
 
