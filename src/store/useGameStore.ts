@@ -26,6 +26,7 @@ type GameState = {
   playerWeapons: Weapon[];
   shopOfferings: Weapon[];
   scale: number;
+  lastPlayerShotTimestamp: Record<string, number>;
 
   // Actions
   setPlayer: (player: Player) => void;
@@ -46,6 +47,7 @@ type GameState = {
   setPlayerDollars: (dollars: number) => void;
   setPlayerWeapons: (weapons: Weapon[]) => void;
   setShopOfferings: (offerings: Weapon[]) => void;
+  setLastPlayerShotTimestamp: (timestamps: Record<string, number>) => void;
   resetGame: () => void;
 };
 
@@ -76,6 +78,7 @@ const getInitialState = () => ({
   playerWeapons: [{ ...initialWeapon, upgradedThisRound: false }],
   shopOfferings: [],
   scale: 1,
+  lastPlayerShotTimestamp: {},
 });
 
 export const useGameStore = create<GameState>((set) => ({
@@ -98,7 +101,6 @@ export const useGameStore = create<GameState>((set) => ({
   setPlayerDollars: (dollars) => set({ playerDollars: dollars }),
   setPlayerWeapons: (weapons) => set({ playerWeapons: weapons }),
   setShopOfferings: (offerings) => set({ shopOfferings: offerings }),
+  setLastPlayerShotTimestamp: (timestamps) => set({ lastPlayerShotTimestamp: timestamps }),
   resetGame: () => set(getInitialState()),
 }));
-
-    

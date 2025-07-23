@@ -1,17 +1,18 @@
 
-import type { Player, Enemy, ProjectileData } from '../types';
-import type { Weapon } from '@/config/weapons';
+import type { ProjectileData } from '../types';
+import { useGameStore } from '@/store/useGameStore';
 import { PLAYER_PROJECTILE_BASE_SIZE } from '../constants/projectiles';
 import { PLAYER_SIZE } from '../constants/player';
 
 
-export const handleShooting = (
-    now: number,
-    targetEnemy: Enemy,
-    player: Player,
-    playerWeapons: Weapon[],
-    lastPlayerShotTimestamp: Record<string, number>
-) => {
+export const handleShooting = (now: number) => {
+    const { 
+        targetEnemy, player, playerWeapons, lastPlayerShotTimestamp, 
+        setPlayerProjectiles, setLastPlayerShotTimestamp 
+    } = useGameStore.getState();
+
+    if (!targetEnemy) return;
+
     const newlySpawnedProjectiles: ProjectileData[] = [];
     const updatedTimestamps = { ...lastPlayerShotTimestamp };
 
@@ -61,8 +62,13 @@ export const handleShooting = (
         }
     });
 
-    return {
-        projectiles: newlySpawnedProjectiles,
-        updatedTimestamps,
-    };
+    if (newlySpawnedProjectiles.length > 0) {
+        const currentProjectiles = useGameStore.getState().playerProjectiles;
+        setPlayerProjectiles([...currentProjectiles, ...newlySpawnedProjectiles]);
+    }
+    
+    if (Object.keys(updatedTimestamps).length !== Object.keys(lastPlayerShotTimestamp).length || 
+        Object.keys(updatedTimestamps).some(key => updatedTimestamps[key] !== lastPlayerShotTimestamp[key])) {
+        setLastPlayerShotTimestamp(updatedTimestamps);
+    }
 };

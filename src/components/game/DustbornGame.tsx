@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useState, useEffect, useRef, useLayoutEffect, useCallback } from 'react';
@@ -106,7 +107,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
     const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
     const lastTargetUpdateRef = useRef(0);
-    const lastPlayerShotTimestampRef = useRef<Record<string, number>>({});
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     const frameCountRef = useRef(0);
@@ -155,7 +155,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         resetGame();
         activeKeys.current.clear();
         lastTargetUpdateRef.current = 0;
-        lastPlayerShotTimestampRef.current = {};
         if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
         enemySpawnTimerId.current = null;
         if (onExitToMenu) onExitToMenu();
@@ -165,7 +164,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         resetGame();
         activeKeys.current.clear();
         lastTargetUpdateRef.current = 0;
-        lastPlayerShotTimestampRef.current = {};
         if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
         enemySpawnTimerId.current = null;
     }, [resetGame]);
@@ -309,80 +307,73 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             animationFrameId = requestAnimationFrame(gameTick);
 
             const now = Date.now();
-            const state = useGameStore.getState();
-
+            
             // --- Aquisição de Alvo ---
             acquireTarget(now, lastTargetUpdateRef.current);
-            if(state.targetEnemy) lastTargetUpdateRef.current = now;
-
+            const currentState = useGameStore.getState();
+            if(currentState.targetEnemy) lastTargetUpdateRef.current = now;
 
             // --- Movimento do Jogador ---
             updatePlayerMovement(activeKeys.current);
 
             // --- Disparos do Jogador ---
-            if (state.targetEnemy) {
-                const { projectiles, updatedTimestamps } = handleShooting(now, state.targetEnemy, state.player, state.playerWeapons, lastPlayerShotTimestampRef.current);
-                if (projectiles.length > 0) {
-                    setPlayerProjectiles([...state.playerProjectiles, ...projectiles]);
-                }
-                 if (Object.keys(updatedTimestamps).length > 0) {
-                    lastPlayerShotTimestampRef.current = updatedTimestamps;
-                }
-            }
-
+            handleShooting(now);
+            
+            const stateAfterShooting = useGameStore.getState();
+            
             // --- Atualização de Projéteis ---
-            const projectileState = updateProjectiles(state.playerProjectiles, state.enemyProjectiles, state.enemies, state.playerWeapons);
+            const projectileState = updateProjectiles(stateAfterShooting.playerProjectiles, stateAfterShooting.enemyProjectiles, stateAfterShooting.enemies, stateAfterShooting.playerWeapons);
             setPlayerProjectiles(projectileState.newPlayerProjectiles);
             setEnemyProjectiles(projectileState.newEnemyProjectiles);
             if (projectileState.firePatchesToCreate.length > 0) {
-                setFirePatches([...state.firePatches, ...projectileState.firePatchesToCreate]);
+                setFirePatches([...stateAfterShooting.firePatches, ...projectileState.firePatchesToCreate]);
             }
             if (projectileState.playerDamage > 0) {
-                const newHealth = Math.max(0, state.player.health - projectileState.playerDamage);
-                if (newHealth < state.player.health && !isPlayerTakingDamage) {
+                const newHealth = Math.max(0, stateAfterShooting.player.health - projectileState.playerDamage);
+                if (newHealth < stateAfterShooting.player.health && !isPlayerTakingDamage) {
                     setIsPlayerTakingDamage(true);
                     setTimeout(() => setIsPlayerTakingDamage(false), 200);
                 }
                 if (newHealth <= 0) setIsGameOver(true);
-                setPlayer({ ...state.player, health: newHealth });
+                setPlayer({ ...stateAfterShooting.player, health: newHealth });
             }
             
             // --- Atualização de Efeitos de Área ---
-            const firePatchUpdate = updateFirePatches(now, state.firePatches, state.enemies);
+            const firePatchUpdate = updateFirePatches(now, stateAfterShooting.firePatches, stateAfterShooting.enemies);
             setFirePatches(firePatchUpdate.updatedPatches);
             
-            const fissureTrapUpdate = updateFissureTraps(now, state.fissureTraps, state.player);
+            const fissureTrapUpdate = updateFissureTraps(now, stateAfterShooting.fissureTraps, stateAfterShooting.player);
             setFissureTraps(fissureTrapUpdate.updatedTraps);
             if (fissureTrapUpdate.playerDamage > 0) {
-                const newHealth = Math.max(0, state.player.health - fissureTrapUpdate.playerDamage);
-                if (newHealth < state.player.health && !isPlayerTakingDamage) {
+                const newHealth = Math.max(0, stateAfterShooting.player.health - fissureTrapUpdate.playerDamage);
+                if (newHealth < stateAfterShooting.player.health && !isPlayerTakingDamage) {
                     setIsPlayerTakingDamage(true);
                     setTimeout(() => setIsPlayerTakingDamage(false), 200);
                 }
                 if (newHealth <= 0) setIsGameOver(true);
-                setPlayer({ ...state.player, health: newHealth });
+                setPlayer({ ...stateAfterShooting.player, health: newHealth });
             }
 
             // --- Atualização de Inimigos ---
             const enemyState = updateEnemies({
-                enemies: state.enemies,
-                player: state.player,
-                fissureTraps: state.fissureTraps,
+                enemies: stateAfterShooting.enemies,
+                player: stateAfterShooting.player,
+                fissureTraps: stateAfterShooting.fissureTraps,
                 timestamp: timestamp,
                 damageToApply: new Map([...projectileState.damageToEnemies, ...firePatchUpdate.damageToEnemies]),
             });
             setEnemies(enemyState.updatedEnemies);
-            if(enemyState.newEnemyProjectiles.length > 0) setEnemyProjectiles([...state.enemyProjectiles, ...enemyState.newEnemyProjectiles]);
-            if(enemyState.newFissureTraps.length > 0) setFissureTraps([...state.fissureTraps, ...enemyState.newFissureTraps]);
+            if(enemyState.newEnemyProjectiles.length > 0) setEnemyProjectiles([...stateAfterShooting.enemyProjectiles, ...enemyState.newEnemyProjectiles]);
+            if(enemyState.newFissureTraps.length > 0) setFissureTraps([...stateAfterShooting.fissureTraps, ...enemyState.newFissureTraps]);
             setLaserSightLines(enemyState.newLaserSights);
             if (enemyState.playerDamage > 0) {
-                const newHealth = Math.max(0, state.player.health - enemyState.playerDamage);
-                if (newHealth < state.player.health && !isPlayerTakingDamage) {
+                const newHealth = Math.max(0, stateAfterShooting.player.health - enemyState.playerDamage);
+                if (newHealth < stateAfterShooting.player.health && !isPlayerTakingDamage) {
                     setIsPlayerTakingDamage(true);
                     setTimeout(() => setIsPlayerTakingDamage(false), 200);
                 }
                 if (newHealth <= 0) setIsGameOver(true);
-                setPlayer({ ...state.player, health: newHealth });
+                setPlayer({ ...stateAfterShooting.player, health: newHealth });
             }
             if (enemyState.killedEnemies.length > 0) {
                 const moneyFromKills = enemyState.killedEnemies
@@ -392,10 +383,10 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                         x: e.x + e.width / 2 - 5, y: e.y + e.height / 2 - 5,
                         size: 10, value: e.moneyValue
                     }));
-                if (moneyFromKills.length > 0) setMoneyOrbs([...state.moneyOrbs, ...moneyFromKills]);
+                if (moneyFromKills.length > 0) setMoneyOrbs([...stateAfterShooting.moneyOrbs, ...moneyFromKills]);
                 
                 const scoreFromKills = enemyState.killedEnemies.reduce((acc, e) => acc + e.moneyValue * (e.type.startsWith('Boss_') ? 20 : 5), 0);
-                if(scoreFromKills > 0) setScore(state.score + scoreFromKills);
+                if(scoreFromKills > 0) setScore(stateAfterShooting.score + scoreFromKills);
             }
             if (enemyState.bossDefeated) {
                 toast({ title: `${enemyState.defeatedBossType?.replace('Boss_', '')} Derrotado!`, description: "A onda continua..."});
@@ -433,15 +424,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         if(waveTimer <= 0) {
             if (waveIntervalId.current) clearInterval(waveIntervalId.current);
             
-            // Apenas para ter certeza, pegamos o estado mais atual antes de modificar.
             const currentState = useGameStore.getState();
             if (Array.isArray(currentState.moneyOrbs) && currentState.moneyOrbs.length > 0) {
                 const remainingValue = currentState.moneyOrbs.reduce((sum, orb) => sum + orb.value, 0);
                 setPlayerDollars(currentState.playerDollars + remainingValue);
-                setMoneyOrbs([]); // Limpa as orbs após coletar.
+                setMoneyOrbs([]); 
             }
             
-            setIsShopPhase(true); // Mude para a fase da loja.
+            setIsShopPhase(true); 
             generateShopOfferings();
             if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
             enemySpawnTimerId.current = null;
@@ -477,7 +467,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setIsShopPhase(false);
         setWave(wave + 1);
         setPlayer({ ...player, health: PLAYER_INITIAL_HEALTH });
-        lastPlayerShotTimestampRef.current = {};
+        useGameStore.setState({ lastPlayerShotTimestamp: {} });
         lastTargetUpdateRef.current = 0;
         setIsPaused(false);
         setFissureTraps([]);
