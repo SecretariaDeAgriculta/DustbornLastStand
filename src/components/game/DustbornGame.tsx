@@ -267,7 +267,8 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             // --- Aquisição de Alvo (Otimizado) ---
             const newTarget = acquireTarget(now, lastTargetUpdateRef.current, state.player, state.enemies);
             if (newTarget !== undefined) {
-                setTargetEnemy(newTarget);
+                // `acquireTarget` now sets the state internally if a change occurred.
+                // We re-fetch state in case it changed.
                 state = useGameStore.getState(); 
             }
             if (newTarget) lastTargetUpdateRef.current = now;
@@ -366,11 +367,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             state = useGameStore.getState();
 
             // --- Coleta de Orbs de Dinheiro ---
-            const moneyOrbState = updateMoneyOrbs(state.moneyOrbs, state.player);
-            setMoneyOrbs(moneyOrbState.remainingOrbs);
-            if (moneyOrbState.collectedValue > 0) {
-                setPlayerDollars(state.playerDollars + moneyOrbState.collectedValue);
-            }
+            updateMoneyOrbs();
         
             if (useGameStore.getState().player.health <= 0) setIsGameOver(true);
             animationFrameId = requestAnimationFrame(gameTick);
