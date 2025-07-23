@@ -274,14 +274,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
             // --- Aquisição de Alvo (Otimizado) ---
             acquireTarget(now, lastTargetUpdateRef.current);
-            if (state.targetEnemy) lastTargetUpdateRef.current = now;
+            const currentTarget = useGameStore.getState().targetEnemy;
+            if (currentTarget) lastTargetUpdateRef.current = now;
 
             // --- Movimento do Jogador ---
             updatePlayerMovement(activeKeys.current);
 
             // --- Disparos do Jogador ---
-            if (state.targetEnemy) {
-                const { projectiles, updatedTimestamps } = handleShooting(now, state.targetEnemy, state.player, state.playerWeapons, lastPlayerShotTimestampRef.current);
+            if (currentTarget) {
+                const { projectiles, updatedTimestamps } = handleShooting(now, currentTarget, state.player, state.playerWeapons, lastPlayerShotTimestampRef.current);
                 if (projectiles.length > 0) {
                     setPlayerProjectiles([...state.playerProjectiles, ...projectiles]);
                 }
@@ -393,7 +394,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             
             // Coletar todas as orbs de dinheiro restantes no final da onda.
             const currentState = useGameStore.getState();
-            if (currentState.moneyOrbs.length > 0) {
+            if (Array.isArray(currentState.moneyOrbs) && currentState.moneyOrbs.length > 0) {
                 const remainingValue = currentState.moneyOrbs.reduce((sum, orb) => sum + orb.value, 0);
                 setPlayerDollars(currentState.playerDollars + remainingValue);
                 setMoneyOrbs([]); // Limpa as orbs após coletar.
@@ -479,7 +480,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
   return (
     <div className="flex flex-col items-center p-1 sm:p-4 w-full h-full">
       <div className="w-full max-w-2xl flex justify-between items-start mb-1 sm:mb-2">
-        <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerMoney={playerDollars} />
+        <GameHUD score={score} wave={wave} playerHealth={player.health} waveTimer={waveTimer} playerMoney={playerDollars} fps={fps} />
         <Button onClick={() => setIsPaused(!isPaused)} variant="outline" size="icon" className="ml-2 sm:ml-4 mt-1 text-foreground hover:bg-accent hover:text-accent-foreground" aria-label={isPaused ? "Continuar" : "Pausar"}>
             {isPaused ? <PlayIcon className="h-5 w-5" /> : <PauseIcon className="h-5 w-5" />}
         </Button>
@@ -489,9 +490,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center' }}>
           <Card className="shadow-2xl overflow-hidden border-2 border-primary">
             <div ref={gameAreaRef} className="relative bg-muted/30 overflow-hidden" style={{ width: GAME_WIDTH, height: GAME_HEIGHT }} role="application" aria-label="Área de jogo Dustborn" tabIndex={-1}>
-              <div className="absolute top-1 left-1 bg-black/50 text-white text-xs px-2 py-1 rounded z-50 font-mono">
-                FPS: {fps}
-              </div>
               {isPaused && (
                 <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center z-50 p-4">
                   <h2 className="text-5xl font-bold text-primary-foreground animate-pulse mb-8">PAUSADO</h2>

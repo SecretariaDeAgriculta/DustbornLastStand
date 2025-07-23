@@ -3,17 +3,18 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Zap, Shield, TrendingUp, Coins, Clock } from 'lucide-react'; // Changed Star to Coins
+import { Zap, Shield, TrendingUp, Coins, Clock, MonitorSmartphone } from 'lucide-react'; 
 
 interface GameHUDProps {
   score: number;
   wave: number;
   playerHealth: number;
   waveTimer: number;
-  playerMoney: number; // Changed from playerXP
+  playerMoney: number;
+  fps: number;
 }
 
-export function GameHUD({ score, wave, playerHealth, waveTimer, playerMoney }: GameHUDProps) {
+export function GameHUD({ score, wave, playerHealth, waveTimer, playerMoney, fps }: GameHUDProps) {
   const formatTime = (seconds: number) => {
     const minutes = Math.floor(seconds / 60);
     const remainingSeconds = seconds % 60;
@@ -22,7 +23,14 @@ export function GameHUD({ score, wave, playerHealth, waveTimer, playerMoney }: G
 
   return (
     <Card className="w-full max-w-2xl shadow-lg mb-4">
-      <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center">
+      <CardContent className="p-4 grid grid-cols-2 sm:grid-cols-6 gap-2 text-center">
+        <div className="flex flex-col items-center">
+          <div className="flex items-center text-md font-semibold text-primary">
+            <MonitorSmartphone className="w-4 h-4 mr-1" />
+            <span>FPS</span>
+          </div>
+          <p className="text-xl font-bold">{fps}</p>
+        </div>
         <div className="flex flex-col items-center">
           <div className="flex items-center text-md font-semibold text-primary">
             <Zap className="w-4 h-4 mr-1" />
