@@ -313,7 +313,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             acquireTarget(now, lastTargetUpdateRef.current, currentState.enemies, currentState.player);
             lastTargetUpdateRef.current = now;
             
-            // Get the freshest state after target acquisition, as it might have changed
             const updatedStateAfterTargeting = useGameStore.getState();
 
             // --- Movimento do Jogador ---
