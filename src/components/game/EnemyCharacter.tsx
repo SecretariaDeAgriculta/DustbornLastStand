@@ -1,7 +1,9 @@
+
 'use client';
 
 import React from 'react';
 import { cn } from '@/lib/utils';
+import type { Enemy } from '@/game/types';
 
 type EnemyType =
   | 'ArruaceiroSaloon'
@@ -31,7 +33,7 @@ interface EnemyCharacterProps {
   isDetonating?: boolean;
 }
 
-export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, isStunned, isDetonating }: EnemyCharacterProps) {
+const EnemyCharacterComponent = ({ x, y, width, height, health, maxHealth, type, isStunned, isDetonating }: EnemyCharacterProps) => {
   const healthPercentage = (health / maxHealth) * 100;
 
   const getEnemyEmoji = () => {
@@ -96,4 +98,17 @@ export function EnemyCharacter({ x, y, width, height, health, maxHealth, type, i
       </div>
     </div>
   );
-}
+};
+
+const areEqual = (prevProps: EnemyCharacterProps, nextProps: EnemyCharacterProps) => {
+    return (
+        prevProps.x === nextProps.x &&
+        prevProps.y === nextProps.y &&
+        prevProps.health === nextProps.health &&
+        prevProps.isStunned === nextProps.isStunned &&
+        prevProps.isDetonating === nextProps.isDetonating &&
+        prevProps.type === nextProps.type
+    );
+};
+
+export const EnemyCharacter = React.memo(EnemyCharacterComponent, areEqual);

@@ -6,7 +6,7 @@ import type { ProjectileData } from '@/game/types';
 import { PLAYER_PROJECTILE_BASE_SIZE } from '@/game/constants/projectiles';
 import { PLAYER_SIZE } from '@/game/constants/player';
 
-export function Projectile(props: ProjectileData) {
+const ProjectileComponent = (props: ProjectileData) => {
   const { x, y, size, projectileType, width: propWidth, height: propHeight, isBarrelOrDynamite, hasLanded } = props;
   
   let style: React.CSSProperties = {
@@ -119,4 +119,16 @@ export function Projectile(props: ProjectileData) {
   );
 }
 
+const areEqual = (prevProps: ProjectileData, nextProps: ProjectileData) => {
+    // Projectiles move every frame, so comparing x/y is key.
+    // Also check for state changes in explosives.
+    return (
+        prevProps.x === nextProps.x &&
+        prevProps.y === nextProps.y &&
+        prevProps.hasLanded === nextProps.hasLanded &&
+        prevProps.fuseTimer === nextProps.fuseTimer
+    );
+};
+
+export const Projectile = React.memo(ProjectileComponent, areEqual);
     

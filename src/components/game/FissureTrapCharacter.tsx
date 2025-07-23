@@ -13,7 +13,7 @@ interface FissureTrapProps {
   maxDuration: number;
 }
 
-export function FissureTrapCharacter({ x, y, width, height, remainingDuration, maxDuration = FISSURE_TRAP_DURATION }: FissureTrapProps) {
+const FissureTrapCharacterComponent = ({ x, y, width, height, remainingDuration, maxDuration = FISSURE_TRAP_DURATION }: FissureTrapProps) => {
   const opacity = Math.max(0.3, (remainingDuration / maxDuration) * 0.8); // Fades out, minimum 0.3 opacity
 
   return (
@@ -31,6 +31,16 @@ export function FissureTrapCharacter({ x, y, width, height, remainingDuration, m
       aria-label="Ground Fissure Trap"
     />
   );
-}
+};
+
+const areEqual = (prevProps: FissureTrapProps, nextProps: FissureTrapProps) => {
+    return (
+        prevProps.x === nextProps.x &&
+        prevProps.y === nextProps.y &&
+        prevProps.remainingDuration === nextProps.remainingDuration
+    );
+};
+
+export const FissureTrapCharacter = React.memo(FissureTrapCharacterComponent, areEqual);
 
     

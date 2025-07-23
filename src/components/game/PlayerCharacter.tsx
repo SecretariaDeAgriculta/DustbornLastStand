@@ -1,3 +1,4 @@
+
 'use client';
 
 import React from 'react';
@@ -11,7 +12,7 @@ interface PlayerCharacterProps {
   isTakingDamage?: boolean;
 }
 
-export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerCharacterProps) {
+const PlayerCharacterComponent = ({ x, y, width, height, isTakingDamage }: PlayerCharacterProps) => {
   return (
     <div
       className={cn(
@@ -28,4 +29,14 @@ export function PlayerCharacter({ x, y, width, height, isTakingDamage }: PlayerC
       aria-label="Player character"
     />
   );
-}
+};
+
+const areEqual = (prevProps: PlayerCharacterProps, nextProps: PlayerCharacterProps) => {
+    return (
+        prevProps.x === nextProps.x &&
+        prevProps.y === nextProps.y &&
+        prevProps.isTakingDamage === nextProps.isTakingDamage
+    );
+};
+
+export const PlayerCharacter = React.memo(PlayerCharacterComponent, areEqual);

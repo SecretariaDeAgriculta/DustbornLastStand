@@ -9,7 +9,7 @@ interface XPOrbProps {
   size: number;
 }
 
-export function XPOrb({ x, y, size }: XPOrbProps) {
+const XPOrbComponent = ({ x, y, size }: XPOrbProps) => {
   return (
     <div
       className="absolute bg-yellow-400 rounded-full shadow animate-pulse"
@@ -24,4 +24,13 @@ export function XPOrb({ x, y, size }: XPOrbProps) {
       aria-label="Moeda"
     />
   );
-}
+};
+
+const areEqual = (prevProps: XPOrbProps, nextProps: XPOrbProps) => {
+    // Orbs are static until collected, so we only need to compare position.
+    // Since they are removed on collection, an ID check isn't strictly necessary
+    // if we assume keys are handled correctly by the parent.
+    return prevProps.x === nextProps.x && prevProps.y === nextProps.y;
+};
+
+export const XPOrb = React.memo(XPOrbComponent, areEqual);

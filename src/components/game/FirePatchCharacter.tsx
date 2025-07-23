@@ -12,7 +12,7 @@ interface FirePatchProps {
   maxDuration: number;
 }
 
-export function FirePatchCharacter({ x, y, radius, remainingDuration, maxDuration = FIRE_PATCH_DURATION }: FirePatchProps) {
+const FirePatchCharacterComponent = ({ x, y, radius, remainingDuration, maxDuration = FIRE_PATCH_DURATION }: FirePatchProps) => {
   const opacity = Math.max(0.2, (remainingDuration / maxDuration) * 0.7); // Fades out
   const scale = Math.min(1, 0.8 + (1 - remainingDuration / maxDuration) * 0.4); // Subtle flicker/growth
 
@@ -44,6 +44,15 @@ export function FirePatchCharacter({ x, y, radius, remainingDuration, maxDuratio
       `}</style>
     </div>
   );
-}
+};
 
+const areEqual = (prevProps: FirePatchProps, nextProps: FirePatchProps) => {
+    return (
+        prevProps.x === nextProps.x &&
+        prevProps.y === nextProps.y &&
+        prevProps.remainingDuration === nextProps.remainingDuration
+    );
+};
+
+export const FirePatchCharacter = React.memo(FirePatchCharacterComponent, areEqual);
     
