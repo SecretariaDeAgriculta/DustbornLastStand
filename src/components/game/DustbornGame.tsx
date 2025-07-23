@@ -10,7 +10,6 @@ import { XPOrb } from './XPOrb';
 import { ShopDialog } from './ShopDialog';
 import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
-import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
 import { FissureTrapCharacter } from './FissureTrapCharacter';
 import { FirePatchCharacter } from './FirePatchCharacter';
 import { PauseIcon, PlayIcon, HomeIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
@@ -262,20 +261,14 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         let animationFrameId: number;
         const gameTick = (timestamp: number) => {
             const now = Date.now();
-            let state = useGameStore.getState();
+            const state = useGameStore.getState();
 
             // --- Aquisição de Alvo (Otimizado) ---
-            const newTarget = acquireTarget(now, lastTargetUpdateRef.current, state.player, state.enemies);
-            if (newTarget !== undefined) {
-                // `acquireTarget` now sets the state internally if a change occurred.
-                // We re-fetch state in case it changed.
-                state = useGameStore.getState(); 
-            }
-            if (newTarget) lastTargetUpdateRef.current = now;
+            acquireTarget(now, lastTargetUpdateRef.current);
+            if (state.targetEnemy) lastTargetUpdateRef.current = now;
 
             // --- Movimento do Jogador ---
             updatePlayerMovement(activeKeys.current);
-            state = useGameStore.getState();
 
             // --- Disparos do Jogador ---
             if (state.targetEnemy) {
@@ -286,7 +279,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 if (Object.keys(updatedTimestamps).length > 0) {
                     lastPlayerShotTimestampRef.current = updatedTimestamps;
                 }
-                state = useGameStore.getState();
             }
 
             // --- Atualização de Projéteis ---
@@ -305,7 +297,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 if (newHealth <= 0) setIsGameOver(true);
                 setPlayer({ ...state.player, health: newHealth });
             }
-            state = useGameStore.getState();
             
             // --- Atualização de Efeitos de Área ---
             const firePatchUpdate = updateFirePatches(now, state.firePatches, state.enemies);
@@ -322,7 +313,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 if (newHealth <= 0) setIsGameOver(true);
                 setPlayer({ ...state.player, health: newHealth });
             }
-            state = useGameStore.getState();
 
             // --- Atualização de Inimigos ---
             const enemyState = updateEnemies({
@@ -364,7 +354,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             if (enemyState.targetKilled) {
                 setTargetEnemy(null);
             }
-            state = useGameStore.getState();
 
             // --- Coleta de Orbs de Dinheiro ---
             updateMoneyOrbs();
@@ -404,7 +393,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
               setFirePatches([]);
               setWaveTimer(WAVE_DURATION);
         }
-    }, [waveTimer, generateShopOfferings]);
+    }, [waveTimer, generateShopOfferings, setMoneyOrbs, setPlayerDollars, setIsShopPhase, setFissureTraps, setFirePatches, setWaveTimer]);
 
     const doSpawnEnemies = useCallback(() => {
         const { isShopPhase, isGameOver, isPaused, wave, player, enemies } = useGameStore.getState();

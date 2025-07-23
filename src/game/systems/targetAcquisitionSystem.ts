@@ -8,21 +8,19 @@ const TARGET_UPDATE_INTERVAL = 200; // ms
 export const acquireTarget = (
     now: number,
     lastTargetUpdate: number,
-    player: Player,
-    enemies: Enemy[]
-): Enemy | null | undefined => {
+): void => {
 
     if (now - lastTargetUpdate < TARGET_UPDATE_INTERVAL) {
-        return undefined; // Indicate no update needed
+        return; 
     }
-
-    const { setTargetEnemy } = useGameStore.getState();
+    
+    const { player, enemies, setTargetEnemy } = useGameStore.getState();
 
     const validEnemies = enemies.filter(enemy => enemy.health > 0 && !enemy.isDetonating && !enemy.isAiming);
     
     if (validEnemies.length === 0) {
         setTargetEnemy(null);
-        return null;
+        return;
     }
 
     const playerCenterX = player.x + player.width / 2;
@@ -36,6 +34,4 @@ export const acquireTarget = (
     const closest = quadtree.find(playerCenterX, playerCenterY);
     
     setTargetEnemy(closest || null);
-    return closest || null;
 };
-
