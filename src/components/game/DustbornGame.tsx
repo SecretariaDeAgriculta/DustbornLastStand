@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Projectile } from './Projectile';
 import { FissureTrapCharacter } from './FissureTrapCharacter';
 import { FirePatchCharacter } from './FirePatchCharacter';
+import { PlayerInventoryDisplay } from './PlayerInventoryDisplay';
 import { PauseIcon, PlayIcon, HomeIcon, ArrowUp, ArrowDown, ArrowLeft, ArrowRight } from 'lucide-react';
 import type { Weapon } from '@/config/weapons';
 import { initialWeapon, getPurchasableWeapons, getWeaponById } from '@/config/weapons';
@@ -545,3 +546,5 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
+
+    
