@@ -389,18 +389,23 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
 
     useEffect(() => {
         if(waveTimer <= 0) {
-             if (waveIntervalId.current) clearInterval(waveIntervalId.current);
-              setMoneyOrbs(currentMoneyOrbs => {
-                if (currentMoneyOrbs.length > 0) setPlayerDollars(useGameStore.getState().playerDollars + currentMoneyOrbs.reduce((s, o) => s + o.value, 0));
-                return [];
-              });
-              setIsShopPhase(true);
-              generateShopOfferings();
-              if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
-              enemySpawnTimerId.current = null;
-              setFissureTraps([]);
-              setFirePatches([]);
-              setWaveTimer(WAVE_DURATION);
+            if (waveIntervalId.current) clearInterval(waveIntervalId.current);
+            
+            // Coletar todas as orbs de dinheiro restantes no final da onda.
+            const currentState = useGameStore.getState();
+            if (currentState.moneyOrbs.length > 0) {
+                const remainingValue = currentState.moneyOrbs.reduce((sum, orb) => sum + orb.value, 0);
+                setPlayerDollars(currentState.playerDollars + remainingValue);
+                setMoneyOrbs([]); // Limpa as orbs após coletar.
+            }
+            
+            setIsShopPhase(true);
+            generateShopOfferings();
+            if(enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
+            enemySpawnTimerId.current = null;
+            setFissureTraps([]);
+            setFirePatches([]);
+            setWaveTimer(WAVE_DURATION);
         }
     }, [waveTimer, generateShopOfferings, setMoneyOrbs, setPlayerDollars, setIsShopPhase, setFissureTraps, setFirePatches, setWaveTimer]);
 
@@ -554,5 +559,3 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
-
-    
