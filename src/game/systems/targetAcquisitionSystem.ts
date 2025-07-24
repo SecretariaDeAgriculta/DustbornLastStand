@@ -1,26 +1,24 @@
 
 import type { Player, Enemy } from '../types';
 import { quadtree as d3Quadtree } from 'd3-quadtree';
-import { useGameStore } from '@/store/useGameStore';
 
 const TARGET_UPDATE_INTERVAL = 200; // ms
 
 export const acquireTarget = (
     now: number,
     lastTargetUpdate: number,
-): void => {
+    player: Player,
+    enemies: Enemy[]
+): Enemy | null | undefined => {
 
     if (now - lastTargetUpdate < TARGET_UPDATE_INTERVAL) {
-        return; 
+        return undefined; // Indicate that no update should happen
     }
     
-    const { player, enemies, setTargetEnemy } = useGameStore.getState();
-
     const validEnemies = enemies.filter(enemy => enemy.health > 0 && !enemy.isDetonating && !enemy.isAiming);
     
     if (validEnemies.length === 0) {
-        setTargetEnemy(null);
-        return;
+        return null;
     }
 
     const playerCenterX = player.x + player.width / 2;
@@ -33,5 +31,5 @@ export const acquireTarget = (
 
     const closest = quadtree.find(playerCenterX, playerCenterY);
     
-    setTargetEnemy(closest || null);
+    return closest || null;
 };

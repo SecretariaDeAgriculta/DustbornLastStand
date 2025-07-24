@@ -1,18 +1,23 @@
 
 import type { ProjectileData, Player, Enemy } from '../types';
 import type { Weapon } from '@/config/weapons';
-import { useGameStore } from '@/store/useGameStore';
 import { PLAYER_PROJECTILE_BASE_SIZE } from '../constants/projectiles';
 import { PLAYER_SIZE } from '../constants/player';
 
-export const handleShooting = (now: number, targetEnemy: Enemy | null, player: Player, playerWeapons: Weapon[]) => {
-    const { setPlayerProjectiles, lastPlayerShotTimestamp, setLastPlayerShotTimestamp } = useGameStore.getState();
-
-    if (!targetEnemy || !playerWeapons || playerWeapons.length === 0) {
-        return;
-    }
+export const handleShooting = (
+    now: number, 
+    targetEnemy: Enemy | null, 
+    player: Player, 
+    playerWeapons: Weapon[], 
+    lastPlayerShotTimestamp: Record<string, number>
+) => {
 
     const newlySpawnedProjectiles: ProjectileData[] = [];
+    const updatedTimestamps: Record<string, number> = { ...lastPlayerShotTimestamp };
+
+    if (!targetEnemy || !playerWeapons || playerWeapons.length === 0) {
+        return { newProjectiles: newlySpawnedProjectiles, updatedTimestamps };
+    }
     
     const playerCenterX = player.x + player.width / 2;
     const playerCenterY = player.y + player.height / 2;
@@ -20,8 +25,6 @@ export const handleShooting = (now: number, targetEnemy: Enemy | null, player: P
     const targetCenterY = targetEnemy.y + targetEnemy.height / 2;
     const distSq = (playerCenterX - targetCenterX) ** 2 + (playerCenterY - targetCenterY) ** 2;
 
-    const updatedTimestamps: Record<string, number> = { ...lastPlayerShotTimestamp };
-    let didShoot = false;
 
     playerWeapons.forEach(weapon => {
         const lastShotTime = updatedTimestamps[weapon.id] || 0;
@@ -62,18 +65,9 @@ export const handleShooting = (now: number, targetEnemy: Enemy | null, player: P
                     originWeaponId: weapon.id, isEnemyProjectile: false,
                 });
             }
-             // Mark that this weapon shot and update its timestamp
             updatedTimestamps[weapon.id] = now;
-            didShoot = true;
         }
     });
 
-    if (newlySpawnedProjectiles.length > 0) {
-        const currentProjectiles = useGameStore.getState().playerProjectiles;
-        setPlayerProjectiles([...currentProjectiles, ...newlySpawnedProjectiles]);
-    }
-    
-    if (didShoot) {
-        setLastPlayerShotTimestamp(updatedTimestamps);
-    }
+    return { newProjectiles: newlySpawnedProjectiles, updatedTimestamps };
 };

@@ -81,7 +81,7 @@ const getInitialState = () => ({
   lastPlayerShotTimestamp: {},
 });
 
-export const useGameStore = create<GameState>((set) => ({
+export const useGameStore = create<GameState>((set, get) => ({
   ...getInitialState(),
   setPlayer: (player) => set({ player }),
   setEnemies: (enemies) => set({ enemies }),

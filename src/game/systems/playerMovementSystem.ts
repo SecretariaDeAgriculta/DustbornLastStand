@@ -1,10 +1,9 @@
 
-import { useGameStore } from '@/store/useGameStore';
+import type { Player } from '../types';
 import { PLAYER_SPEED } from '../constants/player';
 import { GAME_WIDTH, GAME_HEIGHT } from '../constants/game';
 
-export const updatePlayerMovement = (activeKeys: Set<string>) => {
-    const { player, setPlayer } = useGameStore.getState();
+export const updatePlayerMovement = (activeKeys: Set<string>, currentPlayer: Player): Partial<Player> => {
     
     let inputDx = 0, inputDy = 0;
     if (activeKeys.has('arrowup') || activeKeys.has('w')) inputDy -= 1;
@@ -22,12 +21,10 @@ export const updatePlayerMovement = (activeKeys: Set<string>) => {
           moveX = inputDx * PLAYER_SPEED;
           moveY = inputDy * PLAYER_SPEED;
       }
-      setPlayer({
-        ...player,
-        x: Math.max(0, Math.min(player.x + moveX, GAME_WIDTH - player.width)),
-        y: Math.max(0, Math.min(player.y + moveY, GAME_HEIGHT - player.height)),
-      });
+      return {
+        x: Math.max(0, Math.min(currentPlayer.x + moveX, GAME_WIDTH - currentPlayer.width)),
+        y: Math.max(0, Math.min(currentPlayer.y + moveY, GAME_HEIGHT - currentPlayer.height)),
+      };
     }
+    return {};
 };
-
-    
