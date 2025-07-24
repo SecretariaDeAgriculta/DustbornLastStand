@@ -20,7 +20,7 @@ import { cn } from '@/lib/utils';
 import { useGameStore } from '@/store/useGameStore';
 
 // Importando Tipos e Constantes
-import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL, MAX_PLAYER_WEAPONS, RECYCLE_MONEY_PERCENTAGE, INITIAL_WEAPON_RECYCLE_MONEY } from '@/game/constants/game';
+import { GAME_WIDTH, GAME_HEIGHT, WAVE_DURATION, ENEMY_SPAWN_TICK_INTERVAL, MAX_PLAYER_WEAPONS, RECYCLE_MONEY_PERCENTAGE, INITIAL_WEAPON_RECYCLE_MONEY, MONEY_ORB_SIZE } from '@/game/constants/game';
 import { PLAYER_INITIAL_HEALTH, PLAYER_SIZE } from '@/game/constants/player';
 
 // Importando Sistemas de Lógica do Jogo
@@ -107,7 +107,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const activeKeys = useRef<Set<string>>(new Set());
     const enemySpawnTimerId = useRef<NodeJS.Timer | null>(null);
     const waveIntervalId = useRef<NodeJS.Timeout | null>(null);
-    const lastTargetUpdateRef = useRef(0);
     const gameAreaRef = useRef<HTMLDivElement>(null);
     const { toast } = useToast();
     const frameCountRef = useRef(0);
@@ -155,7 +154,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const resetGameStateAndExit = useCallback(() => {
         resetGame();
         activeKeys.current.clear();
-        lastTargetUpdateRef.current = 0;
         if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
         enemySpawnTimerId.current = null;
         if (onExitToMenu) onExitToMenu();
@@ -164,7 +162,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     const handleReset = useCallback(() => {
         resetGame();
         activeKeys.current.clear();
-        lastTargetUpdateRef.current = 0;
         if (enemySpawnTimerId.current) clearInterval(enemySpawnTimerId.current);
         enemySpawnTimerId.current = null;
     }, [resetGame]);
@@ -318,13 +315,13 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             const newPlayerPosition = updatePlayerMovement(activeKeys.current, currentState.player);
 
             // --- Aquisição de Alvo ---
-            const newTarget = acquireTarget(now, lastTargetUpdateRef.current, currentState.player, currentState.enemies);
-            if(newTarget !== undefined) lastTargetUpdateRef.current = now; // Only update if acquireTarget ran
-
-            const target = newTarget ?? currentState.targetEnemy;
+            const newTarget = acquireTarget(currentState.player, currentState.enemies);
+            if(newTarget?.id !== currentState.targetEnemy?.id) {
+                 useGameStore.setState({ targetEnemy: newTarget });
+            }
             
             // --- Disparos do Jogador ---
-            const shootingResult = handleShooting(now, target, currentState.player, currentState.playerWeapons, currentState.lastPlayerShotTimestamp);
+            const shootingResult = handleShooting(now, newTarget, currentState.player, currentState.playerWeapons, currentState.lastPlayerShotTimestamp);
            
             // --- Atualização de Projéteis ---
             const projectileState = updateProjectiles(currentState.playerProjectiles, currentState.enemyProjectiles, currentState.enemies, currentState.playerWeapons);
@@ -344,6 +341,15 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
             // --- Coleta de Orbs de Dinheiro ---
             const moneyOrbUpdate = updateMoneyOrbs(currentState.player, currentState.moneyOrbs);
 
+            // --- Criação de Orbs de Dinheiro ---
+            const newMoneyOrbs = enemyState.killedEnemies.map(enemy => ({
+              id: `money_${enemy.id}_${Date.now()}`,
+              x: enemy.x + enemy.width / 2,
+              y: enemy.y + enemy.height / 2,
+              size: MONEY_ORB_SIZE,
+              value: enemy.moneyValue,
+            }));
+
 
             // 3. APPLY all state changes atomically
             const newPlayerHealth = Math.max(0, currentState.player.health - projectileState.playerDamage - fissureTrapUpdate.playerDamage - enemyState.playerDamage);
@@ -359,7 +365,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                     ...newPlayerPosition,
                     health: newPlayerHealth
                 },
-                targetEnemy: newTarget !== undefined ? newTarget : prevState.targetEnemy,
                 lastPlayerShotTimestamp: shootingResult.updatedTimestamps,
                 playerProjectiles: [...projectileState.newPlayerProjectiles, ...shootingResult.newProjectiles],
                 enemyProjectiles: [...projectileState.newEnemyProjectiles, ...enemyState.newEnemyProjectiles],
@@ -367,7 +372,7 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
                 laserSightLines: enemyState.newLaserSights,
                 firePatches: [...firePatchUpdate.updatedPatches, ...projectileState.firePatchesToCreate],
                 fissureTraps: [...fissureTrapUpdate.updatedTraps, ...enemyState.newFissureTraps],
-                moneyOrbs: moneyOrbUpdate.remainingOrbs,
+                moneyOrbs: [...moneyOrbUpdate.remainingOrbs, ...newMoneyOrbs],
                 playerDollars: prevState.playerDollars + moneyOrbUpdate.collectedValue,
                 score: prevState.score + enemyState.killedEnemies.reduce((acc, e) => acc + e.moneyValue * (e.type.startsWith('Boss_') ? 20 : 5), 0),
             }));
@@ -451,7 +456,6 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
         setWave(wave + 1);
         setPlayer({ ...player, health: PLAYER_INITIAL_HEALTH });
         setLastPlayerShotTimestamp({});
-        lastTargetUpdateRef.current = 0;
         setIsPaused(false);
         setFissureTraps([]);
         setFirePatches([]);
@@ -570,3 +574,5 @@ export function DustbornGame({ onExitToMenu, deviceType }: DustbornGameProps) {
     </div>
   );
 }
+
+    
